@@ -1,0 +1,16 @@
+# Node / Cloudflare
+node_modules/
+.wrangler/
+dist/
+coverage/
+
+# Segreti locali - MAI committare
+.dev.vars
+.env
+.env.*
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/*
+!.vscode/extensions.json
