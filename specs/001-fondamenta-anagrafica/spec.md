@@ -42,6 +42,11 @@
 - Q: Cosa fa il bot se si preme un pulsante di un messaggio vecchio (flusso scaduto/annullato, persona eliminata)? → A: Non esegue nulla e risponde "Questa azione non è più disponibile"; se la persona non esiste più, "Persona non trovata".
 - Q: In uno step a pulsanti (es. Priorità, Sì / Correggi), cosa fa il bot se si scrive testo invece di premere? → A: Ignora il testo e ripete la domanda dello step con i suoi pulsanti.
 - Q: Quali limiti per i testi inseriti (nome, nickname, gruppo, messaggio) e per i valori vuoti? → A: Spazi iniziali/finali rimossi; vuoto rifiutato; massimi: nome e nickname 60 caratteri, gruppo 30, messaggio 500; oltre il limite rifiuto con indicazione del massimo e ripetizione della domanda.
+- Q: Nel guidato la priorità si può non scegliere? → A: No: lo step mostra Alta / Media ✓ / Bassa con Media preselezionata e si conferma con un tocco; "default Media" vale per il valore iniziale del database e per l'import (BR-21).
+- Q: Un gruppo creato con "Nuovo gruppo" durante un flusso guidato viene salvato subito? → A: No: appare creato e già selezionato, ma viene scritto solo al salvataggio finale; se il flusso viene annullato, scade o è interrotto da un altro comando, il gruppo non esiste (risolve il conflitto RF-08 / RF-06).
+- Q: Durante un flusso guidato, cosa succede con un comando inesistente (es. `/annula`)? → A: Il flusso non viene interrotto: il bot risponde "Non ho capito. Scrivi /aiuto per l'elenco dei comandi" e ripete la domanda dello step corrente.
+- Q: "Stessa data" ai fini del duplicato (BR-14) considera l'anno? → A: Giorno e mese devono coincidere; l'anno deve coincidere solo se è presente in entrambe le date. Quindi `14/03` e `14/03/1994` sono un possibile duplicato, `14/03/1994` e `14/03/1995` no. La stessa regola varrà per l'import.
+- Q: Come si mostra il telefono nella scheda? → A: Nella forma salvata, senza spazi (es. `+393331234567`), che Telegram rende cliccabile (V-04); gli spazi nell'esempio AFU §5.6 sono solo illustrativi.
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -206,7 +211,7 @@ Il proprietario avvia il bot con `/start` e consulta i comandi con `/aiuto`.
 - Telefono inserito senza prefisso: salvato con +39. *(BR-15)*
 - Telefono con `00` iniziale (es. `0041 79 123 45 67`): salvato come `+41791234567`; telefono con lettere o con meno di 8 / più di 15 cifre dopo il `+`: rifiutato. *(BR-15, chiarimento 2026-10-28)*
 - Username Instagram o Telegram inserito con `@`: salvato senza `@`. *(BR-16)*
-- Persona con stesso nome (maiuscole/minuscole ignorate) e stessa data di una esistente: avviso di possibile duplicato e conferma esplicita. *(BR-14)*
+- Persona con stesso nome (maiuscole/minuscole ignorate) e stessa data di una esistente: avviso di possibile duplicato e conferma esplicita. Una data senza anno coincide con qualsiasi data con lo stesso giorno e mese (es. `14/03` e `14/03/1994`). *(BR-14, chiarimento 2026-10-28)*
 - Nome di gruppo uguale a uno esistente a meno di maiuscole/minuscole, in creazione o rinomina: rifiutato. *(BR-17)*
 - Comando diverso da `/id` da un utente estraneo, anche durante un flusso guidato del proprietario: nessuna risposta, nessun salvataggio. *(RF-30, RNF-02)*
 - Richiesta con l'ID del proprietario ma senza token segreto corretto: scartata. *(RNF-03)*
@@ -224,7 +229,7 @@ Il proprietario avvia il bot con `/start` e consulta i comandi con `/aiuto`.
 - **FR-001** *(RF-01)*: Il sistema MUST permettere l'inserimento guidato di una persona (comando `/nuovo` o pulsante "Aggiungi persona"), un campo alla volta, nell'ordine: nome completo*, nickname, data*, telefono, Instagram, Telegram, gruppi, priorità, messaggio personalizzato (* = obbligatorio).
 - **FR-002** *(RF-01)*: I campi opzionali MUST offrire il pulsante "Salta"; la priorità, se non scelta, MUST valere Media.
 - **FR-003** *(RF-01)*: Al termine il sistema MUST mostrare un riepilogo con Salva / Annulla; dopo il salvataggio MUST mostrare la scheda della persona.
-- **FR-004** *(RF-01, BR-14)*: Al salvataggio, se esiste già una persona con lo stesso nome completo (senza distinzione tra maiuscole e minuscole) e la stessa data, il sistema MUST avvisare del possibile duplicato e chiedere conferma esplicita prima di salvare. Per l'import la regola BR-14 prevede che la riga sia saltata, anche per duplicati interni allo stesso file: si applica con la feature dell'import.
+- **FR-004** *(RF-01, BR-14)*: Al salvataggio, se esiste già una persona con lo stesso nome completo (senza distinzione tra maiuscole e minuscole) e la stessa data (stesso giorno e mese; anno uguale se presente in entrambe, chiarimento 2026-10-28), il sistema MUST avvisare del possibile duplicato e chiedere conferma esplicita prima di salvare. Per l'import la regola BR-14 prevede che la riga sia saltata, anche per duplicati interni allo stesso file: si applica con la feature dell'import.
 - **FR-005** *(RF-02, BR-01)*: Il sistema MUST accettare la data solo nei formati `gg/mm/aaaa` o `gg/mm` (anno sconosciuto) e rifiutare qualsiasi altro formato o data inesistente, ripetendo il formato atteso. Il formato vale sia nel bot sia nel CSV.
 - **FR-006** *(RF-02)*: Il sistema MUST rifiutare `29/02` con un anno non bisestile e accettare `29/02` senza anno.
 - **FR-007** *(BR-02)*: L'anno, se presente, MUST NOT essere futuro né precedente al 1900.
@@ -232,16 +237,16 @@ Il proprietario avvia il bot con `/start` e consulta i comandi con `/aiuto`.
 - **FR-009** *(BR-15)*: Il telefono MUST essere salvato in formato internazionale; se inserito senza prefisso si assume +39. Normalizzazione e validazione: si rimuovono spazi, punti e trattini; un `+` o `00` iniziale indica un prefisso già presente (`00` diventa `+`), altrimenti si antepone `+39`; il risultato MUST essere `+` seguito da sole cifre, da 8 a 15. In caso contrario il bot rifiuta il valore e ripete l'esempio di formato.
 - **FR-010** *(BR-16)*: Gli username Instagram e Telegram MUST essere salvati senza `@`; se presente viene rimosso.
 - **FR-010a** *(RF-01, RF-04, RF-07)*: Per nome completo, nickname, nome di gruppo e messaggio personalizzato il sistema MUST rimuovere gli spazi iniziali e finali e rifiutare un valore vuoto. Lunghezze massime: nome completo 60 caratteri, nickname 60, nome di gruppo 30, messaggio personalizzato 500. Un valore oltre il limite MUST essere rifiutato indicando il massimo e ripetendo la domanda.
-- **FR-011** *(RF-03)*: Il comando `/p_<id>` MUST mostrare la scheda: nome e nickname, data di nascita, età che compirà e giorni mancanti, priorità, gruppi, contatti presenti, messaggio personalizzato (se presente), storico esiti per anno; pulsanti Modifica ed Elimina. Il layout segue l'esempio AFU §5.6.
+- **FR-011** *(RF-03)*: Il comando `/p_<id>` MUST mostrare la scheda: nome e nickname, data di nascita, età che compirà e giorni mancanti, priorità, gruppi, contatti presenti, messaggio personalizzato (se presente), storico esiti per anno; pulsanti Modifica ed Elimina. Il layout segue l'esempio AFU §5.6; il telefono è mostrato in forma internazionale senza spazi.
 - **FR-012** *(RF-03)*: Se l'anno di nascita non è noto, la scheda MUST NOT mostrare l'età.
 - **FR-012a** *(RF-03)*: Se `/p_<id>` non corrisponde a nessuna persona, il sistema MUST rispondere "Persona non trovata".
 - **FR-013** *(RF-03)*: La riga "Storico" della scheda MUST comparire solo se la persona ha almeno un esito. In questa feature non esistono esiti, quindi la riga non compare; lo storico sarà alimentato dalla feature dei promemoria (RF-14).
 - **FR-014** *(RF-04)*: Il pulsante Modifica MUST aprire un menù di pulsanti: Nome · Nickname · Data · Telefono · Instagram · Telegram · Gruppi · Priorità · Messaggio. Il sistema MUST chiedere solo il campo scelto, salvarlo e rimostrare la scheda.
 - **FR-015** *(RF-04)*: Per i campi opzionali la modifica MUST offrire anche "Svuota", che rimuove il valore del campo.
 - **FR-016** *(RF-04, RF-02, BR-01, BR-02, BR-15, BR-16)*: I valori inseriti in modifica MUST rispettare le stesse regole di validazione e normalizzazione dell'inserimento.
-- **FR-016a** *(RF-04, BR-14)*: Se la modifica del nome o della data rende la persona un duplicato di un'altra (stesso nome completo senza distinzione tra maiuscole e minuscole e stessa data), il sistema MUST avvisare del possibile duplicato e chiedere conferma esplicita prima di salvare.
+- **FR-016a** *(RF-04, BR-14)*: Se la modifica del nome o della data rende la persona un duplicato di un'altra (stesso nome completo senza distinzione tra maiuscole e minuscole e stessa data, con la regola di FR-004), il sistema MUST avvisare del possibile duplicato e chiedere conferma esplicita prima di salvare.
 - **FR-017** *(RF-05, RNF-05)*: Il pulsante Elimina MUST chiedere conferma con il testo "Eliminare <nome completo>? Perderai anche lo storico" e pulsanti Sì / Annulla. Con Sì MUST eliminare persona, associazioni ai gruppi, occorrenze e storico; con Annulla nulla cambia.
-- **FR-018** *(RF-06)*: In qualunque flusso guidato, `/annulla` o il pulsante Annulla MUST interrompere il flusso senza salvare nulla. Qualsiasi altro comando ricevuto durante un flusso guidato MUST interrompere il flusso allo stesso modo e poi essere eseguito.
+- **FR-018** *(RF-06)*: In qualunque flusso guidato, `/annulla` o il pulsante Annulla MUST interrompere il flusso senza salvare nulla. Qualsiasi altro comando esistente ricevuto durante un flusso guidato MUST interrompere il flusso allo stesso modo e poi essere eseguito. Un comando inesistente MUST NOT interrompere il flusso: il sistema risponde "Non ho capito. Scrivi /aiuto per l'elenco dei comandi" e ripete la domanda dello step corrente.
 - **FR-018a** *(A-04)*: Un flusso guidato senza interazioni per 24 ore MUST scadere senza salvare nulla e senza messaggi; il messaggio successivo MUST essere trattato come fuori da qualsiasi flusso.
 - **FR-018b** *(RNF-13)*: In uno step che si risponde con pulsanti (es. Priorità, Sì / Correggi, Gruppi, Salva / Annulla), un testo libero diverso da un comando MUST essere ignorato e il sistema MUST ripetere la domanda dello step con i suoi pulsanti.
 - **FR-018c** *(RF-05, RF-06, A-04)*: Se viene premuto un pulsante di un messaggio non più valido (flusso scaduto, annullato o già concluso), il sistema MUST NOT eseguire alcuna azione e MUST rispondere "Questa azione non è più disponibile"; se il pulsante riguarda una persona che non esiste più, MUST rispondere "Persona non trovata".
@@ -252,7 +257,7 @@ Il proprietario avvia il bot con `/start` e consulta i comandi con `/aiuto`.
 - **FR-020** *(RF-07, BR-17)*: Il nome di un gruppo MUST essere univoco senza distinzione tra maiuscole e minuscole; creazioni o rinomine che violano la regola MUST essere rifiutate.
 - **FR-021** *(RF-07)*: La rinomina di un gruppo MUST riflettersi su tutte le persone associate.
 - **FR-022** *(RF-07, RNF-05)*: L'eliminazione di un gruppo MUST chiedere conferma indicando quante persone perderanno l'etichetta (es. "8 persone perderanno questa etichetta"); confermando, il gruppo viene eliminato e le persone restano.
-- **FR-023** *(RF-08)*: Nello step Gruppi (inserimento o modifica) il sistema MUST mostrare i gruppi esistenti come pulsanti a selezione multipla (attiva/disattiva), più "➕ Nuovo gruppo" e "Fine". Un gruppo creato con "Nuovo gruppo" MUST risultare già selezionato.
+- **FR-023** *(RF-08)*: Nello step Gruppi (inserimento o modifica) il sistema MUST mostrare i gruppi esistenti come pulsanti a selezione multipla (attiva/disattiva), più "➕ Nuovo gruppo" e "Fine". Un gruppo creato con "Nuovo gruppo" MUST risultare già selezionato. Il gruppo viene salvato solo insieme alla persona (o alla modifica); se il flusso non si conclude, non viene creato.
 
 **Accesso e avvio**
 
