@@ -88,7 +88,7 @@ Il comando `/p_<id>` mostra: nome e nickname, data di nascita, età che compirà
 **RF-04 — Modifica per campo** · MVP
 Modifica apre un menù di pulsanti: Nome · Nickname · Data · Telefono · Instagram · Telegram · Gruppi · Priorità · Messaggio. Il bot chiede solo il campo scelto, salva e rimostra la scheda. I campi opzionali hanno anche "Svuota".
 - *Dato* che sono nella scheda, *quando* premo Modifica → Instagram e invio un nuovo username, *allora* viene aggiornato solo quel campo e rivedo la scheda.
-- *Dato* che premo Modifica → Telefono → Svuota, *quando* confermo, *allora* il telefono viene rimosso e il pulsante WhatsApp sparisce dai reminder.
+- *Dato* che premo Modifica → Telefono → Svuota, *quando* confermo, *allora* il telefono viene rimosso.
 
 **RF-05 — Eliminazione persona** · MVP
 - *Dato* che premo Elimina, *quando* il bot chiede "Eliminare Marco Rossi? Perderai anche lo storico" e premo Sì, *allora* persona, associazioni ai gruppi, occorrenze e storico vengono eliminati.
@@ -132,6 +132,7 @@ Compaiono solo per i contatti presenti nella scheda.
 Il numero di telefono compare nel testo del reminder: Telegram lo rende cliccabile per chiamare o copiarlo (vedi §10, vincolo V-04).
 - *Dato* che Marco ha solo telefono e Instagram, *quando* ricevo il reminder, *allora* vedo WhatsApp, Instagram e Copia messaggio, ma non Telegram.
 - *Dato* che premo WhatsApp, *allora* si apre la chat con Marco e il messaggio di auguri già scritto, senza età.
+- *Dato* che una persona non ha telefono (mai inserito o svuotato con Modifica), *quando* ricevo il reminder, *allora* il pulsante WhatsApp non compare.
 
 **RF-12 — Chiusura: Fatto / Salta quest'anno** · MVP
 - *Dato* che premo Fatto su un reminder, *allora* l'occorrenza diventa *fatto*, non ricevo altri slot né il recupero, e il messaggio si aggiorna mostrando "✅ Fatto" (i pulsanti di contatto restano).
@@ -298,7 +299,7 @@ L'anno scorso: fatto ✅
 ### 5.6 Scheda
 ```
 Marco Rossi — "Marchino"
-14/03/1994 · compie 32 anni tra 137 giorni
+14/03/1994 · compie 33 anni tra 137 giorni
 Priorità: alta · Gruppi: Beach tennis, Lavoro
 📱 +39 333 1234567 · IG @marco.rossi · TG @mrossi
 Messaggio: standard
