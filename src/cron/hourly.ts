@@ -104,7 +104,7 @@ export async function runHourly(deps: CronDeps, scheduledAt: Date): Promise<RunR
         const person = byPerson.get(row.person_id);
         if (!person) throw new Error("person_missing");
         const data = buildReminderData(person, {
-          deliveryId: row.id,
+          actionTarget: { scope: "o", id: row.id },
           year: row.year,
           lastYear: statusOf.get(`${row.person_id}:${row.year - 1}`) ?? null,
           defaultMessage,

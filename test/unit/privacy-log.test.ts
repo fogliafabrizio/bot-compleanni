@@ -1,9 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { insertPerson } from "../helpers/db";
 import { runAt } from "../helpers/cron";
-import { makeCronDeps } from "../helpers/deps";
+import { makeCronDeps, makeDeps } from "../helpers/deps";
 import { cbOf } from "../helpers/fake-telegram";
-import { press } from "../helpers/send";
+import { press, say } from "../helpers/send";
 
 // Principio V, RNF-08: i log contengono solo codici e numeri.
 const SECRETS = ["Marco", "Rossi", "Marchino", "393331234567", "marco.ig", "marco_tg", "auguri", "Anna", "Bianchi", "1995", "14/03", "03-14"];
@@ -41,6 +41,18 @@ describe("principio V, RNF-08: nessun dato personale nei log", () => {
     await runAt(deps, 2027, 3, 14, 9);
     await press(deps, cbOf(deps.tg.lastKeyboard(), "Fatto ✅"), 100);
     expect(lines.some((l) => l.includes("cron_run"))).toBe(true);
+    for (const l of lines) for (const s of SECRETS) expect(l).not.toContain(s);
+  });
+
+  it("principio V (003): viste, ricerche e tocchi non loggano testi di ricerca, nomi o date", async () => {
+    await insertPerson({ id: 1, fullName: "Marco Rossi", nickname: "Marchino", day: 28, month: 10, year: 1995 });
+    await insertPerson({ id: 2, fullName: "Anna Bianchi", day: 14, month: 3 });
+    const deps = makeDeps();
+    for (const text of ["/oggi", "/prossimi 366", "/cerca Marchino", "/cerca Bianchi", "/gruppo Rossi", "/mese 3", "/scaduti", "/anno 1995"]) {
+      await say(deps, text);
+    }
+    await press(deps, cbOf(deps.tg.messages()[0]!.keyboard, "Fatto ✅"));
+    await press(deps, "p:f:1");
     for (const l of lines) for (const s of SECRETS) expect(l).not.toContain(s);
   });
 });

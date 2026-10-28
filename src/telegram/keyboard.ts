@@ -1,9 +1,10 @@
 import type { InlineKeyboardButton, InlineKeyboardMarkup } from "./types";
 
-// Formato dei callback_data: contracts/callback-data.md (research R-10).
+// Formato dei callback_data: contracts/callback-data.md (research R-10); ambito "t" dei messaggi
+// di /oggi in specs/003-viste-ricerche/contracts/callback-data.md.
 
 export type Callback =
-  | { kind: "static"; scope: "s" | "p" | "g" | "o"; action: string; id?: number }
+  | { kind: "static"; scope: "s" | "p" | "g" | "o" | "t"; action: string; id?: number }
   | { kind: "flow"; flowId: string; action: string; arg?: string };
 
 const MAX_BYTES = 64;
@@ -32,7 +33,7 @@ export function decodeCallback(data: string): Callback | null {
       ? { kind: "flow", flowId: second, action: third, arg: fourth }
       : { kind: "flow", flowId: second, action: third };
   }
-  if (head === "s" || head === "p" || head === "g" || head === "o") {
+  if (head === "s" || head === "p" || head === "g" || head === "o" || head === "t") {
     if (parts.length < 2 || parts.length > 3) return null;
     if (!second || !ACTION_RE.test(second)) return null;
     if (third === undefined) return { kind: "static", scope: head, action: second };

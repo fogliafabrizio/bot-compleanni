@@ -61,4 +61,13 @@ describe("US3: scheda persona", () => {
     expect(deps.tg.messages()).toHaveLength(0);
     expect(await count("conversation_state")).toBe(0);
   });
+
+  it("principio II, research R-08 di 003: /p_<id> fa una sola batch oltre a getActive", async () => {
+    await insertPerson({ id: 12, fullName: "Marco Rossi", day: 14, month: 3, year: 1994 });
+    const deps = makeDeps();
+    deps.counter.count = 0;
+    await say(deps, "/p_12");
+    expect(deps.counter.count).toBe(2);
+    expect(deps.counter.batches).toHaveLength(1);
+  });
 });

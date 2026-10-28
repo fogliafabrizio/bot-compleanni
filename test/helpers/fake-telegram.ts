@@ -1,7 +1,13 @@
 import { TelegramError, type TelegramApi } from "../../src/telegram/client";
-import type { InlineKeyboardButton, InlineKeyboardMarkup } from "../../src/telegram/types";
+import type { InlineKeyboardButton, InlineKeyboardMarkup, MessageEntity } from "../../src/telegram/types";
 
-export type SendCall = { method: "sendMessage"; chatId: number; text: string; keyboard?: InlineKeyboardMarkup };
+export type SendCall = {
+  method: "sendMessage";
+  chatId: number;
+  text: string;
+  keyboard?: InlineKeyboardMarkup;
+  entities?: MessageEntity[];
+};
 export type EditCall = { method: "editMessageReplyMarkup"; chatId: number; messageId: number; keyboard: InlineKeyboardMarkup };
 export type TextEditCall = {
   method: "editMessageText";
@@ -30,12 +36,15 @@ export class FakeTelegram implements TelegramApi {
     this.failRules.push({ predicate, code });
   }
 
-  async sendMessage(chatId: number, text: string, keyboard?: InlineKeyboardMarkup) {
+  async sendMessage(chatId: number, text: string, keyboard?: InlineKeyboardMarkup, entities?: readonly MessageEntity[]) {
     const queued = this.failures.shift();
     if (queued !== undefined) throw new TelegramError(queued);
     const rule = this.failRules.find((r) => r.predicate(text));
     if (rule) throw new TelegramError(rule.code);
-    this.calls.push(keyboard ? { method: "sendMessage", chatId, text, keyboard } : { method: "sendMessage", chatId, text });
+    const call: SendCall = { method: "sendMessage", chatId, text };
+    if (keyboard) call.keyboard = keyboard;
+    if (entities && entities.length > 0) call.entities = [...entities];
+    this.calls.push(call);
     return { message_id: this.nextMessageId++ };
   }
 
@@ -90,6 +99,20 @@ export class FakeTelegram implements TelegramApi {
   reset(): void {
     this.calls = [];
   }
+}
+
+function covered(call: SendCall, type: MessageEntity["type"]): string[] {
+  return (call.entities ?? []).filter((e) => e.type === type).map((e) => call.text.slice(e.offset, e.offset + e.length));
+}
+
+// Sottostringhe in monospazio (entità code) di un messaggio di lista.
+export function monoParts(call: SendCall): string[] {
+  return covered(call, "code");
+}
+
+// Sottostringhe coperte dalle entità bot_command (i /p_<id> toccabili).
+export function commandParts(call: SendCall): string[] {
+  return covered(call, "bot_command");
 }
 
 // Valore di un pulsante: callback_data, url o testo copiato.

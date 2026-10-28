@@ -15,7 +15,7 @@ type Over = Partial<Omit<ReminderData, "person">> & { person?: Partial<ReminderD
 function data(over: Over = {}): ReminderData {
   const { person, ...rest } = over;
   return {
-    deliveryId: 77,
+    actionTarget: { scope: "o", id: 77 },
     groups: [],
     lastYear: null,
     year: 2027,
@@ -191,5 +191,14 @@ describe("RF-09, §5.4: pre-reminder", () => {
     const after = renderPreAfter(data(), 2);
     expect(after.text).toBe("📅 Tra 2 giorni: compleanno di Marchino (32 anni) — 14/03\n\nSaltato quest'anno");
     expect(after.keyboard).toEqual({ inline_keyboard: [] });
+  });
+});
+
+describe("RF-16, contracts/callback-data.md di 003: destinazione dei pulsanti di esito", () => {
+  it("RF-16: target o → o:f/o:s; target t (/oggi) → t:f/t:s", () => {
+    const o = renderGiorno(data()).keyboard;
+    expect([cbOf(o, "Fatto ✅"), cbOf(o, "Salta quest'anno")]).toEqual(["o:f:77", "o:s:77"]);
+    const t = renderGiorno(data({ actionTarget: { scope: "t", id: 55 } })).keyboard;
+    expect([cbOf(t, "Fatto ✅"), cbOf(t, "Salta quest'anno")]).toEqual(["t:f:55", "t:s:55"]);
   });
 });

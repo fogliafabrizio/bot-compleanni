@@ -1,4 +1,5 @@
 import type { Priority } from "../config";
+import type { OccurrenceStatus } from "../domain/schedule";
 import { normKey } from "../domain/text";
 import { consumeStatement, flowGuardSql } from "./conversation";
 
@@ -267,15 +268,13 @@ export function deleteGuardedStatements(db: D1Database, chatId: number, flowId: 
   ];
 }
 
-export async function getGroupNames(db: D1Database, personId: number): Promise<string[]> {
-  const { results } = await db
+function groupNamesStatement(db: D1Database, personId: number): D1PreparedStatement {
+  return db
     .prepare(
       `SELECT g.name FROM groups g JOIN person_groups pg ON pg.group_id = g.id
        WHERE pg.person_id = ? ORDER BY g.name COLLATE NOCASE`,
     )
-    .bind(personId)
-    .all<{ name: string }>();
-  return results.map((r) => r.name);
+    .bind(personId);
 }
 
 export async function getGroupIds(db: D1Database, personId: number): Promise<number[]> {
@@ -286,13 +285,70 @@ export async function getGroupIds(db: D1Database, personId: number): Promise<num
   return results.map((r) => r.group_id);
 }
 
-export async function getOutcomes(db: D1Database, personId: number): Promise<Outcome[]> {
-  const { results } = await db
+function outcomesStatement(db: D1Database, personId: number): D1PreparedStatement {
+  return db
     .prepare(
       `SELECT year, status FROM occurrences
        WHERE person_id = ? AND status IN ('fatto', 'saltato', 'non_confermato') ORDER BY year DESC`,
     )
-    .bind(personId)
-    .all<Outcome>();
-  return results;
+    .bind(personId);
+}
+
+// Occorrenza in sospeso della scheda (BR-08, research R-07 di 003): al più una per persona.
+export interface PendingOccurrence {
+  id: number;
+  year: number;
+  effective_date: string;
+  status: OccurrenceStatus;
+}
+
+export interface SchedaData {
+  person: Person;
+  groups: string[];
+  outcomes: Outcome[];
+  pending: PendingOccurrence | null;
+}
+
+// Finestra di "Segna fatto" e di /scaduti: date effettive YYYY-MM-DD da oggi − 7 a ieri.
+export interface PendingWindow {
+  from: string;
+  to: string;
+}
+
+// Una batch: [persona, gruppi, storico, occorrenza in sospeso] (FR-017, research R-08 di 003).
+export function schedaStatements(db: D1Database, personId: number, w: PendingWindow): D1PreparedStatement[] {
+  return [
+    db.prepare("SELECT * FROM persons WHERE id = ?").bind(personId),
+    groupNamesStatement(db, personId),
+    outcomesStatement(db, personId),
+    db
+      .prepare(
+        `SELECT id, year, effective_date, status FROM occurrences
+         WHERE person_id = ? AND status <> 'fatto' AND effective_date BETWEEN ? AND ? LIMIT 1`,
+      )
+      .bind(personId, w.from, w.to),
+  ];
+}
+
+// Risultati di schedaStatements, nello stesso ordine; null se la persona non esiste.
+export function schedaFromResults(results: readonly D1Result[]): SchedaData | null {
+  const [person, groups, outcomes, pending] = results;
+  const row = person?.results[0] as PersonRow | undefined;
+  if (!row) return null;
+  return {
+    person: rowToPerson(row),
+    groups: ((groups?.results ?? []) as { name: string }[]).map((r) => r.name),
+    outcomes: (outcomes?.results ?? []) as Outcome[],
+    pending: (pending?.results[0] as PendingOccurrence | undefined) ?? null,
+  };
+}
+
+// "Segna fatto" (FR-017, FR-018): solo un'occorrenza della finestra non ancora fatta.
+export function markDoneStatement(db: D1Database, personId: number, w: PendingWindow & { nowIso: string }): D1PreparedStatement {
+  return db
+    .prepare(
+      `UPDATE occurrences SET status = 'fatto', outcome_at = ?
+       WHERE person_id = ? AND status <> 'fatto' AND effective_date BETWEEN ? AND ?`,
+    )
+    .bind(w.nowIso, personId, w.from, w.to);
 }

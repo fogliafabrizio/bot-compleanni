@@ -5,13 +5,17 @@ import { button, keyboard } from "../telegram/keyboard";
 import { showGroups } from "./flows/gruppi";
 import { startMessaggio } from "./flows/messaggio";
 import { startNuovo } from "./flows/nuovo";
+import { showOggi } from "./oggi";
 import { showScheda } from "./scheda";
+import { showAnno, showCerca, showGruppo, showMese, showProssimi, showScaduti } from "./viste";
 
 // Comandi (contracts/comandi.md).
 
 export interface ParsedCommand {
   name: string;
   personId?: number;
+  // Testo dopo il comando, senza spazi ai bordi (research R-10 di 003).
+  args: string;
 }
 
 const PERSON_RE = /^p_(\d+)$/;
@@ -21,9 +25,10 @@ export function parseCommand(text: string): ParsedCommand | null {
   if (!trimmed.startsWith("/")) return null;
   const token = trimmed.slice(1).split(/\s+/, 1)[0] ?? "";
   const name = (token.split("@", 1)[0] ?? "").toLowerCase();
+  const args = trimmed.slice(1 + token.length).trim();
   const m = PERSON_RE.exec(name);
-  if (m) return { name: "p", personId: Number(m[1]) };
-  return { name };
+  if (m) return { name: "p", personId: Number(m[1]), args };
+  return { name, args };
 }
 
 export type CommandHandler = (ctx: Ctx, cmd: ParsedCommand) => Promise<void>;
@@ -51,6 +56,20 @@ export const COMMANDS: Record<string, CommandHandler> = {
   gruppi: (ctx) => showGroups(ctx),
   // RF-15
   messaggio: (ctx) => startMessaggio(ctx),
+  // RF-16
+  oggi: (ctx) => showOggi(ctx),
+  // RF-17
+  prossimi: (ctx, cmd) => showProssimi(ctx, cmd.args),
+  // RF-18
+  cerca: (ctx, cmd) => showCerca(ctx, cmd.args),
+  // RF-19
+  gruppo: (ctx, cmd) => showGruppo(ctx, cmd.args),
+  // RF-20
+  mese: (ctx, cmd) => showMese(ctx, cmd.args),
+  // RF-21
+  scaduti: (ctx) => showScaduti(ctx),
+  // RF-22
+  anno: (ctx, cmd) => showAnno(ctx, cmd.args),
   // RF-06
   annulla: async (ctx) => {
     const state = await getActive(ctx.deps.db, ctx.chatId, ctx.deps.now());

@@ -18,6 +18,16 @@ export function sortNames(names: readonly string[]): string[] {
   return [...names].sort(COLLATOR.compare);
 }
 
+// Ordine per nome delle liste (research R-03 di 003), con lo stesso Collator.
+export function compareNames(a: string, b: string): number {
+  return COLLATOR.compare(a, b);
+}
+
+// Chiave di /cerca senza maiuscole né accenti: "Nicolò" = "NICOLO" (research R-09 di 003).
+export function searchKey(s: string): string {
+  return s.normalize("NFD").replace(/\p{M}/gu, "").toLocaleLowerCase("it-IT");
+}
+
 // Calcolata in TypeScript: lower() di SQLite gestisce solo ASCII.
 export function normKey(s: string): string {
   return s.trim().toLocaleLowerCase("it-IT");

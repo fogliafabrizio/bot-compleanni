@@ -1,5 +1,7 @@
 // Tutti i testi rivolti all'utente (RNF-15): si cambiano qui senza toccare la logica.
 
+import { OUTCOME_CORRECTION_DAYS } from "./config";
+
 export const MONTHS_IT = [
   "gennaio",
   "febbraio",
@@ -14,6 +16,11 @@ export const MONTHS_IT = [
   "novembre",
   "dicembre",
 ] as const;
+
+// Giorni della settimana delle liste (AFU §5.7): indice = Date.getUTCDay().
+export const WEEKDAYS_IT = ["Dom", "Lun", "Mar", "Mer", "Gio", "Ven", "Sab"] as const;
+
+const daysSuffix = (group: string | null) => (group ? ` (${group})` : "");
 
 export const T = {
   // Comuni
@@ -149,6 +156,44 @@ export const T = {
   outcomeSkipped: "Saltato",
   skippedThisYear: "Saltato quest'anno",
 
+  // Viste e ricerche (feature 003, contracts/comandi.md)
+  listOutcome: { aperta: "in attesa", saltato: "saltato", non_confermato: "non confermato" },
+  groupNotFound: (q: string) => `Il gruppo «${q}» non esiste.`,
+  existingGroups: (names: string) => `Gruppi esistenti: ${names}`,
+  // RF-16
+  todayNone: "Oggi non ci sono compleanni. Il prossimo:",
+  todayNoPersons: "Oggi non ci sono compleanni e non hai ancora inserito nessuna persona.",
+  todayOthers: "Altri compleanni di oggi:",
+  // RF-17
+  upcomingHeader: (days: number, group: string | null) =>
+    `${days === 1 ? "Prossimo giorno" : `Prossimi ${days} giorni`}${daysSuffix(group)}`,
+  upcomingNone: (days: number, group: string | null) =>
+    `${days === 1 ? "Nessun compleanno nel prossimo giorno" : `Nessun compleanno nei prossimi ${days} giorni`}${daysSuffix(group)}`,
+  upcomingDaysRange: (max: number) => `Il numero di giorni deve essere tra 1 e ${max}`,
+  // RF-18
+  searchUsage: "Scrivi /cerca seguito da una parte del nome o del nickname, es. /cerca marco",
+  searchHeader: (q: string) => `Risultati per «${q}»`,
+  searchNone: (q: string) => `Nessun risultato per «${q}»`,
+  // RF-19
+  groupHeader: (name: string) => `Gruppo ${name}`,
+  groupEmpty: (name: string) => `Nessuna persona nel gruppo ${name}`,
+  groupUsage: "Scrivi /gruppo seguito dal nome del gruppo, es. /gruppo Famiglia",
+  // RF-20
+  monthHeader: (monthName: string, year: number) => `Compleanni di ${monthName} ${year}`,
+  monthNone: (monthName: string) => `Nessun compleanno a ${monthName}`,
+  monthInvalid: "Mese non riconosciuto: scrivilo per nome (es. marzo) o per numero da 1 a 12",
+  // RF-21, BR-08
+  btnMarkDone: "Segna fatto",
+  overdueHeader: (days: number) => `Ultimi ${days} giorni, non fatti`,
+  overdueNone: (days: number) => `Nessun compleanno in sospeso negli ultimi ${days} giorni`,
+  // RF-22
+  yearHeader: (y: number) => `Riepilogo ${y}`,
+  yearCounts: (f: number, s: number, n: number) => [`Fatto: ${f}`, `Saltato: ${s}`, `Non confermato: ${n}`],
+  yearSkipped: "Saltati:",
+  yearStreak: "Saltati per 2 o più anni di fila:",
+  yearNone: "nessuno",
+  yearInvalid: (min: number, max: number) => `Anno non valido: scrivi un anno tra ${min} e ${max}`,
+
   // /messaggio (contracts/messaggio.md)
   greetingAsk: (current: string) =>
     `Messaggio attuale: «${current}»\nScrivi il nuovo messaggio di auguri. Usa {nome} per il nome.`,
@@ -169,6 +214,13 @@ export const T = {
     "/nuovo — aggiungi una persona, un campo alla volta",
     "/gruppi — elenca, crea, rinomina ed elimina i gruppi",
     "/messaggio — modifica il messaggio di auguri",
+    "/oggi — compleanni di oggi",
+    "/prossimi [giorni] [gruppo] — prossimi compleanni",
+    "/cerca <testo> — cerca per nome o nickname",
+    "/gruppo <nome> — persone di un gruppo",
+    "/mese [mese] — compleanni del mese",
+    `/scaduti — ultimi ${OUTCOME_CORRECTION_DAYS} giorni non fatti`,
+    "/anno [anno] — riepilogo dell'anno",
     "/annulla — interrompe l'operazione guidata in corso",
     "/id — mostra il tuo ID Telegram",
     "/aiuto — mostra questo elenco",

@@ -49,3 +49,19 @@ export const OUTCOME_CORRECTION_DAYS = 7;
 export const CONVERSATION_TTL_HOURS = 24;
 
 export const FLOW_ID_LENGTH = 6;
+
+// FR-005: lunghezza massima di un messaggio Telegram; le liste più lunghe si dividono.
+export const MESSAGE_MAX_LENGTH = 4096;
+
+// Research R-05: righe con entità per messaggio (2 entità ciascuna), limite prudenziale.
+export const LIST_MAX_LINES_PER_MESSAGE = 45;
+
+// FR-001a, research R-02: tetto della colonna "nome (età)" delle liste, in code point.
+export const LIST_NAME_COLUMN_MAX = 20;
+
+// FR-007a, research R-06: messaggi del reminder inviati da /oggi; i restanti vanno in lista.
+export const TODAY_MAX_MESSAGES = 10;
+
+// RF-17: giorni di /prossimi senza argomento e massimo ammesso.
+export const UPCOMING_DEFAULT_DAYS = 30;
+export const UPCOMING_MAX_DAYS = 366;

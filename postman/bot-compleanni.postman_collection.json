@@ -1,0 +1,2051 @@
+{
+  "info": {
+    "name": "Bot compleanni — smoke test locale",
+    "description": "Versione 1.0.0. Smoke test del webhook in locale (`npx wrangler dev`), feature 001–003.\n\nIl Worker risponde sempre 200 vuoto: l'esito si legge **nella chat Telegram del proprietario** (il Worker locale usa la Bot API reale con il token di `.dev.vars`). Istruzioni in `postman/README.md`; ogni richiesta descrive la risposta attesa. Eseguire le cartelle in ordine dopo il seed.",
+    "version": "1.0.0",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "00 · Sicurezza webhook",
+      "description": "Codici HTTP del Worker (contracts/webhook.md di 001). Nessun messaggio in chat.",
+      "item": [
+        {
+          "name": "Senza header segreto → 401",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 401\", () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"update_id\": {{$randomInt}},\n  \"message\": {\n    \"message_id\": {{$randomInt}},\n    \"from\": { \"id\": {{ownerId}} },\n    \"chat\": { \"id\": {{ownerId}}, \"type\": \"private\" },\n    \"text\": \"/oggi\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/webhook",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "webhook"
+              ]
+            },
+            "description": "RNF-03: atteso 401, nessun messaggio."
+          }
+        },
+        {
+          "name": "Segreto sbagliato → 401",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 401\", () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Telegram-Bot-Api-Secret-Token",
+                "value": "sbagliato"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"update_id\": {{$randomInt}},\n  \"message\": {\n    \"message_id\": {{$randomInt}},\n    \"from\": { \"id\": {{ownerId}} },\n    \"chat\": { \"id\": {{ownerId}}, \"type\": \"private\" },\n    \"text\": \"/oggi\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/webhook",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "webhook"
+              ]
+            },
+            "description": "RNF-03: atteso 401."
+          }
+        },
+        {
+          "name": "GET → 405",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 405\", () => pm.response.to.have.status(405));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Telegram-Bot-Api-Secret-Token",
+                "value": "{{webhookSecret}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/webhook",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "webhook"
+              ]
+            },
+            "description": "Solo POST è ammesso."
+          }
+        },
+        {
+          "name": "Path diverso → 404",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 404\", () => pm.response.to.have.status(404));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Telegram-Bot-Api-Secret-Token",
+                "value": "{{webhookSecret}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/altro",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "altro"
+              ]
+            },
+            "description": "Solo /webhook esiste."
+          }
+        },
+        {
+          "name": "JSON non valido → 400",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 400\", () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Telegram-Bot-Api-Secret-Token",
+                "value": "{{webhookSecret}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{non json",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/webhook",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "webhook"
+              ]
+            },
+            "description": "Body illeggibile."
+          }
+        },
+        {
+          "name": "Estraneo → 200 silenzioso",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Telegram-Bot-Api-Secret-Token",
+                "value": "{{webhookSecret}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"update_id\": {{$randomInt}},\n  \"message\": {\n    \"message_id\": {{$randomInt}},\n    \"from\": { \"id\": {{strangerId}} },\n    \"chat\": { \"id\": {{strangerId}}, \"type\": \"private\" },\n    \"text\": \"/oggi\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/webhook",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "webhook"
+              ]
+            },
+            "description": "RF-30: un mittente diverso dal proprietario non riceve nulla. Atteso 200 e **nessun** messaggio in chat."
+          }
+        }
+      ]
+    },
+    {
+      "name": "01 · /aiuto",
+      "item": [
+        {
+          "name": "/aiuto",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Telegram-Bot-Api-Secret-Token",
+                "value": "{{webhookSecret}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"update_id\": {{$randomInt}},\n  \"message\": {\n    \"message_id\": {{$randomInt}},\n    \"from\": { \"id\": {{ownerId}} },\n    \"chat\": { \"id\": {{ownerId}}, \"type\": \"private\" },\n    \"text\": \"/aiuto\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/webhook",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "webhook"
+              ]
+            },
+            "description": "Atteso: elenco comandi con le righe nuove `/oggi`, `/prossimi [giorni] [gruppo]`, `/cerca <testo>`, `/gruppo <nome>`, `/mese [mese]`, `/scaduti — ultimi 7 giorni non fatti`, `/anno [anno]`, tutte **prima** di `/annulla`."
+          }
+        }
+      ]
+    },
+    {
+      "name": "02 · /oggi (RF-16)",
+      "description": "Prerequisito: seed appena eseguito (occorrenza 9101 di Marco aperta).",
+      "item": [
+        {
+          "name": "/oggi",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Telegram-Bot-Api-Secret-Token",
+                "value": "{{webhookSecret}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"update_id\": {{$randomInt}},\n  \"message\": {\n    \"message_id\": {{$randomInt}},\n    \"from\": { \"id\": {{ownerId}} },\n    \"chat\": { \"id\": {{ownerId}}, \"type\": \"private\" },\n    \"text\": \"/oggi\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/webhook",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "webhook"
+              ]
+            },
+            "description": "Atteso: messaggio reminder `🎂 Oggi è il compleanno di Marchino (Marco Rossi), compie N anni`, righe `Gruppi: Smoke Lavoro`, `📱 +393331234567`, `L'anno scorso: fatto ✅`. Pulsanti: WhatsApp, Copia messaggio, **Fatto ✅**, **Salta quest'anno**.\n\nSe nel DB locale hai altre persone nate oggi, arriva un messaggio per ciascuna (ordine per nome).\n\n**Non toccare** i pulsanti in chat: i tocchi dall'app vanno al Worker di produzione, non a quello locale. Usa la richiesta successiva."
+          }
+        },
+        {
+          "name": "Tocco Fatto (t:f:9101)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Telegram-Bot-Api-Secret-Token",
+                "value": "{{webhookSecret}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"update_id\": {{$randomInt}},\n  \"callback_query\": {\n    \"id\": \"smoke-{{$randomInt}}\",\n    \"from\": { \"id\": {{ownerId}} },\n    \"message\": { \"message_id\": 1, \"chat\": { \"id\": {{ownerId}}, \"type\": \"private\" } },\n    \"data\": \"t:f:9101\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/webhook",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "webhook"
+              ]
+            },
+            "description": "Effetto atteso: occorrenza 9101 → `fatto`.\n\n**Nota sui pulsanti da Postman**: `callback_query.id` e `message_id` sono finti, quindi le chiamate a Telegram `editMessageText`/`answerCallbackQuery` falliscono e in chat arriva **\"Si è verificato un errore, riprova\"** (nel terminale di wrangler: `handler_error` con `error_code` 400). È normale: la scrittura su D1 avviene **prima** e si verifica con la richiesta successiva."
+          }
+        },
+        {
+          "name": "/oggi di nuovo → già fatto",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Telegram-Bot-Api-Secret-Token",
+                "value": "{{webhookSecret}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"update_id\": {{$randomInt}},\n  \"message\": {\n    \"message_id\": {{$randomInt}},\n    \"from\": { \"id\": {{ownerId}} },\n    \"chat\": { \"id\": {{ownerId}}, \"type\": \"private\" },\n    \"text\": \"/oggi\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/webhook",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "webhook"
+              ]
+            },
+            "description": "Atteso: lo stesso testo di prima + riga vuota + `✅ Fatto`, con i soli pulsanti WhatsApp e Copia messaggio (niente Fatto/Salta). Conferma che il tocco precedente ha scritto su D1."
+          }
+        },
+        {
+          "name": "Secondo tocco (t:f:9101) → nessun effetto",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Telegram-Bot-Api-Secret-Token",
+                "value": "{{webhookSecret}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"update_id\": {{$randomInt}},\n  \"callback_query\": {\n    \"id\": \"smoke-{{$randomInt}}\",\n    \"from\": { \"id\": {{ownerId}} },\n    \"message\": { \"message_id\": 1, \"chat\": { \"id\": {{ownerId}}, \"type\": \"private\" } },\n    \"data\": \"t:f:9101\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/webhook",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "webhook"
+              ]
+            },
+            "description": "Effetto atteso: nessuno (l'occorrenza non è più aperta → \"Questa azione non è più disponibile\", ma il popup fallisce per lo stesso motivo dei pulsanti).\n\n**Nota sui pulsanti da Postman**: `callback_query.id` e `message_id` sono finti, quindi le chiamate a Telegram `editMessageText`/`answerCallbackQuery` falliscono e in chat arriva **\"Si è verificato un errore, riprova\"** (nel terminale di wrangler: `handler_error` con `error_code` 400). È normale: la scrittura su D1 avviene **prima** e si verifica con la richiesta successiva."
+          }
+        }
+      ]
+    },
+    {
+      "name": "03 · /prossimi (RF-17)",
+      "item": [
+        {
+          "name": "/prossimi",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Telegram-Bot-Api-Secret-Token",
+                "value": "{{webhookSecret}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"update_id\": {{$randomInt}},\n  \"message\": {\n    \"message_id\": {{$randomInt}},\n    \"from\": { \"id\": {{ownerId}} },\n    \"chat\": { \"id\": {{ownerId}}, \"type\": \"private\" },\n    \"text\": \"/prossimi\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/webhook",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "webhook"
+              ]
+            },
+            "description": "Atteso: `Prossimi 30 giorni`, riga vuota, poi righe in **monospazio** e colonne allineate: Marco (oggi) in cima, Anna (oggi+5, senza età). **Nicolò (oggi+40) assente.** Ogni `/p_<id>` è toccabile (fuori dal monospazio) e nessuna tastiera."
+          }
+        },
+        {
+          "name": "/prossimi 7 smoke famiglia",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Telegram-Bot-Api-Secret-Token",
+                "value": "{{webhookSecret}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"update_id\": {{$randomInt}},\n  \"message\": {\n    \"message_id\": {{$randomInt}},\n    \"from\": { \"id\": {{ownerId}} },\n    \"chat\": { \"id\": {{ownerId}}, \"type\": \"private\" },\n    \"text\": \"/prossimi 7 smoke famiglia\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/webhook",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "webhook"
+              ]
+            },
+            "description": "Atteso: `Prossimi 7 giorni (Smoke Famiglia)` con la sola Anna."
+          }
+        },
+        {
+          "name": "/prossimi SMOKE FAMIGLIA (senza numero)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Telegram-Bot-Api-Secret-Token",
+                "value": "{{webhookSecret}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"update_id\": {{$randomInt}},\n  \"message\": {\n    \"message_id\": {{$randomInt}},\n    \"from\": { \"id\": {{ownerId}} },\n    \"chat\": { \"id\": {{ownerId}}, \"type\": \"private\" },\n    \"text\": \"/prossimi SMOKE FAMIGLIA\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/webhook",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "webhook"
+              ]
+            },
+            "description": "Atteso: `Prossimi 30 giorni (Smoke Famiglia)`: gruppo trovato anche in maiuscolo, giorni di default."
+          }
+        },
+        {
+          "name": "/prossimi 1",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Telegram-Bot-Api-Secret-Token",
+                "value": "{{webhookSecret}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"update_id\": {{$randomInt}},\n  \"message\": {\n    \"message_id\": {{$randomInt}},\n    \"from\": { \"id\": {{ownerId}} },\n    \"chat\": { \"id\": {{ownerId}}, \"type\": \"private\" },\n    \"text\": \"/prossimi 1\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/webhook",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "webhook"
+              ]
+            },
+            "description": "Atteso: `Prossimo giorno` con solo chi compie gli anni oggi (Marco)."
+          }
+        },
+        {
+          "name": "/prossimi 366",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Telegram-Bot-Api-Secret-Token",
+                "value": "{{webhookSecret}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"update_id\": {{$randomInt}},\n  \"message\": {\n    \"message_id\": {{$randomInt}},\n    \"from\": { \"id\": {{ownerId}} },\n    \"chat\": { \"id\": {{ownerId}}, \"type\": \"private\" },\n    \"text\": \"/prossimi 366\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/webhook",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "webhook"
+              ]
+            },
+            "description": "Atteso: tutte le persone. Luca, Sara e Paolo (compleanno già passato) in fondo, con la data dell'anno prossimo. Con più di 45 persone la lista continua in più messaggi."
+          }
+        },
+        {
+          "name": "/prossimi 7 inesistente",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Telegram-Bot-Api-Secret-Token",
+                "value": "{{webhookSecret}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"update_id\": {{$randomInt}},\n  \"message\": {\n    \"message_id\": {{$randomInt}},\n    \"from\": { \"id\": {{ownerId}} },\n    \"chat\": { \"id\": {{ownerId}}, \"type\": \"private\" },\n    \"text\": \"/prossimi 7 inesistente\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/webhook",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "webhook"
+              ]
+            },
+            "description": "Atteso: `Il gruppo «inesistente» non esiste.` + `Gruppi esistenti: …` (include Smoke Famiglia, Smoke Lavoro)."
+          }
+        },
+        {
+          "name": "/prossimi 400 → errore",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Telegram-Bot-Api-Secret-Token",
+                "value": "{{webhookSecret}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"update_id\": {{$randomInt}},\n  \"message\": {\n    \"message_id\": {{$randomInt}},\n    \"from\": { \"id\": {{ownerId}} },\n    \"chat\": { \"id\": {{ownerId}}, \"type\": \"private\" },\n    \"text\": \"/prossimi 400\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/webhook",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "webhook"
+              ]
+            },
+            "description": "Atteso: `Il numero di giorni deve essere tra 1 e 366`, nessuna lista."
+          }
+        },
+        {
+          "name": "/prossimi 0 → errore",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Telegram-Bot-Api-Secret-Token",
+                "value": "{{webhookSecret}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"update_id\": {{$randomInt}},\n  \"message\": {\n    \"message_id\": {{$randomInt}},\n    \"from\": { \"id\": {{ownerId}} },\n    \"chat\": { \"id\": {{ownerId}}, \"type\": \"private\" },\n    \"text\": \"/prossimi 0\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/webhook",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "webhook"
+              ]
+            },
+            "description": "Atteso: `Il numero di giorni deve essere tra 1 e 366`."
+          }
+        }
+      ]
+    },
+    {
+      "name": "04 · /cerca (RF-18)",
+      "item": [
+        {
+          "name": "/cerca nicolo → scheda",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Telegram-Bot-Api-Secret-Token",
+                "value": "{{webhookSecret}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"update_id\": {{$randomInt}},\n  \"message\": {\n    \"message_id\": {{$randomInt}},\n    \"from\": { \"id\": {{ownerId}} },\n    \"chat\": { \"id\": {{ownerId}}, \"type\": \"private\" },\n    \"text\": \"/cerca nicolo\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/webhook",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "webhook"
+              ]
+            },
+            "description": "Atteso (se nel DB c'è un solo Nicolò): direttamente la **scheda** `Nicolò Verdi` con Modifica/Elimina, identica a `/p_9003`. Prova accenti: `nicolo` trova `Nicolò`."
+          }
+        },
+        {
+          "name": "/cerca NICOLÒ",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Telegram-Bot-Api-Secret-Token",
+                "value": "{{webhookSecret}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"update_id\": {{$randomInt}},\n  \"message\": {\n    \"message_id\": {{$randomInt}},\n    \"from\": { \"id\": {{ownerId}} },\n    \"chat\": { \"id\": {{ownerId}}, \"type\": \"private\" },\n    \"text\": \"/cerca NICOLÒ\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/webhook",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "webhook"
+              ]
+            },
+            "description": "Atteso: stessa scheda (maiuscole e accenti ignorati)."
+          }
+        },
+        {
+          "name": "/cerca marchino → nickname",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Telegram-Bot-Api-Secret-Token",
+                "value": "{{webhookSecret}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"update_id\": {{$randomInt}},\n  \"message\": {\n    \"message_id\": {{$randomInt}},\n    \"from\": { \"id\": {{ownerId}} },\n    \"chat\": { \"id\": {{ownerId}}, \"type\": \"private\" },\n    \"text\": \"/cerca marchino\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/webhook",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "webhook"
+              ]
+            },
+            "description": "Atteso: scheda `Marco Rossi — \"Marchino\"` (ricerca sul nickname)."
+          }
+        },
+        {
+          "name": "/cerca i → lista",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Telegram-Bot-Api-Secret-Token",
+                "value": "{{webhookSecret}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"update_id\": {{$randomInt}},\n  \"message\": {\n    \"message_id\": {{$randomInt}},\n    \"from\": { \"id\": {{ownerId}} },\n    \"chat\": { \"id\": {{ownerId}}, \"type\": \"private\" },\n    \"text\": \"/cerca i\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/webhook",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "webhook"
+              ]
+            },
+            "description": "Atteso: `Risultati per «i»` + righe ordinate per prossimo compleanno, senza tastiera."
+          }
+        },
+        {
+          "name": "/cerca zzz",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Telegram-Bot-Api-Secret-Token",
+                "value": "{{webhookSecret}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"update_id\": {{$randomInt}},\n  \"message\": {\n    \"message_id\": {{$randomInt}},\n    \"from\": { \"id\": {{ownerId}} },\n    \"chat\": { \"id\": {{ownerId}}, \"type\": \"private\" },\n    \"text\": \"/cerca zzz\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/webhook",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "webhook"
+              ]
+            },
+            "description": "Atteso: `Nessun risultato per «zzz»`."
+          }
+        },
+        {
+          "name": "/cerca (vuoto) → sintassi",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Telegram-Bot-Api-Secret-Token",
+                "value": "{{webhookSecret}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"update_id\": {{$randomInt}},\n  \"message\": {\n    \"message_id\": {{$randomInt}},\n    \"from\": { \"id\": {{ownerId}} },\n    \"chat\": { \"id\": {{ownerId}}, \"type\": \"private\" },\n    \"text\": \"/cerca\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/webhook",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "webhook"
+              ]
+            },
+            "description": "Atteso: `Scrivi /cerca seguito da una parte del nome o del nickname, es. /cerca marco`."
+          }
+        }
+      ]
+    },
+    {
+      "name": "05 · /gruppo (RF-19)",
+      "item": [
+        {
+          "name": "/gruppo smoke lavoro",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Telegram-Bot-Api-Secret-Token",
+                "value": "{{webhookSecret}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"update_id\": {{$randomInt}},\n  \"message\": {\n    \"message_id\": {{$randomInt}},\n    \"from\": { \"id\": {{ownerId}} },\n    \"chat\": { \"id\": {{ownerId}}, \"type\": \"private\" },\n    \"text\": \"/gruppo smoke lavoro\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/webhook",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "webhook"
+              ]
+            },
+            "description": "Atteso: `Gruppo Smoke Lavoro` con Marco (oggi) e poi Luca (compleanno 3 giorni fa → anno prossimo). Nessun limite di giorni."
+          }
+        },
+        {
+          "name": "/gruppo (vuoto) → sintassi + elenco",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Telegram-Bot-Api-Secret-Token",
+                "value": "{{webhookSecret}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"update_id\": {{$randomInt}},\n  \"message\": {\n    \"message_id\": {{$randomInt}},\n    \"from\": { \"id\": {{ownerId}} },\n    \"chat\": { \"id\": {{ownerId}}, \"type\": \"private\" },\n    \"text\": \"/gruppo\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/webhook",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "webhook"
+              ]
+            },
+            "description": "Atteso: `Scrivi /gruppo seguito dal nome del gruppo, es. /gruppo Famiglia` + `Gruppi esistenti: …`."
+          }
+        },
+        {
+          "name": "/gruppo pippo → inesistente",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Telegram-Bot-Api-Secret-Token",
+                "value": "{{webhookSecret}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"update_id\": {{$randomInt}},\n  \"message\": {\n    \"message_id\": {{$randomInt}},\n    \"from\": { \"id\": {{ownerId}} },\n    \"chat\": { \"id\": {{ownerId}}, \"type\": \"private\" },\n    \"text\": \"/gruppo pippo\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/webhook",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "webhook"
+              ]
+            },
+            "description": "Atteso: `Il gruppo «pippo» non esiste.` + elenco dei gruppi."
+          }
+        }
+      ]
+    },
+    {
+      "name": "06 · /mese (RF-20)",
+      "item": [
+        {
+          "name": "/mese (corrente)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Telegram-Bot-Api-Secret-Token",
+                "value": "{{webhookSecret}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"update_id\": {{$randomInt}},\n  \"message\": {\n    \"message_id\": {{$randomInt}},\n    \"from\": { \"id\": {{ownerId}} },\n    \"chat\": { \"id\": {{ownerId}}, \"type\": \"private\" },\n    \"text\": \"/mese\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/webhook",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "webhook"
+              ]
+            },
+            "description": "Atteso: `Compleanni di <mese corrente> <anno corrente>` con le persone del mese ordinate per giorno (Marco, e Luca/Sara/Paolo se il loro giorno cade nello stesso mese)."
+          }
+        },
+        {
+          "name": "/mese marzo",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Telegram-Bot-Api-Secret-Token",
+                "value": "{{webhookSecret}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"update_id\": {{$randomInt}},\n  \"message\": {\n    \"message_id\": {{$randomInt}},\n    \"from\": { \"id\": {{ownerId}} },\n    \"chat\": { \"id\": {{ownerId}}, \"type\": \"private\" },\n    \"text\": \"/mese marzo\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/webhook",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "webhook"
+              ]
+            },
+            "description": "Atteso: `Compleanni di marzo <anno>`: anno corrente se marzo non è ancora passato, altrimenti il prossimo. Oppure `Nessun compleanno a marzo`."
+          }
+        },
+        {
+          "name": "/mese 3 (= marzo)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Telegram-Bot-Api-Secret-Token",
+                "value": "{{webhookSecret}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"update_id\": {{$randomInt}},\n  \"message\": {\n    \"message_id\": {{$randomInt}},\n    \"from\": { \"id\": {{ownerId}} },\n    \"chat\": { \"id\": {{ownerId}}, \"type\": \"private\" },\n    \"text\": \"/mese 3\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/webhook",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "webhook"
+              ]
+            },
+            "description": "Atteso: identico alla richiesta precedente."
+          }
+        },
+        {
+          "name": "/mese marzzo → errore",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Telegram-Bot-Api-Secret-Token",
+                "value": "{{webhookSecret}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"update_id\": {{$randomInt}},\n  \"message\": {\n    \"message_id\": {{$randomInt}},\n    \"from\": { \"id\": {{ownerId}} },\n    \"chat\": { \"id\": {{ownerId}}, \"type\": \"private\" },\n    \"text\": \"/mese marzzo\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/webhook",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "webhook"
+              ]
+            },
+            "description": "Atteso: `Mese non riconosciuto: scrivilo per nome (es. marzo) o per numero da 1 a 12`."
+          }
+        },
+        {
+          "name": "/mese 13 → errore",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Telegram-Bot-Api-Secret-Token",
+                "value": "{{webhookSecret}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"update_id\": {{$randomInt}},\n  \"message\": {\n    \"message_id\": {{$randomInt}},\n    \"from\": { \"id\": {{ownerId}} },\n    \"chat\": { \"id\": {{ownerId}}, \"type\": \"private\" },\n    \"text\": \"/mese 13\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/webhook",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "webhook"
+              ]
+            },
+            "description": "Atteso: stesso errore."
+          }
+        }
+      ]
+    },
+    {
+      "name": "07 · /anno (RF-22)",
+      "description": "Eseguire **prima** della cartella 08 (Segna fatto cambia l'esito di Luca). Nei primi 5 giorni di gennaio le occorrenze di prova cadono nell'anno precedente.",
+      "item": [
+        {
+          "name": "/anno (corrente)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Telegram-Bot-Api-Secret-Token",
+                "value": "{{webhookSecret}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"update_id\": {{$randomInt}},\n  \"message\": {\n    \"message_id\": {{$randomInt}},\n    \"from\": { \"id\": {{ownerId}} },\n    \"chat\": { \"id\": {{ownerId}}, \"type\": \"private\" },\n    \"text\": \"/anno\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/webhook",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "webhook"
+              ]
+            },
+            "description": "Atteso (con i soli dati di prova e dopo la cartella 02): `Riepilogo <anno>`, `Fatto: 1` (Marco), `Saltato: 1` (Luca), `Non confermato: 1` (Paolo); Sara aperta non conteggiata. Sezione `Saltati:` con Luca; `Saltati per 2 o più anni di fila:` con Luca."
+          }
+        },
+        {
+          "name": "/anno precedente",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.variables.set(\"lastYear\", String(new Date().getFullYear() - 1));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Telegram-Bot-Api-Secret-Token",
+                "value": "{{webhookSecret}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"update_id\": {{$randomInt}},\n  \"message\": {\n    \"message_id\": {{$randomInt}},\n    \"from\": { \"id\": {{ownerId}} },\n    \"chat\": { \"id\": {{ownerId}}, \"type\": \"private\" },\n    \"text\": \"/anno {{lastYear}}\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/webhook",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "webhook"
+              ]
+            },
+            "description": "Atteso: `Riepilogo <anno−1>` con `Fatto: 1` (Marco) e `Saltato: 1` (Luca); serie `nessuno`."
+          }
+        },
+        {
+          "name": "/anno futuro → errore",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.variables.set(\"nextYear\", String(new Date().getFullYear() + 1));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Telegram-Bot-Api-Secret-Token",
+                "value": "{{webhookSecret}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"update_id\": {{$randomInt}},\n  \"message\": {\n    \"message_id\": {{$randomInt}},\n    \"from\": { \"id\": {{ownerId}} },\n    \"chat\": { \"id\": {{ownerId}}, \"type\": \"private\" },\n    \"text\": \"/anno {{nextYear}}\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/webhook",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "webhook"
+              ]
+            },
+            "description": "Atteso: `Anno non valido: scrivi un anno tra 1900 e <anno corrente>`."
+          }
+        },
+        {
+          "name": "/anno 20x5 → errore",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Telegram-Bot-Api-Secret-Token",
+                "value": "{{webhookSecret}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"update_id\": {{$randomInt}},\n  \"message\": {\n    \"message_id\": {{$randomInt}},\n    \"from\": { \"id\": {{ownerId}} },\n    \"chat\": { \"id\": {{ownerId}}, \"type\": \"private\" },\n    \"text\": \"/anno 20x5\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/webhook",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "webhook"
+              ]
+            },
+            "description": "Atteso: stesso errore."
+          }
+        }
+      ]
+    },
+    {
+      "name": "08 · /scaduti e Segna fatto (RF-21, BR-08)",
+      "item": [
+        {
+          "name": "/scaduti",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Telegram-Bot-Api-Secret-Token",
+                "value": "{{webhookSecret}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"update_id\": {{$randomInt}},\n  \"message\": {\n    \"message_id\": {{$randomInt}},\n    \"from\": { \"id\": {{ownerId}} },\n    \"chat\": { \"id\": {{ownerId}}, \"type\": \"private\" },\n    \"text\": \"/scaduti\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/webhook",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "webhook"
+              ]
+            },
+            "description": "Atteso: `Ultimi 7 giorni, non fatti` con, in ordine di data: Paolo (−5) `non confermato`, Luca (−3) `saltato`, Sara (−2) `in attesa`. Esito in monospazio, allineato. Marco (oggi) assente."
+          }
+        },
+        {
+          "name": "/p_9004 → Segna fatto presente",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Telegram-Bot-Api-Secret-Token",
+                "value": "{{webhookSecret}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"update_id\": {{$randomInt}},\n  \"message\": {\n    \"message_id\": {{$randomInt}},\n    \"from\": { \"id\": {{ownerId}} },\n    \"chat\": { \"id\": {{ownerId}}, \"type\": \"private\" },\n    \"text\": \"/p_9004\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/webhook",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "webhook"
+              ]
+            },
+            "description": "Atteso: scheda di Luca Neri con `Storico: <anno> saltato · <anno−1> saltato` e tastiera `[Segna fatto]` sopra `[Modifica] [Elimina]`."
+          }
+        },
+        {
+          "name": "Tocco Segna fatto (p:f:9004)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Telegram-Bot-Api-Secret-Token",
+                "value": "{{webhookSecret}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"update_id\": {{$randomInt}},\n  \"callback_query\": {\n    \"id\": \"smoke-{{$randomInt}}\",\n    \"from\": { \"id\": {{ownerId}} },\n    \"message\": { \"message_id\": 1, \"chat\": { \"id\": {{ownerId}}, \"type\": \"private\" } },\n    \"data\": \"p:f:9004\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/webhook",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "webhook"
+              ]
+            },
+            "description": "Effetto atteso: occorrenza 9103 → `fatto`.\n\n**Nota sui pulsanti da Postman**: `callback_query.id` e `message_id` sono finti, quindi le chiamate a Telegram `editMessageText`/`answerCallbackQuery` falliscono e in chat arriva **\"Si è verificato un errore, riprova\"** (nel terminale di wrangler: `handler_error` con `error_code` 400). È normale: la scrittura su D1 avviene **prima** e si verifica con la richiesta successiva."
+          }
+        },
+        {
+          "name": "/p_9004 → pulsante sparito",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Telegram-Bot-Api-Secret-Token",
+                "value": "{{webhookSecret}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"update_id\": {{$randomInt}},\n  \"message\": {\n    \"message_id\": {{$randomInt}},\n    \"from\": { \"id\": {{ownerId}} },\n    \"chat\": { \"id\": {{ownerId}}, \"type\": \"private\" },\n    \"text\": \"/p_9004\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/webhook",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "webhook"
+              ]
+            },
+            "description": "Atteso: `Storico: <anno> fatto · <anno−1> saltato` e solo `[Modifica] [Elimina]`."
+          }
+        },
+        {
+          "name": "/scaduti → Luca sparito",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Telegram-Bot-Api-Secret-Token",
+                "value": "{{webhookSecret}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"update_id\": {{$randomInt}},\n  \"message\": {\n    \"message_id\": {{$randomInt}},\n    \"from\": { \"id\": {{ownerId}} },\n    \"chat\": { \"id\": {{ownerId}}, \"type\": \"private\" },\n    \"text\": \"/scaduti\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/webhook",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "webhook"
+              ]
+            },
+            "description": "Atteso: solo Paolo e Sara."
+          }
+        },
+        {
+          "name": "/p_9002 → nessun Segna fatto",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Telegram-Bot-Api-Secret-Token",
+                "value": "{{webhookSecret}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"update_id\": {{$randomInt}},\n  \"message\": {\n    \"message_id\": {{$randomInt}},\n    \"from\": { \"id\": {{ownerId}} },\n    \"chat\": { \"id\": {{ownerId}}, \"type\": \"private\" },\n    \"text\": \"/p_9002\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/webhook",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "webhook"
+              ]
+            },
+            "description": "Atteso: scheda di Anna senza `Segna fatto` (nessuna occorrenza in sospeso)."
+          }
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8787"
+    },
+    {
+      "key": "strangerId",
+      "value": "1"
+    }
+  ]
+}

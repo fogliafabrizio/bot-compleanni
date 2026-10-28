@@ -82,4 +82,20 @@ describe("R-05: client della Bot API", () => {
     const { fn: bad } = fakeFetch({ ok: false, error_code: 400 }, 400);
     await expect(createTelegramApi("tok", bad).answerCallbackQuery("q")).rejects.toThrow(TelegramError);
   });
+
+  it("FR-001a: sendMessage invia entities nel body e mai parse_mode", async () => {
+    const { fn, captured } = fakeFetch({ ok: true, result: { message_id: 1 } });
+    const api = createTelegramApi("tok", fn);
+    const entities = [
+      { type: "code" as const, offset: 0, length: 9 },
+      { type: "bot_command" as const, offset: 11, length: 4 },
+    ];
+    await api.sendMessage(7, "Ven 30/10  /p_4", undefined, entities);
+    await api.sendMessage(7, "semplice", undefined, []);
+    await api.sendMessage(7, "semplice");
+    expect(captured[0]!.body).toEqual({ chat_id: 7, text: "Ven 30/10  /p_4", entities });
+    expect(captured[1]!.body).not.toHaveProperty("entities");
+    expect(captured[2]!.body).not.toHaveProperty("entities");
+    for (const c of captured) expect(c.body).not.toHaveProperty("parse_mode");
+  });
 });

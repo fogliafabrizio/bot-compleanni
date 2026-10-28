@@ -22,7 +22,7 @@ describe("US7: benvenuto e aiuto", () => {
     expect(deps.tg.lastText()).toContain("/nuovo");
   });
 
-  it("RF-28, FR-025: /aiuto elenca i comandi della feature, uno per riga con descrizione", async () => {
+  it("RF-28, FR-025: /aiuto elenca i comandi, uno per riga con descrizione", async () => {
     const deps = makeDeps();
     await say(deps, "/aiuto");
     const lines = deps.tg.lastText()!.split("\n");
@@ -31,7 +31,11 @@ describe("US7: benvenuto e aiuto", () => {
       expect(line, c).toBeDefined();
       expect(line!.length).toBeGreaterThan(c.length + 5);
     }
-    expect(deps.tg.lastText()).not.toContain("/prossimi");
+    // AFU §5.1: comandi delle viste (feature 003), prima di /annulla.
+    const viste = ["/oggi", "/prossimi", "/cerca", "/gruppo", "/mese", "/scaduti", "/anno"];
+    for (const c of viste) expect(lines.find((l) => l.startsWith(`${c} `)), c).toBeDefined();
+    const annulla = lines.findIndex((l) => l.startsWith("/annulla "));
+    for (const c of viste) expect(lines.findIndex((l) => l.startsWith(`${c} `))).toBeLessThan(annulla);
     expect(deps.tg.lastText()).not.toContain("/modello");
   });
 

@@ -27,7 +27,7 @@ export async function handleOutcomeCallback(ctx: Ctx, action: "f" | "s", deliver
   }
   // R-11: si aggiorna solo il messaggio premuto, ricomposto dal database.
   const rd = buildReminderData(data, {
-    deliveryId,
+    actionTarget: { scope: "o", id: deliveryId },
     year: data.year,
     lastYear: data.last_year_status,
     defaultMessage: data.default_message,

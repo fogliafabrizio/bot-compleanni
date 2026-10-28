@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { renderScheda } from "../../src/bot/scheda";
+import { renderScheda, schedaKeyboard } from "../../src/bot/scheda";
+import { buttons } from "../helpers/fake-telegram";
 import type { PersonFields } from "../../src/db/persons";
 
 const today = { year: 2026, month: 10, day: 28 };
@@ -68,5 +69,12 @@ describe("RF-03: scheda persona (AFU §5.6)", () => {
       today,
     );
     expect(text.split("\n").at(-1)).toBe("Storico: 2025 fatto · 2024 saltato");
+  });
+
+  it("FR-017, BR-08: Segna fatto sopra Modifica/Elimina solo con un'occorrenza in sospeso", () => {
+    expect(schedaKeyboard(12).inline_keyboard.map((r) => r.map((b) => b.text))).toEqual([["Modifica", "Elimina"]]);
+    const kb = schedaKeyboard(12, true);
+    expect(kb.inline_keyboard.map((r) => r.map((b) => b.text))).toEqual([["Segna fatto"], ["Modifica", "Elimina"]]);
+    expect(buttons(kb)[0]).toEqual(["Segna fatto", "p:f:12"]);
   });
 });

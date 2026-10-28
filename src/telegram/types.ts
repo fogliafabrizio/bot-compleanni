@@ -40,3 +40,11 @@ export type InlineKeyboardButton =
 export interface InlineKeyboardMarkup {
   inline_keyboard: InlineKeyboardButton[][];
 }
+
+// Entità di formattazione passate con `entities`, senza parse_mode (contracts/liste.md). Offset e
+// lunghezze in unità UTF-16, cioè String.length.
+export interface MessageEntity {
+  type: "code" | "bot_command";
+  offset: number;
+  length: number;
+}

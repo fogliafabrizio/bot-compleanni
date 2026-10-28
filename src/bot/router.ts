@@ -12,6 +12,8 @@ import { startElimina } from "./flows/elimina";
 import { startGruppi } from "./flows/gruppi";
 import { startModifica } from "./flows/modifica";
 import { startNuovo } from "./flows/nuovo";
+import { handleTodayCallback } from "./oggi";
+import { markDone } from "./scheda";
 
 // Callback senza stato (contracts/callback-data.md), chiave "<scope>:<action>".
 export type StaticCallbackHandler = (ctx: Ctx, id: number | undefined) => Promise<void>;
@@ -20,6 +22,8 @@ export const STATIC_CALLBACKS: Record<string, StaticCallbackHandler> = {
   "s:n": (ctx) => startNuovo(ctx),
   "s:h": (ctx) => reply(ctx, T.help),
   "p:m": (ctx, id) => startModifica(ctx, id ?? 0),
+  // FR-017, BR-08
+  "p:f": (ctx, id) => markDone(ctx, id ?? 0),
   "p:x": async (ctx, id) => {
     const person = await getById(ctx.deps.db, id ?? 0);
     if (person) await startElimina(ctx, person.id, person.fullName);
@@ -90,10 +94,12 @@ async function routeCallback(cq: CallbackQuery, deps: Deps): Promise<void> {
     await answerCallback(ctx, T.actionUnavailable);
   } else if (cb.kind === "flow") {
     await handleFlowCallback(ctx, cb.flowId, cb.action, cb.arg);
-  } else if (cb.scope === "o") {
-    // R-11: gli esiti dei promemoria non interrompono il flusso guidato in corso.
-    if ((cb.action === "f" || cb.action === "s") && cb.id !== undefined) await handleOutcomeCallback(ctx, cb.action, cb.id);
-    else await answerCallback(ctx, T.actionUnavailable);
+  } else if (cb.scope === "o" || cb.scope === "t") {
+    // R-11: gli esiti dei promemoria (o:) e di /oggi (t:) non interrompono il flusso guidato in corso.
+    if ((cb.action === "f" || cb.action === "s") && cb.id !== undefined) {
+      if (cb.scope === "o") await handleOutcomeCallback(ctx, cb.action, cb.id);
+      else await handleTodayCallback(ctx, cb.action, cb.id);
+    } else await answerCallback(ctx, T.actionUnavailable);
   } else {
     await routeStatic(ctx, cb.scope, cb.action, cb.id);
   }

@@ -57,7 +57,12 @@ describe("research R-09: ciclo 13:00, 200 persone, 40 invii", () => {
     const byId = new Map(rows.map((r) => [r.id, r]));
     let bytes = 0;
     for (const [i, s] of claim.entries()) {
-      const data = buildReminderData(byId.get(s.personId)!, { deliveryId: 1000 + i, year: s.year, lastYear: null, defaultMessage: null });
+      const data = buildReminderData(byId.get(s.personId)!, {
+        actionTarget: { scope: "o", id: 1000 + i },
+        year: s.year,
+        lastYear: null,
+        defaultMessage: null,
+      });
       const { text, keyboard } = renderByKind(s.kind, s.ref, data);
       bytes += JSON.stringify({ chat_id: 1001, text, reply_markup: keyboard }).length;
     }

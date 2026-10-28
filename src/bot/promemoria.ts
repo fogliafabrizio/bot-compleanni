@@ -23,7 +23,8 @@ export interface ReminderPerson {
 }
 
 export interface ReminderData {
-  deliveryId: number;
+  // Destinazione dei pulsanti Fatto / Salta: invio (o:, 002) o occorrenza (t:, /oggi di 003).
+  actionTarget: { scope: "o" | "t"; id: number };
   person: ReminderPerson;
   groups: readonly string[];
   // Esito dell'occorrenza dell'anno precedente (BR-09).
@@ -48,8 +49,10 @@ const fullNameOrNull = (p: ReminderPerson) => (p.nickname && p.nickname !== p.fu
 
 const ageOf = (d: ReminderData) => (d.person.birthYear !== null ? d.year - d.person.birthYear : null);
 
-const done = (d: ReminderData) => button(T.btnOutcomeDone, { kind: "static", scope: "o", action: "f", id: d.deliveryId });
-const skip = (d: ReminderData, label: string) => button(label, { kind: "static", scope: "o", action: "s", id: d.deliveryId });
+const outcomeButton = (d: ReminderData, label: string, action: "f" | "s") =>
+  button(label, { kind: "static", scope: d.actionTarget.scope, action, id: d.actionTarget.id });
+const done = (d: ReminderData) => outcomeButton(d, T.btnOutcomeDone, "f");
+const skip = (d: ReminderData, label: string) => outcomeButton(d, label, "s");
 
 // RF-11, V-04…V-06: solo i contatti presenti; link https:// e copia nativa.
 export function contactRows(d: ReminderData, layout: "giorno" | "recupero"): InlineKeyboardButton[][] {
@@ -173,7 +176,7 @@ export interface PersonRowLike {
 
 export function buildReminderData(
   row: PersonRowLike,
-  o: { deliveryId: number; year: number; lastYear: OccurrenceStatus | null; defaultMessage: string | null },
+  o: { actionTarget: ReminderData["actionTarget"]; year: number; lastYear: OccurrenceStatus | null; defaultMessage: string | null },
 ): ReminderData {
   const person: ReminderPerson = {
     fullName: row.full_name,
@@ -186,7 +189,7 @@ export function buildReminderData(
     telegram: row.telegram,
   };
   return {
-    deliveryId: o.deliveryId,
+    actionTarget: o.actionTarget,
     person,
     groups: row.group_names ? row.group_names.split(GROUP_SEPARATOR) : [],
     lastYear: o.lastYear,

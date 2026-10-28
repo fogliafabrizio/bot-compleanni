@@ -34,4 +34,15 @@ describe("R-10: callback_data", () => {
   it("R-10: encode lancia oltre 64 byte UTF-8", () => {
     expect(() => encodeCallback({ kind: "flow", flowId: "k3x9q2", action: "t", arg: "x".repeat(60) })).toThrow();
   });
+
+  it("contracts/callback-data.md (003): ambito t di /oggi e azione p:f", () => {
+    expect(decodeCallback("t:f:123")).toEqual({ kind: "static", scope: "t", action: "f", id: 123 });
+    expect(decodeCallback("t:s:123")).toEqual({ kind: "static", scope: "t", action: "s", id: 123 });
+    expect(decodeCallback("p:f:7")).toEqual({ kind: "static", scope: "p", action: "f", id: 7 });
+    for (const s of ["t:f:123", "t:s:123", "p:f:7"]) expect(encodeCallback(decodeCallback(s)!)).toBe(s);
+    expect(decodeCallback("t:f:")).toBeNull();
+    expect(decodeCallback("t:f:abc")).toBeNull();
+    const longest = encodeCallback({ kind: "static", scope: "t", action: "f", id: 999999999999999 });
+    expect(new TextEncoder().encode(longest).length).toBe(19);
+  });
 });
