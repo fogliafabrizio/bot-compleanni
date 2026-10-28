@@ -1,6 +1,7 @@
+import { env } from "cloudflare:test";
 import { describe, expect, it } from "vitest";
 import { count, insertOccurrence, insertPerson } from "../helpers/db";
-import { runAt } from "../helpers/cron";
+import { runAt, runScheduledAt } from "../helpers/cron";
 import { makeCronDeps, type TestCronDeps } from "../helpers/deps";
 
 // Scenari di research R-09 con ~200 persone (RNF-16). Oggi = 14/03/2027.
@@ -72,5 +73,40 @@ describe("principio II, RNF-17: subrequest del ciclo orario", () => {
     expect(deps.counter.batches).toHaveLength(3);
     expect(deps.counter.batches[1]!.length).toBeLessThanOrEqual(30);
     expectParamsWithinLimit(deps);
+  });
+});
+
+// Research R-12 di 004: handler scheduled completo (ciclo orario + backup mensile) il 1/03/2027.
+async function measureScheduled(deps: TestCronDeps, day: number, hour: number): Promise<number> {
+  deps.counter.count = 0;
+  deps.counter.batches = [];
+  deps.tg.reset();
+  await runScheduledAt(deps, 2027, 3, day, hour);
+  return deps.counter.count + deps.tg.calls.length;
+}
+
+describe("principio II, RNF-17: subrequest del cron con il backup mensile (004)", () => {
+  it("R-12: 1° del mese alle 9:00, 40 promemoria + backup dovuto = 47", async () => {
+    for (let i = 1; i <= PEOPLE; i++) await insertPerson({ id: i, fullName: `Persona ${i}`, day: 1, month: 3, priority: "alta" });
+    const deps = makeCronDeps();
+    const total = await measureScheduled(deps, 1, 9);
+    expect(total).toBe(47);
+    expect(total).toBeLessThanOrEqual(50);
+    expect(deps.tg.documents()).toHaveLength(1);
+    expectParamsWithinLimit(deps);
+  });
+
+  it("R-12: backup già inviato nel mese = 43 + 1 reclamo a vuoto = 44", async () => {
+    for (let i = 1; i <= PEOPLE; i++) await insertPerson({ id: i, fullName: `Persona ${i}`, day: 1, month: 3, priority: "alta" });
+    await env.DB.prepare("INSERT INTO settings (key, value, updated_at) VALUES ('auto_backup', '2027-03:inviato', '2027-03-01T00:00:00.000Z')").run();
+    const deps = makeCronDeps();
+    expect(await measureScheduled(deps, 1, 9)).toBe(44);
+    expect(deps.tg.documents()).toEqual([]);
+  });
+
+  it("R-12: 1° del mese prima delle 9:00 → nessuna query in più (ora senza invii = 2)", async () => {
+    await fill(0);
+    const deps = makeCronDeps();
+    expect(await measureScheduled(deps, 1, 8)).toBe(2);
   });
 });

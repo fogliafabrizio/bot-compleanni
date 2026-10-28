@@ -20,6 +20,35 @@ export function textUpdate(
   };
 }
 
+// Messaggio con un documento e senza testo (contracts/telegram-file.md di 004).
+export function documentUpdate(
+  fromId: number,
+  fileName: string,
+  fileId: string,
+  size?: number,
+  chatType: "private" | "group" | "supergroup" | "channel" = "private",
+): Update {
+  const id = nextId++;
+  return {
+    update_id: id,
+    message: {
+      message_id: id,
+      from: { id: fromId },
+      chat: { id: chatType === "private" ? fromId : -5000, type: chatType },
+      document: { file_id: fileId, file_unique_id: `u${fileId}`, file_name: fileName, ...(size !== undefined ? { file_size: size } : {}) },
+    },
+  };
+}
+
+// Immagine inviata come foto, non come file.
+export function photoUpdate(fromId: number): Update {
+  const id = nextId++;
+  return {
+    update_id: id,
+    message: { message_id: id, from: { id: fromId }, chat: { id: fromId, type: "private" }, photo: [{ file_id: `ph${id}` }] },
+  };
+}
+
 export function callbackUpdate(fromId: number, data: string, messageId = 1): Update {
   const id = nextId++;
   return {

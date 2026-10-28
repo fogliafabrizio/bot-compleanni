@@ -5,7 +5,7 @@ import { OWNER_ID, SECRET, STRANGER_ID } from "../helpers/constants";
 import { count, totalRows } from "../helpers/db";
 import { makeDeps } from "../helpers/deps";
 import { send } from "../helpers/send";
-import { callbackUpdate, textUpdate, webhookRequest } from "../helpers/updates";
+import { callbackUpdate, documentUpdate, textUpdate, webhookRequest } from "../helpers/updates";
 
 describe("US1: accesso riservato al proprietario", () => {
   describe("RNF-03: token segreto del webhook", () => {
@@ -130,5 +130,29 @@ describe("US1: accesso riservato al proprietario", () => {
       expect(deps.tg.messages()).toHaveLength(1);
       expect(deps.tg.lastText()).toBe("Si è verificato un errore, riprova");
     });
+  });
+});
+
+describe("RNF-09, FR-027 di 001: file e comandi della feature 004 riservati al proprietario", () => {
+  it("RNF-09: un estraneo invia CSV, JSON e i 4 comandi → nessuna chiamata Telegram né D1", async () => {
+    const deps = makeDeps();
+    deps.tg.addFile("f1", "nome;data\nMarco;14/03\n");
+    await send(deps, documentUpdate(STRANGER_ID, "persone.csv", "f1", 30));
+    await send(deps, documentUpdate(STRANGER_ID, "backup.json", "f1", 30));
+    for (const c of ["/modello", "/export", "/backup", "/ripristina"]) await send(deps, textUpdate(STRANGER_ID, c));
+    expect(deps.tg.calls).toEqual([]);
+    expect(deps.counter.count).toBe(0);
+    expect(await totalRows()).toBe(0);
+  });
+
+  it("RNF-09: lo stesso dal proprietario in un gruppo → ignorato", async () => {
+    const deps = makeDeps();
+    deps.tg.addFile("f1", "nome;data\nMarco;14/03\n");
+    await send(deps, documentUpdate(OWNER_ID, "persone.csv", "f1", 30, "group"));
+    await send(deps, documentUpdate(OWNER_ID, "backup.json", "f1", 30, "supergroup"));
+    for (const c of ["/modello", "/export", "/backup", "/ripristina"]) await send(deps, textUpdate(OWNER_ID, c, "group"));
+    expect(deps.tg.calls).toEqual([]);
+    expect(deps.counter.count).toBe(0);
+    expect(await totalRows()).toBe(0);
   });
 });

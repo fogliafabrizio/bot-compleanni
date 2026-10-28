@@ -1,9 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { insertPerson } from "../helpers/db";
-import { runAt } from "../helpers/cron";
+import { runAt, runScheduledAt } from "../helpers/cron";
+import { csvOf } from "../helpers/csv-fixtures";
 import { makeCronDeps, makeDeps } from "../helpers/deps";
 import { cbOf } from "../helpers/fake-telegram";
-import { press, say } from "../helpers/send";
+import { press, say, sendFile } from "../helpers/send";
 
 // Principio V, RNF-08: i log contengono solo codici e numeri.
 const SECRETS = ["Marco", "Rossi", "Marchino", "393331234567", "marco.ig", "marco_tg", "auguri", "Anna", "Bianchi", "1995", "14/03", "03-14"];
@@ -54,5 +55,25 @@ describe("principio V, RNF-08: nessun dato personale nei log", () => {
     await press(deps, cbOf(deps.tg.messages()[0]!.keyboard, "Fatto ✅"));
     await press(deps, "p:f:1");
     for (const l of lines) for (const s of SECRETS) expect(l).not.toContain(s);
+  });
+
+  it("principio V (004): import, export, backup, ripristino e backup mensile non loggano nomi, date, contenuti o token", async () => {
+    const deps = makeCronDeps();
+    await sendFile(deps, "agenda.csv", csvOf([["Marco Rossi", "Marchino", "14/03/1995", "+39 3331234567", "marco.ig", "marco_tg", "Famiglia", "alta", "Tanti auguri {nome}"]]));
+    await press(deps, cbOf(deps.tg.lastKeyboard(), "Importa"));
+    await sendFile(deps, "rotto.csv", csvOf([["Anna Bianchi", "", "31/04/1995"]]));
+    await say(deps, "/export");
+    await say(deps, "/backup");
+    const backup = deps.tg.documents().at(-1)!.text;
+    await say(deps, "/ripristina");
+    await sendFile(deps, "backup.json", backup.replace("Marco Rossi", "x".repeat(70)));
+    await sendFile(deps, "backup.json", backup);
+    await press(deps, cbOf(deps.tg.lastKeyboard(), "Continua"));
+    await press(deps, cbOf(deps.tg.lastKeyboard(), "Sì, ripristina"));
+    deps.tg.failNextOn("sendDocument", 429);
+    await runScheduledAt(deps, 2026, 11, 1, 9);
+    await runScheduledAt(deps, 2026, 11, 1, 10);
+    expect(lines.some((l) => l.includes("auto_backup"))).toBe(true);
+    for (const l of lines) for (const s of [...SECRETS, "test-token", "documents/"]) expect(l).not.toContain(s);
   });
 });

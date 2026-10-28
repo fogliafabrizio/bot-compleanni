@@ -1,4 +1,5 @@
 import { runHourly, type RunReport } from "../../src/cron/hourly";
+import { runScheduled } from "../../src/cron/scheduled";
 import { addHours, localDayStartUtc, toLocal } from "../../src/time";
 import type { TestCronDeps } from "./deps";
 
@@ -19,4 +20,11 @@ export function runAt(deps: TestCronDeps, y: number, m: number, d: number, hour:
   const at = localInstant(y, m, d, hour);
   deps.setNow(at);
   return runHourly(deps, at);
+}
+
+// Esegue l'handler scheduled completo (ciclo orario + backup mensile) dell'ora locale indicata.
+export function runScheduledAt(deps: TestCronDeps, y: number, m: number, d: number, hour: number): Promise<void> {
+  const at = localInstant(y, m, d, hour);
+  deps.setNow(at);
+  return runScheduled(deps, at);
 }

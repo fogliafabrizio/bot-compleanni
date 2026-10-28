@@ -17,7 +17,13 @@ export type TextEditCall = {
   keyboard?: InlineKeyboardMarkup;
 };
 export type AnswerCall = { method: "answerCallbackQuery"; id: string; text?: string };
-export type TgCall = SendCall | EditCall | TextEditCall | AnswerCall;
+// Contenuto del documento decodificato in UTF-8 con il BOM (contracts/telegram-file.md di 004).
+export type DocumentCall = { method: "sendDocument"; chatId: number; name: string; mimeType: string; text: string; caption?: string };
+export type GetFileCall = { method: "getFile"; fileId: string };
+export type DownloadCall = { method: "downloadFile"; filePath: string };
+export type TgCall = SendCall | EditCall | TextEditCall | AnswerCall | DocumentCall | GetFileCall | DownloadCall;
+
+type FileMethod = "sendDocument" | "getFile" | "downloadFile";
 
 // Telegram simulato: registra ogni chiamata, nessuna rete (principio X).
 export class FakeTelegram implements TelegramApi {
@@ -25,6 +31,23 @@ export class FakeTelegram implements TelegramApi {
   private nextMessageId = 100;
   private failures: number[] = [];
   private failRules: { predicate: (text: string) => boolean; code: number }[] = [];
+  private fileFailures: Record<FileMethod, number[]> = { sendDocument: [], getFile: [], downloadFile: [] };
+  private files = new Map<string, { filePath: string; content: Uint8Array }>();
+
+  // Le prossime `times` chiamate del metodo indicato lanciano TelegramError(code).
+  failNextOn(method: FileMethod, code: number, times = 1): void {
+    for (let i = 0; i < times; i++) this.fileFailures[method].push(code);
+  }
+
+  private maybeFail(method: FileMethod): void {
+    const code = this.fileFailures[method].shift();
+    if (code !== undefined) throw new TelegramError(code);
+  }
+
+  // File scaricabile con getFile + downloadFile.
+  addFile(fileId: string, content: string | Uint8Array, filePath = `documents/${fileId}`): void {
+    this.files.set(fileId, { filePath, content: typeof content === "string" ? new TextEncoder().encode(content) : content });
+  }
 
   // Le prossime `times` sendMessage lanciano TelegramError(code).
   failNext(code: number, times = 1): void {
@@ -64,6 +87,34 @@ export class FakeTelegram implements TelegramApi {
     this.calls.push(text === undefined ? { method: "answerCallbackQuery", id } : { method: "answerCallbackQuery", id, text });
   }
 
+  async sendDocument(chatId: number, file: { name: string; content: Uint8Array; mimeType: string }, caption?: string) {
+    this.maybeFail("sendDocument");
+    const text = new TextDecoder("utf-8", { fatal: false, ignoreBOM: true }).decode(file.content);
+    const call: DocumentCall = { method: "sendDocument", chatId, name: file.name, mimeType: file.mimeType, text };
+    if (caption !== undefined) call.caption = caption;
+    this.calls.push(call);
+    return { message_id: this.nextMessageId++ };
+  }
+
+  async getFile(fileId: string) {
+    this.maybeFail("getFile");
+    this.calls.push({ method: "getFile", fileId });
+    const f = this.files.get(fileId);
+    if (!f) throw new TelegramError(400);
+    return { file_path: f.filePath, file_size: f.content.byteLength };
+  }
+
+  async downloadFile(filePath: string) {
+    this.maybeFail("downloadFile");
+    this.calls.push({ method: "downloadFile", filePath });
+    for (const f of this.files.values()) if (f.filePath === filePath) return f.content;
+    throw new TelegramError(404);
+  }
+
+  documents(): DocumentCall[] {
+    return this.calls.filter((c): c is DocumentCall => c.method === "sendDocument");
+  }
+
   messages(): SendCall[] {
     return this.calls.filter((c): c is SendCall => c.method === "sendMessage");
   }
@@ -93,7 +144,7 @@ export class FakeTelegram implements TelegramApi {
   }
 
   allKeyboards(): InlineKeyboardMarkup[] {
-    return this.calls.flatMap((c) => (c.method !== "answerCallbackQuery" && c.keyboard ? [c.keyboard] : []));
+    return this.calls.flatMap((c) => ("keyboard" in c && c.keyboard ? [c.keyboard] : []));
   }
 
   reset(): void {

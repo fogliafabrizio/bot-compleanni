@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseCommand } from "../../src/bot/commands";
+import { COMMANDS, parseCommand } from "../../src/bot/commands";
 
 describe("RF-28: parsing dei comandi", () => {
   it("RF-29: /id", () => expect(parseCommand("/id")).toEqual({ name: "id", args: "" }));
@@ -17,4 +17,11 @@ describe("RF-28: parsing dei comandi", () => {
   it("RF-03: /p_12 mantiene personId", () => expect(parseCommand("/p_12")?.personId).toBe(12));
   it("RF-19: nome di gruppo con spazi", () =>
     expect(parseCommand("/gruppo  Beach tennis")).toEqual({ name: "gruppo", args: "Beach tennis" }));
+});
+
+describe("RF-23, RF-25, RF-26: comandi della feature 004", () => {
+  it.each(["modello", "export", "backup", "ripristina"])("/%s riconosciuto e presente in COMMANDS", (name) => {
+    expect(parseCommand(`/${name}`)).toEqual({ name, args: "" });
+    expect(COMMANDS[name]).toBeTypeOf("function");
+  });
 });

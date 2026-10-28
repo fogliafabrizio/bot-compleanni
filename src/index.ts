@@ -1,5 +1,5 @@
 import { handleRequest } from "./bot/webhook";
-import { runHourly } from "./cron/hourly";
+import { runScheduled } from "./cron/scheduled";
 import type { CronDeps, Deps } from "./deps";
 import type { Env } from "./env";
 import { createTelegramApi } from "./telegram/client";
@@ -25,6 +25,6 @@ export default {
     return handleRequest(request, makeDeps(env), env.WEBHOOK_SECRET ?? "");
   },
   async scheduled(controller, env) {
-    await runHourly(makeCronDeps(env), new Date(controller.scheduledTime));
+    await runScheduled(makeCronDeps(env), new Date(controller.scheduledTime));
   },
 } satisfies ExportedHandler<Env>;

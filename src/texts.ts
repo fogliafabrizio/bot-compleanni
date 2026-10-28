@@ -1,6 +1,14 @@
 // Tutti i testi rivolti all'utente (RNF-15): si cambiano qui senza toccare la logica.
 
-import { OUTCOME_CORRECTION_DAYS } from "./config";
+import {
+  CSV_COLUMNS,
+  CSV_GROUP_SEPARATOR,
+  IMPORT_MAX_ROWS,
+  OUTCOME_CORRECTION_DAYS,
+  RECEIVED_FILE_MAX_BYTES,
+  TELEGRAM_DOWNLOAD_MAX_BYTES,
+  TEXT_LIMITS,
+} from "./config";
 
 export const MONTHS_IT = [
   "gennaio",
@@ -21,6 +29,34 @@ export const MONTHS_IT = [
 export const WEEKDAYS_IT = ["Dom", "Lun", "Mar", "Mer", "Gio", "Ven", "Sab"] as const;
 
 const daysSuffix = (group: string | null) => (group ? ` (${group})` : "");
+
+const MB = 1024 * 1024;
+
+// Migliaia separate da "." (contracts/flussi.md di 004: "1.204 occorrenze").
+const thousands = (n: number) => String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+
+// Conteggi di un backup o dei dati attuali (FR-019, FR-020).
+export interface Counts {
+  persons: number;
+  groups: number;
+  occurrences: number;
+}
+
+const countsText = (c: Counts) =>
+  `${thousands(c.persons)} persone, ${thousands(c.groups)} gruppi, ${thousands(c.occurrences)} occorrenze`;
+
+// FR-007a, contracts/csv.md: riga d'esempio del modello, saltata all'import. Una sola definizione.
+export const CSV_EXAMPLE_ROW = [
+  "Esempio Da Cancellare",
+  "Esempio",
+  "14/03/1990",
+  "+39 3331234567",
+  "esempio.ig",
+  "esempio_tg",
+  "Famiglia|Amici",
+  "alta",
+  "Tanti auguri {nome}!",
+] as const;
 
 export const T = {
   // Comuni
@@ -204,6 +240,94 @@ export const T = {
   sampleName: "Marco",
   btnConfirm: "Conferma",
 
+  // Documenti ricevuti (feature 004, contracts/comandi.md)
+  fileTooBigTelegram: `Il file è troppo grande: Telegram consente ai bot di ricevere file fino a ${TELEGRAM_DOWNLOAD_MAX_BYTES / MB} MB.`,
+  fileTooBig: `Il file è troppo grande (massimo ${RECEIVED_FILE_MAX_BYTES / MB} MB).`,
+  useRipristina: "Per ripristinare un backup usa /ripristina.",
+  sendCsv: "Per importare persone inviami un file .csv (usa /modello per il formato).",
+  downloadFailed: "Non sono riuscito a scaricare il file, riprova.",
+  waitingBackupFile: "Attendo un file JSON di backup. Usa /annulla per interrompere.",
+
+  // /modello (RF-23, FR-007): legenda nella caption del documento (≤ 1024 caratteri).
+  templateCaption: [
+    "Modello per importare le persone. Compilalo al PC e rimandamelo qui.",
+    "",
+    "• nome e data sono obbligatori",
+    "• data: gg/mm/aaaa oppure gg/mm se l'anno non è noto (formatta la colonna come Testo)",
+    "• telefono: con o senza +39",
+    "• instagram, telegram: username, con o senza @",
+    `• gruppi: separati da ${CSV_GROUP_SEPARATOR} (es. Famiglia${CSV_GROUP_SEPARATOR}Amici); quelli nuovi vengono creati`,
+    "• priorita: alta, media o bassa (vuota = media)",
+    "• messaggio: auguri personalizzati, {nome} diventa il nome",
+    "• la riga d'esempio viene ignorata: puoi lasciarla o cancellarla",
+    '• separatore ; oppure , — salva come "CSV UTF-8"',
+  ].join("\n"),
+
+  // Rifiuto del CSV per intero (contracts/comandi.md)
+  csvNotUtf8: 'Non riesco a leggere il file: salvalo da Excel come "CSV UTF-8" e rimandalo.',
+  csvInvalidHeader: `Intestazione non valida. Colonne attese: ${CSV_COLUMNS.join("; ")} (obbligatorie: nome e data).`,
+  csvEmpty: "Il file non contiene righe da importare.",
+  csvTooManyRows: `Il file ha più di ${IMPORT_MAX_ROWS} righe: dividilo in più file da al massimo ${IMPORT_MAX_ROWS} righe.`,
+
+  // Motivi di errore di riga (FR-010, contracts/csv.md)
+  rowReason: {
+    nameMissing: "nome mancante",
+    nameTooLong: `nome troppo lungo (max ${TEXT_LIMITS.fullName})`,
+    nicknameTooLong: `nickname troppo lungo (max ${TEXT_LIMITS.nickname})`,
+    dateMissing: "data mancante",
+    dateInvalid: (v: string) => `data "${v}" non valida`,
+    phoneInvalid: "telefono non valido",
+    priorityInvalid: (v: string) => `priorità "${v}" non valida`,
+    groupTooLong: (v: string) => `gruppo "${v}" troppo lungo (max ${TEXT_LIMITS.groupName})`,
+    messageTooLong: "messaggio troppo lungo",
+    extraColumns: "colonne in più",
+  },
+
+  // Anteprima e flusso import (contracts/flussi.md)
+  previewTitle: "Anteprima import",
+  previewNew: (n: number) => (n === 1 ? "1 persona nuova" : `${n} persone nuove`),
+  previewExampleSkipped: "Riga d'esempio ignorata",
+  previewDuplicates: (n: number) => (n === 1 ? "1 duplicato (saltato):" : `${n} duplicati (saltati):`),
+  previewDuplicateLine: (line: number, name: string, date: string) => `• riga ${line}: ${name} ${date}`,
+  previewErrors: (n: number) => (n === 1 ? "1 errore:" : `${n} errori:`),
+  previewErrorLine: (line: number, reasons: readonly string[]) => `• riga ${line}: ${reasons.join("; ")}`,
+  previewGroups: (names: string) => `Gruppi da creare: ${names}`,
+  previewTruncated: (n: number) => `…e altre ${n} righe non mostrate (correggi il file e rimandalo).`,
+  previewShort: (n: number, d: number, e: number, groups: string) =>
+    `Anteprima in attesa: ${n} nuove, ${d} duplicati, ${e} errori.${groups ? ` Gruppi da creare: ${groups}.` : ""}`,
+  previewMoreGroups: (n: number) => `e altri ${n}`,
+  btnImport: "Importa",
+  imported: (n: number, m: number) =>
+    `Importate ${n} ${n === 1 ? "persona" : "persone"}, ${m === 1 ? "creato 1 gruppo" : `creati ${m} gruppi`}.`,
+  becameDuplicates: (k: number) =>
+    k === 1 ? "1 riga è diventata un duplicato ed è stata saltata." : `${k} righe sono diventate duplicati e sono state saltate.`,
+  nothingImported: "Nessuna persona importata: tutte le righe sono ora duplicati.",
+
+  // /export (RF-25)
+  exportCaption: (n: number) => `Export di ${n} persone.`,
+
+  // /backup e /ripristina (RF-26, contracts/comandi.md, flussi.md, backup-json.md)
+  backupCaption: (n: number, m: number, k: number) =>
+    `Backup: ${thousands(n)} persone, ${thousands(m)} gruppi, ${thousands(k)} occorrenze. Per ripristinarlo usa /ripristina.`,
+  restoreAsk: "Inviami il file JSON di backup da ripristinare.",
+  restoreConfirm1: (date: string, b: Counts, a: Counts) =>
+    `Backup del ${date}: ${countsText(b)}.\nDati attuali che verranno sostituiti: ${countsText(a)}.`,
+  restoreConfirm2:
+    "⚠️ Attenzione: l'operazione è irreversibile. Tutti i dati attuali verranno cancellati e sostituiti dal backup. Vuoi procedere?",
+  btnContinue: "Continua",
+  btnRestore: "Sì, ripristina",
+  restoreDone: (c: Counts, customDefault: boolean) =>
+    `Ripristino completato: ${countsText(c)}.\nMessaggio di auguri standard: ${customDefault ? "personalizzato" : "quello iniziale"}`,
+  backupNotJson: "Il file non è un JSON valido.",
+  backupWrongFormat: "Il file non è un backup di questo bot.",
+  backupVersion: (v: string) => `Versione del backup non supportata (${v}).`,
+  backupInvalidField: (entity: string, id: string, field: string) => `Backup non valido: ${entity} ${id}, campo ${field}.`,
+  backupDuplicateId: (entity: string, id: string) => `Backup non valido: ${entity} ${id} ${entity.endsWith("a") ? "ripetuta" : "ripetuto"}.`,
+  backupInvalidSetting: (field: string) => `Backup non valido: impostazioni, campo ${field}.`,
+  backupDuplicateGroupName: "Backup non valido: gruppi con lo stesso nome.",
+  backupMissingRef: (entity: string, id: string) => `Backup non valido: riferimento a ${entity} ${id} inesistente.`,
+  backupDuplicateOccurrence: (personId: string) => `Backup non valido: occorrenze ripetute per la persona ${personId}.`,
+
   // US7 — benvenuto e aiuto
   welcome:
     "Ciao! Sono il tuo bot dei compleanni: tengo l'elenco delle persone a cui tieni e ti aiuto a non dimenticare i loro compleanni.",
@@ -221,10 +345,16 @@ export const T = {
     "/mese [mese] — compleanni del mese",
     `/scaduti — ultimi ${OUTCOME_CORRECTION_DAYS} giorni non fatti`,
     "/anno [anno] — riepilogo dell'anno",
+    "/modello — modello CSV per l'import",
+    "/export — esporta le persone in CSV",
+    "/backup — backup completo in JSON",
+    "/ripristina — ripristina da un backup",
     "/annulla — interrompe l'operazione guidata in corso",
     "/id — mostra il tuo ID Telegram",
     "/aiuto — mostra questo elenco",
     "/start — messaggio di benvenuto",
     "/p_<id> — apre la scheda di una persona (tocca il comando dove compare)",
+    "",
+    "Per importare persone inviami un file CSV.",
   ].join("\n"),
 } as const;

@@ -5,6 +5,7 @@ import type { CallbackQuery, Message, Update } from "../telegram/types";
 import { T } from "../texts";
 import { COMMANDS, parseCommand } from "./commands";
 import { answerCallback, reply, type Ctx } from "./context";
+import { awaitsBackupFile, handleDocument } from "./file";
 import { handleOutcomeCallback } from "./esiti";
 import { getById } from "../db/persons";
 import { handleFlowCallback, handleFlowText, repeatStep } from "./flows/engine";
@@ -59,6 +60,17 @@ async function routeMessage(msg: Message, deps: Deps): Promise<void> {
   if (!owner || msg.chat.type !== "private") return;
 
   const state = await getActive(deps.db, ctx.chatId, deps.now());
+
+  // R-13 di 004: i documenti prima dei comandi e del testo dei flussi.
+  if (msg.document) {
+    await handleDocument(ctx, msg.document, state);
+    return;
+  }
+  // Immagine inviata come foto: non si scarica, il flusso resta invariato.
+  if (msg.photo) {
+    await reply(ctx, awaitsBackupFile(state) ? T.waitingBackupFile : T.sendCsv);
+    return;
+  }
 
   if (cmd) {
     const handler = COMMANDS[cmd.name];

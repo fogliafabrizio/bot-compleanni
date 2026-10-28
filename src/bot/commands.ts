@@ -2,6 +2,9 @@ import { clear, getActive } from "../db/conversation";
 import { T } from "../texts";
 import { reply, type Ctx } from "./context";
 import { button, keyboard } from "../telegram/keyboard";
+import { handleBackup } from "./backup";
+import { handleExport, handleTemplate } from "./export";
+import { startRestore } from "./flows/ripristina";
 import { showGroups } from "./flows/gruppi";
 import { startMessaggio } from "./flows/messaggio";
 import { startNuovo } from "./flows/nuovo";
@@ -70,6 +73,13 @@ export const COMMANDS: Record<string, CommandHandler> = {
   scaduti: (ctx) => showScaduti(ctx),
   // RF-22
   anno: (ctx, cmd) => showAnno(ctx, cmd.args),
+  // RF-23
+  modello: (ctx) => handleTemplate(ctx),
+  // RF-25
+  export: (ctx) => handleExport(ctx),
+  // RF-26
+  backup: (ctx) => handleBackup(ctx),
+  ripristina: (ctx) => startRestore(ctx),
   // RF-06
   annulla: async (ctx) => {
     const state = await getActive(ctx.deps.db, ctx.chatId, ctx.deps.now());

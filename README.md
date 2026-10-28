@@ -15,7 +15,7 @@ npm run types        # rigenera worker-configuration.d.ts dopo modifiche a wrang
 npm run typecheck    # tsc --noEmit (strict)
 npm test             # vitest nel runtime Workers, D1 locale, Telegram simulato
 npm run dev          # wrangler dev (secret in .dev.vars, copiato da .dev.vars.example)
-npm run bench        # benchmark CPU delle parti pure del ciclo orario (Node, soglia 3 ms)
+npm run bench        # benchmark CPU delle parti pure: ciclo orario, liste, import/backup (Node, soglia 3 ms)
 ```
 
 ## Comandi del bot

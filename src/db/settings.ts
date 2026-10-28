@@ -29,3 +29,27 @@ export function saveDefaultMessageGuardedStatement(
     )
     .bind(DEFAULT_MESSAGE_KEY, value, nowIso, chatId, flowId);
 }
+
+// Backup mensile (RF-27, contracts/backup-mensile.md): valore "AAAA-MM:<stato>".
+export const AUTO_BACKUP_KEY = "auto_backup";
+
+// FR-023: un solo statement reclama il mese; solo chi ottiene la riga invia (principio VII).
+export async function claimAutoBackup(db: D1Database, month: string, nowIso: string): Promise<boolean> {
+  const row = await db
+    .prepare(
+      `INSERT INTO settings (key, value, updated_at) VALUES (?, ? || ':in_invio', ?)
+       ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at
+         WHERE settings.value NOT IN (? || ':in_invio', ? || ':inviato')
+       RETURNING value`,
+    )
+    .bind(AUTO_BACKUP_KEY, month, nowIso, month, month)
+    .first();
+  return row !== null;
+}
+
+export async function setAutoBackupResult(db: D1Database, month: string, result: "inviato" | "fallito", nowIso: string): Promise<void> {
+  await db
+    .prepare("UPDATE settings SET value = ?, updated_at = ? WHERE key = ?")
+    .bind(`${month}:${result}`, nowIso, AUTO_BACKUP_KEY)
+    .run();
+}

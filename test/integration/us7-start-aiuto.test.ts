@@ -36,7 +36,13 @@ describe("US7: benvenuto e aiuto", () => {
     for (const c of viste) expect(lines.find((l) => l.startsWith(`${c} `)), c).toBeDefined();
     const annulla = lines.findIndex((l) => l.startsWith("/annulla "));
     for (const c of viste) expect(lines.findIndex((l) => l.startsWith(`${c} `))).toBeLessThan(annulla);
-    expect(deps.tg.lastText()).not.toContain("/modello");
+    // Feature 004 (contracts/comandi.md, /aiuto): comandi dei file prima di /annulla e nota sull'import.
+    for (const c of ["/modello", "/export", "/backup", "/ripristina"]) {
+      const i = lines.findIndex((l) => l.startsWith(`${c} `));
+      expect(i, c).toBeGreaterThanOrEqual(0);
+      expect(i).toBeLessThan(annulla);
+    }
+    expect(lines).toContain("Per importare persone inviami un file CSV.");
   });
 
   it.each(["ciao", "/pippo"])("RF-28, RNF-13, FR-025a: %s fuori flusso → Non ho capito", async (text) => {

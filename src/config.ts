@@ -65,3 +65,41 @@ export const TODAY_MAX_MESSAGES = 10;
 // RF-17: giorni di /prossimi senza argomento e massimo ammesso.
 export const UPCOMING_DEFAULT_DAYS = 30;
 export const UPCOMING_MAX_DAYS = 366;
+
+// --- Import, export e backup (feature 004) ---
+
+// FR-008a: righe di dati non vuote ammesse in un CSV di import.
+export const IMPORT_MAX_ROWS = 500;
+
+// V-07, FR-026: limite di download della Bot API per i bot.
+export const TELEGRAM_DOWNLOAD_MAX_BYTES = 20 * 1024 * 1024;
+
+// FR-026, research R-01: tetto tecnico sui file ricevuti per restare nei 10 ms di CPU.
+export const RECEIVED_FILE_MAX_BYTES = 1024 * 1024;
+
+// BR-18, FR-001: colonne del CSV nell'ordine dei file prodotti dal bot.
+export const CSV_COLUMNS = ["nome", "nickname", "data", "telefono", "instagram", "telegram", "gruppi", "priorita", "messaggio"] as const;
+export type CsvColumn = (typeof CSV_COLUMNS)[number];
+export const CSV_REQUIRED_COLUMNS = ["nome", "data"] as const;
+
+// FR-005a: separatore dei CSV scritti dal bot (Excel in italiano).
+export const CSV_EXPORT_SEPARATOR = ";";
+
+// BR-20: separatore dei gruppi nella colonna `gruppi`.
+export const CSV_GROUP_SEPARATOR = "|";
+
+// Research R-08: identificativo e versione del file di backup JSON.
+export const BACKUP_FORMAT = "bot-compleanni-backup";
+export const BACKUP_FORMAT_VERSION = 1;
+
+// RF-27, A-03: il backup mensile è dovuto dal giorno AUTO_BACKUP_DAY alle AUTO_BACKUP_HOUR locali.
+export const AUTO_BACKUP_DAY = 1;
+export const AUTO_BACKUP_HOUR = 9;
+
+// Research R-02: lunghezza massima della didascalia di un documento.
+export const DOCUMENT_CAPTION_MAX_LENGTH = 1024;
+
+// Research R-04, R-06, R-12: anteprima limitata (valori citati, gruppi per riga, messaggi).
+export const IMPORT_ERROR_VALUE_MAX = 30;
+export const PREVIEW_GROUPS_PER_LINE = 10;
+export const PREVIEW_MAX_MESSAGES = 30;

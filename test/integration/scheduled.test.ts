@@ -8,6 +8,8 @@ describe("N-01: Cron Trigger orario", () => {
   it("N-01, RF-13: l'handler scheduled esegue il ciclo con l'ora di scheduledTime", async () => {
     await insertPerson({ id: 1, fullName: "Marco Rossi", day: 12, month: 3 });
     await insertOccurrence({ personId: 1, year: 2027, effectiveDate: "2027-03-12" });
+    // Backup mensile già inviato: l'handler non chiama Telegram (feature 004).
+    await env.DB.prepare("INSERT INTO settings (key, value, updated_at) VALUES ('auto_backup', '2027-03:inviato', '2027-03-01T08:00:00.000Z')").run();
     // 14/03/2027 alle 10 locali: nessuno slot, quindi nessun invio a Telegram (niente rete reale).
     const controller = createScheduledController({ cron: "0 * * * *", scheduledTime: Date.UTC(2027, 2, 14, 9) });
     const handler = worker as ExportedHandler<Env>;

@@ -5,8 +5,9 @@ export type CleanResult = { ok: true; value: string } | { ok: false; reason: "em
 export function cleanText(input: string, max: number): CleanResult {
   const value = input.trim();
   if (value.length === 0) return { ok: false, reason: "empty", max };
-  // Lunghezza in code point: un'emoji vale 1.
-  if ([...value].length > max) return { ok: false, reason: "too_long", max };
+  // Lunghezza in code point: un'emoji vale 1. Un code point occupa 1 o 2 unità UTF-16, quindi si
+  // contano solo le stringhe tra max e 2·max unità (valori lunghi dei CSV: research R-12 di 004).
+  if (value.length > max && (value.length > 2 * max || [...value].length > max)) return { ok: false, reason: "too_long", max };
   return { ok: true, value };
 }
 
@@ -28,7 +29,10 @@ export function searchKey(s: string): string {
   return s.normalize("NFD").replace(/\p{M}/gu, "").toLocaleLowerCase("it-IT");
 }
 
-// Calcolata in TypeScript: lower() di SQLite gestisce solo ASCII.
+// Calcolata in TypeScript: lower() di SQLite gestisce solo ASCII. L'italiano non ha regole proprie
+// di minuscolo (a differenza di turco, azero, lituano): toLowerCase() dà lo stesso risultato di
+// toLocaleLowerCase("it-IT") ma senza il costo del locale, che pesa con i 2000 gruppi di un import
+// (research R-12 di 004).
 export function normKey(s: string): string {
-  return s.trim().toLocaleLowerCase("it-IT");
+  return s.trim().toLowerCase();
 }

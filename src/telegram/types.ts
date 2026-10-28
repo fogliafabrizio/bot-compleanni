@@ -16,6 +16,19 @@ export interface Message {
   chat: Chat;
   text?: string;
   reply_markup?: InlineKeyboardMarkup;
+  // Documento ricevuto (contracts/telegram-file.md di 004); caption e photo non decidono il tipo (R-13).
+  document?: Document;
+  caption?: string;
+  photo?: { file_id: string }[];
+}
+
+export interface Document {
+  file_id: string;
+  file_unique_id: string;
+  file_name?: string;
+  // Non usato per decidere il tipo del file (research R-01 di 004).
+  mime_type?: string;
+  file_size?: number;
 }
 
 export interface CallbackQuery {
