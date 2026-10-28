@@ -32,6 +32,10 @@ Nessuna dipendenza di runtime. Dipendenze di sviluppo (giustificazione richiesta
 | `vitest` | Runner dei test (principio X) | Imposto dalla constitution | Nessuno |
 | `@cloudflare/vitest-pool-workers` | Esegue i test dentro `workerd` con D1 reale (Miniflare) | Imposto dalla constitution; riproduce il runtime reale | Nessuno |
 
+Nota di implementazione (2026-10-28): `@cloudflare/vitest-pool-workers` risulta deprecato e
+rinominato in `@cloudflare/vitest-plugin` (stesso progetto e stessa funzione); si usa
+quest'ultimo, con `vitest` 4.1.
+
 Versioni: l'ultima stabile compatibile tra loro al momento di `npm install` (la versione di
 `vitest` va scelta tra quelle supportate da `@cloudflare/vitest-pool-workers`), fissate in
 `package-lock.json`.
