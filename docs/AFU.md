@@ -348,7 +348,7 @@ Bot: Importate 104 persone, creati 2 gruppi.
 
 ### Inserimenti e modifiche a ridosso del compleanno
 - **BR-10** I promemoria il cui orario è già passato al momento dell'inserimento non vengono inviati retroattivamente.
-- **BR-11** Se una persona viene inserita il giorno del compleanno, partono solo gli slot ancora futuri. Il recupero parte solo se nella giornata è stato inviato almeno un reminder.
+- **BR-11** Se una persona viene inserita il giorno del compleanno, partono solo gli slot ancora futuri. In questo caso il recupero parte solo se nella giornata è stato inviato almeno un reminder. Per le persone inserite prima, il recupero parte anche se nessun reminder del giorno è stato inviato per un malfunzionamento (N-04).
 - **BR-12** Cambiare priorità durante un'occorrenza aperta vale solo per i promemoria futuri.
 - **BR-13** Cambiare la data di nascita annulla l'occorrenza aperta dell'anno corrente (se non ancora chiusa); quella nuova segue la nuova data.
 
