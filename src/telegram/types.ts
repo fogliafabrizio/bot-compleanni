@@ -15,6 +15,7 @@ export interface Message {
   from?: User;
   chat: Chat;
   text?: string;
+  reply_markup?: InlineKeyboardMarkup;
 }
 
 export interface CallbackQuery {
@@ -30,10 +31,11 @@ export interface Update {
   callback_query?: CallbackQuery;
 }
 
-export interface InlineKeyboardButton {
-  text: string;
-  callback_data: string;
-}
+// Pulsante con callback, link https:// o copia nativa negli appunti (research R-10, V-04).
+export type InlineKeyboardButton =
+  | { text: string; callback_data: string }
+  | { text: string; url: string }
+  | { text: string; copy_text: { text: string } };
 
 export interface InlineKeyboardMarkup {
   inline_keyboard: InlineKeyboardButton[][];

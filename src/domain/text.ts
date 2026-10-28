@@ -10,6 +10,14 @@ export function cleanText(input: string, max: number): CleanResult {
   return { ok: true, value };
 }
 
+// Ordine alfabetico dei nomi di gruppo, condiviso da scheda e promemoria. Un solo Collator per
+// modulo: crearlo per ogni persona costerebbe CPU (research R-09).
+const COLLATOR = new Intl.Collator("it-IT", { sensitivity: "base" });
+
+export function sortNames(names: readonly string[]): string[] {
+  return [...names].sort(COLLATOR.compare);
+}
+
 // Calcolata in TypeScript: lower() di SQLite gestisce solo ASCII.
 export function normKey(s: string): string {
   return s.trim().toLocaleLowerCase("it-IT");

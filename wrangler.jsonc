@@ -13,7 +13,7 @@
     }
   ],
   "triggers": {
-    // Ciclo orario (UTC). Handler vuoto finché non arriva la feature promemoria.
+    // Ciclo orario dei promemoria (UTC): l'ora locale si ricava da scheduledTime (V-01).
     "crons": ["0 * * * *"]
   }
   // Nessun secret qui (RNF-04): TELEGRAM_BOT_TOKEN, OWNER_TELEGRAM_ID e WEBHOOK_SECRET

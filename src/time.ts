@@ -52,3 +52,35 @@ export function addHours(now: Date, hours: number): Date {
 export function toIso(now: Date): string {
   return now.toISOString();
 }
+
+const HOUR_MS = 3_600_000;
+
+// Somma di giorni di calendario, indipendente dal fuso.
+export function addDays(d: LocalDate, n: number): LocalDate {
+  const t = new Date(Date.UTC(d.year, d.month - 1, d.day + n));
+  return { year: t.getUTCFullYear(), month: t.getUTCMonth() + 1, day: t.getUTCDate() };
+}
+
+const pad2 = (n: number) => String(n).padStart(2, "0");
+
+export function toDateString(d: LocalDate): string {
+  return `${d.year}-${pad2(d.month)}-${pad2(d.day)}`;
+}
+
+// Europe/Rome ha offset a ore intere: l'inizio dell'ora locale coincide con quello UTC (R-02).
+export function floorToHour(d: Date): Date {
+  return new Date(Math.floor(d.getTime() / HOUR_MS) * HOUR_MS);
+}
+
+// Istante UTC della mezzanotte locale del giorno indicato (research R-04). Si parte da UTC+1 e
+// si corregge di un'ora alla volta, così anche i giorni del cambio d'ora sono esatti.
+export function localDayStartUtc(d: LocalDate): Date {
+  let t = Date.UTC(d.year, d.month - 1, d.day) - HOUR_MS;
+  for (let i = 0; i < 3; i++) {
+    const l = toLocal(new Date(t));
+    const diff = daysBetween(d, l);
+    if (diff === 0 && l.hour === 0) break;
+    t += diff < 0 ? HOUR_MS : -HOUR_MS;
+  }
+  return new Date(t);
+}

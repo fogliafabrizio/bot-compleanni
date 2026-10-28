@@ -15,10 +15,12 @@ export interface PersonSeed {
   telegram?: string | null;
   priority?: "alta" | "media" | "bassa";
   customMessage?: string | null;
+  // Istante ISO di created_at e updated_at (BR-10, BR-11); default NOW.
+  createdAt?: string;
 }
 
 export async function insertPerson(p: PersonSeed): Promise<number> {
-  const iso = NOW.toISOString();
+  const iso = p.createdAt ?? NOW.toISOString();
   const res = await env.DB.prepare(
     `INSERT INTO persons (id, full_name, full_name_norm, nickname, birth_day, birth_month, birth_year, phone, instagram,
        telegram, priority, custom_message, created_at, updated_at)
@@ -40,6 +42,40 @@ export async function insertPerson(p: PersonSeed): Promise<number> {
       iso,
       iso,
     )
+    .first<{ id: number }>();
+  return res!.id;
+}
+
+export async function insertOccurrence(o: {
+  personId: number;
+  year: number;
+  effectiveDate: string;
+  status?: "aperta" | "fatto" | "saltato" | "non_confermato";
+  outcomeAt?: string | null;
+}): Promise<number> {
+  const res = await env.DB.prepare(
+    `INSERT INTO occurrences (person_id, year, effective_date, status, outcome_at, created_at)
+     VALUES (?, ?, ?, ?, ?, ?) RETURNING id`,
+  )
+    .bind(o.personId, o.year, o.effectiveDate, o.status ?? "aperta", o.outcomeAt ?? null, NOW.toISOString())
+    .first<{ id: number }>();
+  return res!.id;
+}
+
+export async function insertDelivery(d: {
+  occurrenceId: number;
+  kind: "pre" | "giorno" | "recupero";
+  ref: number;
+  status: "in_invio" | "inviato" | "fallito" | "abbandonato";
+  attempts?: number;
+  localDate: string;
+  telegramMessageId?: number | null;
+}): Promise<number> {
+  const res = await env.DB.prepare(
+    `INSERT INTO deliveries (occurrence_id, kind, ref, status, attempts, local_date, telegram_message_id)
+     VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING id`,
+  )
+    .bind(d.occurrenceId, d.kind, d.ref, d.status, d.attempts ?? 1, d.localDate, d.telegramMessageId ?? null)
     .first<{ id: number }>();
   return res!.id;
 }

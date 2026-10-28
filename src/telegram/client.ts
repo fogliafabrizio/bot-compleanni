@@ -5,6 +5,8 @@ import type { InlineKeyboardMarkup } from "./types";
 export interface TelegramApi {
   sendMessage(chatId: number, text: string, keyboard?: InlineKeyboardMarkup): Promise<{ message_id: number }>;
   editMessageReplyMarkup(chatId: number, messageId: number, keyboard: InlineKeyboardMarkup): Promise<void>;
+  // Una tastiera vuota ({ inline_keyboard: [] }) rimuove i pulsanti.
+  editMessageText(chatId: number, messageId: number, text: string, keyboard?: InlineKeyboardMarkup): Promise<void>;
   answerCallbackQuery(id: string, text?: string): Promise<void>;
 }
 
@@ -47,6 +49,11 @@ export function createTelegramApi(token: string, fetchFn: typeof fetch = fetch):
     },
     async editMessageReplyMarkup(chatId, messageId, keyboard) {
       await call("editMessageReplyMarkup", { chat_id: chatId, message_id: messageId, reply_markup: keyboard });
+    },
+    async editMessageText(chatId, messageId, text, keyboard) {
+      const body: Record<string, unknown> = { chat_id: chatId, message_id: messageId, text };
+      if (keyboard) body.reply_markup = keyboard;
+      await call("editMessageText", body);
     },
     async answerCallbackQuery(id, text) {
       const body: Record<string, unknown> = { callback_query_id: id };

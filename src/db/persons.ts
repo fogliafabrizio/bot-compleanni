@@ -207,6 +207,19 @@ export function updateFieldGuardedStatements(
   ];
 }
 
+// BR-13 (research R-04): un cambio di giorno o mese annulla le occorrenze aperte della persona;
+// la cascata rimuove i loro invii. Va nella batch del salvataggio, prima del consumo dello stato.
+export function cancelOpenOccurrencesGuardedStatement(
+  db: D1Database,
+  chatId: number,
+  flowId: string,
+  personId: number,
+): D1PreparedStatement {
+  return db
+    .prepare(`DELETE FROM occurrences WHERE person_id = ? AND status = 'aperta' AND ${flowGuardSql}`)
+    .bind(personId, chatId, flowId);
+}
+
 // RF-04 (Gruppi): sostituisce le appartenenze; l'UPDATE della persona è il primo statement.
 export function replaceGroupsGuardedStatements(
   db: D1Database,

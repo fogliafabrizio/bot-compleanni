@@ -207,14 +207,27 @@ describe("US2: inserimento guidato", () => {
       expect((await stateRow())?.step).toBe("nome");
     });
 
-    it("FR-010a: messaggio di 501 caratteri rifiutato", async () => {
+    // FR-035 (feature 002) sostituisce il limite di 500 di FR-010a.
+    it("FR-035: messaggio di 257 caratteri rifiutato, massimo 256", async () => {
       const deps = makeDeps();
       await toGroups(deps);
       await tap(deps, "Fine");
       await tap(deps, "Media ✓");
-      await say(deps, "x".repeat(501));
-      expect(deps.tg.lastText()).toContain("massimo 500");
+      await say(deps, "x".repeat(257));
+      expect(deps.tg.lastText()).toContain("massimo 256");
       expect((await stateRow())?.step).toBe("messaggio");
+    });
+
+    it("FR-035: {nome} + 197 caratteri rifiutato, {nome} + 196 accettato", async () => {
+      const deps = makeDeps();
+      await toGroups(deps);
+      await tap(deps, "Fine");
+      await tap(deps, "Media ✓");
+      await say(deps, `{nome}${"x".repeat(197)}`);
+      expect(deps.tg.lastText()).toContain("ogni {nome} conta 60");
+      expect((await stateRow())?.step).toBe("messaggio");
+      await say(deps, `{nome}${"x".repeat(196)}`);
+      expect((await stateRow())?.step).toBe("riepilogo");
     });
   });
 
@@ -495,7 +508,10 @@ describe("US2: inserimento guidato", () => {
       await tap(deps, "Salva");
       const all = deps.tg.allKeyboards().flatMap((k) => k.inline_keyboard.flat());
       expect(all.length).toBeGreaterThan(10);
-      for (const b of all) expect(new TextEncoder().encode(b.callback_data).length).toBeLessThanOrEqual(64);
+      // I pulsanti url e copy_text non hanno callback_data (feature 002).
+      for (const b of all) {
+        if ("callback_data" in b) expect(new TextEncoder().encode(b.callback_data).length).toBeLessThanOrEqual(64);
+      }
     });
   });
 });

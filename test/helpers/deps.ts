@@ -1,15 +1,20 @@
 import { env } from "cloudflare:test";
-import type { Deps } from "../../src/deps";
+import type { CronDeps, Deps } from "../../src/deps";
 import { NOW } from "./constants";
 import { FakeTelegram } from "./fake-telegram";
 
 const RAW = Symbol("raw");
+const PARAMS = Symbol("params");
+
+type Wrapped = { [RAW]?: D1PreparedStatement; [PARAMS]?: number };
 
 // Conta le subrequest D1 (esecuzioni di statement e batch) per i controlli di budget.
 export class CountingDb {
   count = 0;
   // Se impostato, ogni accesso a D1 lancia (per simulare errori interni).
   failing = false;
+  // Per ogni batch eseguita, il numero di parametri di ciascuno statement (limite D1: 100).
+  batches: number[][] = [];
 
   constructor(private readonly real: D1Database) {}
 
@@ -18,10 +23,11 @@ export class CountingDb {
     this.count++;
   }
 
-  private wrap(stmt: D1PreparedStatement): D1PreparedStatement {
+  private wrap(stmt: D1PreparedStatement, params = 0): D1PreparedStatement {
     const wrapped = {
       [RAW]: stmt,
-      bind: (...values: unknown[]) => this.wrap(stmt.bind(...values)),
+      [PARAMS]: params,
+      bind: (...values: unknown[]) => this.wrap(stmt.bind(...values), values.length),
       first: (col?: string) => {
         this.hit();
         return col === undefined ? stmt.first() : stmt.first(col);
@@ -50,7 +56,8 @@ export class CountingDb {
       },
       batch: (stmts: D1PreparedStatement[]) => {
         this.hit();
-        return this.real.batch(stmts.map((s) => (s as unknown as { [RAW]?: D1PreparedStatement })[RAW] ?? s));
+        this.batches.push(stmts.map((s) => (s as unknown as Wrapped)[PARAMS] ?? 0));
+        return this.real.batch(stmts.map((s) => (s as unknown as Wrapped)[RAW] ?? s));
       },
       exec: (sql: string) => {
         this.hit();
@@ -79,4 +86,20 @@ export function makeDeps(opts: { now?: Date } = {}): TestDeps {
       current = d;
     },
   };
+}
+
+export interface TestCronDeps extends TestDeps, CronDeps {
+  tg: FakeTelegram;
+  // Numero di pause richieste tra un invio e l'altro.
+  sleeps: number;
+}
+
+// Dipendenze del ciclo orario: la pausa tra gli invii è una funzione vuota.
+export function makeCronDeps(opts: { now?: Date } = {}): TestCronDeps {
+  const deps = makeDeps(opts) as TestCronDeps;
+  deps.sleeps = 0;
+  deps.sleep = async () => {
+    deps.sleeps++;
+  };
+  return deps;
 }

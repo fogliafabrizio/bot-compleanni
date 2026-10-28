@@ -1,6 +1,7 @@
 import { TEXT_LIMITS, type Priority } from "../../config";
 import type { ConversationState } from "../../db/conversation";
 import {
+  cancelOpenOccurrencesGuardedStatement,
   findDuplicate,
   getById,
   getGroupIds,
@@ -28,6 +29,7 @@ import {
   textStep,
   validateDate,
   validatePhone,
+  validateGreetingText,
   validateText,
   validateUsername,
   type GroupSelection,
@@ -75,10 +77,17 @@ async function personOrAbort(ctx: Ctx, state: ConversationState): Promise<Person
 
 async function savePatch(ctx: Ctx, state: ConversationState, patch: Partial<PersonFields>): Promise<void> {
   const { personId } = data(state);
-  if (!(await personOrAbort(ctx, state))) return;
-  const results = await ctx.deps.db.batch(
-    updateFieldGuardedStatements(ctx.deps.db, ctx.chatId, state.flowId, personId, patch, toIso(ctx.deps.now())),
-  );
+  const person = await personOrAbort(ctx, state);
+  if (!person) return;
+  const { db } = ctx.deps;
+  const statements = updateFieldGuardedStatements(db, ctx.chatId, state.flowId, personId, patch, toIso(ctx.deps.now()));
+  // BR-13: solo se cambiano giorno o mese, non per il solo anno.
+  const dayChanged = patch.birthDay !== undefined && patch.birthDay !== person.birthDay;
+  const monthChanged = patch.birthMonth !== undefined && patch.birthMonth !== person.birthMonth;
+  if (dayChanged || monthChanged) {
+    statements.splice(statements.length - 1, 0, cancelOpenOccurrencesGuardedStatement(db, ctx.chatId, state.flowId, personId));
+  }
+  const results = await db.batch(statements);
   if ((results[0]?.meta.changes ?? 0) === 0) {
     await answerCallback(ctx, T.actionUnavailable);
     return;
@@ -113,7 +122,7 @@ function validateField(field: TextField, text: string, ctx: Ctx): Validation<str
     case "k":
       return validateText(text, TEXT_LIMITS.nickname);
     case "m":
-      return validateText(text, TEXT_LIMITS.customMessage);
+      return validateGreetingText(text);
     case "d":
       return validateDate(text, ctx);
     case "p":

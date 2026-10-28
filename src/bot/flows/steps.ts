@@ -1,8 +1,9 @@
-import type { Priority } from "../../config";
+import { TEXT_LIMITS, type Priority } from "../../config";
 import type { ConversationState } from "../../db/conversation";
 import { existsNorm, listAll } from "../../db/groups";
 import type { Person } from "../../db/persons";
 import { formatLong, formatShort, parseBirthDate, type BirthDate } from "../../domain/date";
+import { validateGreeting } from "../../domain/greeting";
 import { normalizePhone } from "../../domain/phone";
 import { cleanText, normKey } from "../../domain/text";
 import { normalizeUsername } from "../../domain/username";
@@ -21,6 +22,16 @@ export function validateText(input: string, max: number): Validation<string> {
   const r = cleanText(input, max);
   if (r.ok) return r;
   return { ok: false, error: r.reason === "empty" ? T.emptyValue : T.tooLong(r.max) };
+}
+
+// FR-035: messaggio di auguri (personalizzato o default), {nome} contato 60 caratteri.
+export function validateGreetingText(input: string): Validation<string> {
+  const r = validateGreeting(input);
+  if (r.ok) return r;
+  return {
+    ok: false,
+    error: r.error === "empty" ? T.emptyValue : T.greetingTooLong(TEXT_LIMITS.customMessage, TEXT_LIMITS.greetingNamePlaceholder),
+  };
 }
 
 export function validatePhone(input: string): Validation<string> {

@@ -57,6 +57,20 @@ describe("R-05: client della Bot API", () => {
     );
   });
 
+  it("RF-12: editMessageText con e senza tastiera", async () => {
+    const { fn, captured } = fakeFetch({ ok: true, result: true });
+    const api = createTelegramApi("tok", fn);
+    const kb = { inline_keyboard: [[{ text: "WhatsApp", url: "https://wa.me/393331234567" }]] };
+    await api.editMessageText(7, 9, "testo\n\n✅ Fatto", kb);
+    await api.editMessageText(7, 9, "solo testo");
+    expect(captured[0]!.url).toBe("https://api.telegram.org/bottok/editMessageText");
+    expect(captured[0]!.body).toEqual({ chat_id: 7, message_id: 9, text: "testo\n\n✅ Fatto", reply_markup: kb });
+    expect(captured[1]!.body).toEqual({ chat_id: 7, message_id: 9, text: "solo testo" });
+    expect(captured[0]!.body).not.toHaveProperty("parse_mode");
+    const { fn: bad } = fakeFetch({ ok: false, error_code: 400 }, 400);
+    await expect(createTelegramApi("tok", bad).editMessageText(7, 9, "x")).rejects.toThrow(TelegramError);
+  });
+
   it("R-05: answerCallbackQuery con e senza testo", async () => {
     const { fn, captured } = fakeFetch({ ok: true, result: true });
     const api = createTelegramApi("tok", fn);

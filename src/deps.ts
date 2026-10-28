@@ -7,3 +7,8 @@ export interface Deps {
   now: () => Date;
   ownerId: string;
 }
+
+// Dipendenze del ciclo orario: pausa tra gli invii (research R-06), no-op nei test.
+export interface CronDeps extends Deps {
+  sleep(ms: number): Promise<void>;
+}

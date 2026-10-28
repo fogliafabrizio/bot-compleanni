@@ -21,6 +21,16 @@ describe("R-10: callback_data", () => {
     expect(decodeCallback(s)).toBeNull();
   });
 
+  it("contracts/callback-data.md (002): ambito o per gli esiti", () => {
+    expect(encodeCallback({ kind: "static", scope: "o", action: "f", id: 123 })).toBe("o:f:123");
+    expect(decodeCallback("o:f:123")).toEqual({ kind: "static", scope: "o", action: "f", id: 123 });
+    const longest = encodeCallback({ kind: "static", scope: "o", action: "s", id: 999999999999999 });
+    expect(longest).toBe("o:s:999999999999999");
+    expect(new TextEncoder().encode(longest).length).toBeLessThanOrEqual(64);
+    // La validazione dell'azione spetta al router.
+    expect(decodeCallback("o:x")).toEqual({ kind: "static", scope: "o", action: "x" });
+  });
+
   it("R-10: encode lancia oltre 64 byte UTF-8", () => {
     expect(() => encodeCallback({ kind: "flow", flowId: "k3x9q2", action: "t", arg: "x".repeat(60) })).toThrow();
   });

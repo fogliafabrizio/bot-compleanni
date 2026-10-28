@@ -3,7 +3,7 @@ import type { InlineKeyboardButton, InlineKeyboardMarkup } from "./types";
 // Formato dei callback_data: contracts/callback-data.md (research R-10).
 
 export type Callback =
-  | { kind: "static"; scope: "s" | "p" | "g"; action: string; id?: number }
+  | { kind: "static"; scope: "s" | "p" | "g" | "o"; action: string; id?: number }
   | { kind: "flow"; flowId: string; action: string; arg?: string };
 
 const MAX_BYTES = 64;
@@ -32,7 +32,7 @@ export function decodeCallback(data: string): Callback | null {
       ? { kind: "flow", flowId: second, action: third, arg: fourth }
       : { kind: "flow", flowId: second, action: third };
   }
-  if (head === "s" || head === "p" || head === "g") {
+  if (head === "s" || head === "p" || head === "g" || head === "o") {
     if (parts.length < 2 || parts.length > 3) return null;
     if (!second || !ACTION_RE.test(second)) return null;
     if (third === undefined) return { kind: "static", scope: head, action: second };
@@ -44,6 +44,16 @@ export function decodeCallback(data: string): Callback | null {
 
 export function button(text: string, cb: Callback): InlineKeyboardButton {
   return { text, callback_data: encodeCallback(cb) };
+}
+
+// Solo link https:// (V-04): nessun pulsante tel: o sms:.
+export function urlButton(text: string, url: string): InlineKeyboardButton {
+  return { text, url };
+}
+
+// Pulsante nativo che copia un testo negli appunti (RF-11, FR-029).
+export function copyButton(text: string, copied: string): InlineKeyboardButton {
+  return { text, copy_text: { text: copied } };
 }
 
 export function keyboard(rows: InlineKeyboardButton[][]): InlineKeyboardMarkup {

@@ -1,5 +1,6 @@
 import { handleRequest } from "./bot/webhook";
-import type { Deps } from "./deps";
+import { runHourly } from "./cron/hourly";
+import type { CronDeps, Deps } from "./deps";
 import type { Env } from "./env";
 import { createTelegramApi } from "./telegram/client";
 
@@ -14,11 +15,16 @@ function makeDeps(env: Env): Deps {
   };
 }
 
+function makeCronDeps(env: Env): CronDeps {
+  // La pausa tra gli invii non consuma CPU (research R-06).
+  return { ...makeDeps(env), sleep: (ms) => scheduler.wait(ms) };
+}
+
 export default {
   fetch(request, env) {
     return handleRequest(request, makeDeps(env), env.WEBHOOK_SECRET ?? "");
   },
-  async scheduled() {
-    // Vuoto: verrà riempito dalla feature promemoria.
+  async scheduled(controller, env) {
+    await runHourly(makeCronDeps(env), new Date(controller.scheduledTime));
   },
 } satisfies ExportedHandler<Env>;

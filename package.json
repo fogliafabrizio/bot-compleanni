@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "wrangler dev",
     "test": "vitest run",
+    "bench": "vitest bench --run --config vitest.bench.config.ts",
     "typecheck": "tsc --noEmit",
     "types": "wrangler types"
   },

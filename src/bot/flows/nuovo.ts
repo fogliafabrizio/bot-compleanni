@@ -20,6 +20,7 @@ import {
   textStep,
   validateDate,
   validatePhone,
+  validateGreetingText,
   validateText,
   validateUsername,
   type GroupSelection,
@@ -162,7 +163,7 @@ registerFlow({
     }),
     messaggio: optionalField(
       T.askMessage,
-      (t) => validateText(t, TEXT_LIMITS.customMessage),
+      validateGreetingText,
       (d, v) => ({ ...d, customMessage: v }),
       "riepilogo",
     ),

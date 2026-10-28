@@ -5,6 +5,7 @@ import type { CallbackQuery, Message, Update } from "../telegram/types";
 import { T } from "../texts";
 import { COMMANDS, parseCommand } from "./commands";
 import { answerCallback, reply, type Ctx } from "./context";
+import { handleOutcomeCallback } from "./esiti";
 import { getById } from "../db/persons";
 import { handleFlowCallback, handleFlowText, repeatStep } from "./flows/engine";
 import { startElimina } from "./flows/elimina";
@@ -89,6 +90,10 @@ async function routeCallback(cq: CallbackQuery, deps: Deps): Promise<void> {
     await answerCallback(ctx, T.actionUnavailable);
   } else if (cb.kind === "flow") {
     await handleFlowCallback(ctx, cb.flowId, cb.action, cb.arg);
+  } else if (cb.scope === "o") {
+    // R-11: gli esiti dei promemoria non interrompono il flusso guidato in corso.
+    if ((cb.action === "f" || cb.action === "s") && cb.id !== undefined) await handleOutcomeCallback(ctx, cb.action, cb.id);
+    else await answerCallback(ctx, T.actionUnavailable);
   } else {
     await routeStatic(ctx, cb.scope, cb.action, cb.id);
   }

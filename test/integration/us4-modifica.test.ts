@@ -208,6 +208,19 @@ describe("US4: modifica per campo", () => {
     expect((await person(1)).custom_message).toBeNull();
   });
 
+  it("FR-035: Messaggio oltre 256 caratteri ({nome} = 60) rifiutato con la domanda ripetuta", async () => {
+    await insertPerson({ id: 1, fullName: "Marco Rossi", day: 14, month: 3 });
+    const deps = makeDeps();
+    await openEdit(deps, 1, "Messaggio");
+    await say(deps, "x".repeat(257));
+    expect(deps.tg.lastText()).toContain("massimo 256");
+    await say(deps, `{nome}${"x".repeat(197)}`);
+    expect(deps.tg.lastText()).toContain("ogni {nome} conta 60");
+    expect((await person(1)).custom_message).toBeNull();
+    await say(deps, `{nome}${"x".repeat(196)}`);
+    expect((await person(1)).custom_message).toBe(`{nome}${"x".repeat(196)}`);
+  });
+
   it("FR-018c: persona eliminata durante la modifica → Persona non trovata, flusso chiuso", async () => {
     await insertPerson({ id: 1, fullName: "Marco Rossi", day: 14, month: 3 });
     const deps = makeDeps();

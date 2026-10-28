@@ -3,7 +3,7 @@ import { addHours, toIso } from "../time";
 
 // Stato dei flussi guidati in D1, una riga per chat (research R-09, A-04).
 
-export const FLOW_NAMES = ["nuovo", "modifica", "elimina", "gruppi"] as const;
+export const FLOW_NAMES = ["nuovo", "modifica", "elimina", "gruppi", "messaggio"] as const;
 export type FlowName = (typeof FLOW_NAMES)[number];
 
 export interface ConversationState {

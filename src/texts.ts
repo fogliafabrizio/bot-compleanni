@@ -127,6 +127,38 @@ export const T = {
   groupRenamed: (name: string) => `Gruppo rinominato in ${name}`,
   groupDeleted: (name: string) => `Gruppo ${name} eliminato`,
 
+  // Promemoria (AFU §5.3–§5.5, contracts/promemoria.md)
+  reminderTitle: (name: string, fullName: string | null, age: number | null, leap29: boolean) =>
+    `🎂 Oggi è il compleanno di ${name}${fullName ? ` (${fullName})` : ""}` +
+    `${age !== null ? `, compie ${age} anni` : ""}${leap29 ? " (compleanno il 29/02)" : ""}`,
+  reminderGroups: (names: string) => `Gruppi: ${names}`,
+  reminderPhone: (phone: string) => `📱 ${phone}`,
+  lastYear: { fatto: "L'anno scorso: fatto ✅", saltato: "L'anno scorso: saltato" },
+  recoveryTitle: (name: string, fullName: string | null) =>
+    `⏰ Ieri era il compleanno di ${name}${fullName ? ` (${fullName})` : ""}. Hai fatto gli auguri?`,
+  preReminder: (days: number, name: string, age: number | null, ddmm: string) =>
+    `📅 Tra ${days === 1 ? "1 giorno" : `${days} giorni`}: compleanno di ${name}${age !== null ? ` (${age} anni)` : ""} — ${ddmm}`,
+  btnWhatsApp: "WhatsApp",
+  btnInstagram: "Instagram",
+  btnTelegram: "Telegram",
+  btnCopy: "Copia messaggio",
+  btnOutcomeDone: "Fatto ✅",
+  btnSkipYear: "Salta quest'anno",
+  btnSkipped: "Saltato",
+  outcomeDone: "✅ Fatto",
+  outcomeSkipped: "Saltato",
+  skippedThisYear: "Saltato quest'anno",
+
+  // /messaggio (contracts/messaggio.md)
+  greetingAsk: (current: string) =>
+    `Messaggio attuale: «${current}»\nScrivi il nuovo messaggio di auguri. Usa {nome} per il nome.`,
+  greetingPreview: (text: string) => `Anteprima: «${text}»\nConfermi?`,
+  greetingSaved: "Messaggio di auguri aggiornato",
+  greetingTooLong: (max: number, perName: number) =>
+    `Il messaggio può avere al massimo ${max} caratteri (ogni {nome} conta ${perName}).`,
+  sampleName: "Marco",
+  btnConfirm: "Conferma",
+
   // US7 — benvenuto e aiuto
   welcome:
     "Ciao! Sono il tuo bot dei compleanni: tengo l'elenco delle persone a cui tieni e ti aiuto a non dimenticare i loro compleanni.",
@@ -136,6 +168,7 @@ export const T = {
     "Comandi disponibili:",
     "/nuovo — aggiungi una persona, un campo alla volta",
     "/gruppi — elenca, crea, rinomina ed elimina i gruppi",
+    "/messaggio — modifica il messaggio di auguri",
     "/annulla — interrompe l'operazione guidata in corso",
     "/id — mostra il tuo ID Telegram",
     "/aiuto — mostra questo elenco",

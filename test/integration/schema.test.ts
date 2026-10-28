@@ -54,6 +54,14 @@ describe("AFU §8: schema iniziale", () => {
     await expect(ins()).rejects.toThrow();
   });
 
+  it("N-03: indice idx_deliveries_retry presente", async () => {
+    const row = await env.DB.prepare(
+      "SELECT tbl_name, sql FROM sqlite_master WHERE type = 'index' AND name = 'idx_deliveries_retry'",
+    ).first<{ tbl_name: string; sql: string }>();
+    expect(row?.tbl_name).toBe("deliveries");
+    expect(row?.sql).toContain("(local_date, status)");
+  });
+
   it("A-06: la tabella settings nasce vuota", async () => {
     const r = await env.DB.prepare("SELECT COUNT(*) AS n FROM settings").first<{ n: number }>();
     expect(r!.n).toBe(0);

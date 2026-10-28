@@ -3,6 +3,7 @@ import { T } from "../texts";
 import { reply, type Ctx } from "./context";
 import { button, keyboard } from "../telegram/keyboard";
 import { showGroups } from "./flows/gruppi";
+import { startMessaggio } from "./flows/messaggio";
 import { startNuovo } from "./flows/nuovo";
 import { showScheda } from "./scheda";
 
@@ -48,6 +49,8 @@ export const COMMANDS: Record<string, CommandHandler> = {
   // RF-03
   p: (ctx, cmd) => showScheda(ctx, cmd.personId ?? 0),
   gruppi: (ctx) => showGroups(ctx),
+  // RF-15
+  messaggio: (ctx) => startMessaggio(ctx),
   // RF-06
   annulla: async (ctx) => {
     const state = await getActive(ctx.deps.db, ctx.chatId, ctx.deps.now());

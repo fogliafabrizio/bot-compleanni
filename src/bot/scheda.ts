@@ -1,5 +1,6 @@
 import { getById, getGroupNames, getOutcomes, type Outcome, type PersonFields } from "../db/persons";
 import { formatShort, nextBirthday } from "../domain/date";
+import { sortNames } from "../domain/text";
 import { button, keyboard } from "../telegram/keyboard";
 import type { InlineKeyboardMarkup } from "../telegram/types";
 import { T } from "../texts";
@@ -16,7 +17,7 @@ function schedaLines(p: PersonFields, groupNames: readonly string[], today: Loca
     p.birthYear === null ? T.schedaNoAge(next.daysUntil) : T.schedaAge(next.year - p.birthYear, next.daysUntil);
   lines.push(`${formatShort({ day: p.birthDay, month: p.birthMonth, year: p.birthYear })} · ${when}`);
 
-  const sorted = [...groupNames].sort((a, b) => a.localeCompare(b, "it-IT", { sensitivity: "base" }));
+  const sorted = sortNames(groupNames);
   lines.push(
     [T.schedaPriority(p.priority), ...(sorted.length > 0 ? [T.schedaGroups(sorted.join(", "))] : [])].join(" · "),
   );
