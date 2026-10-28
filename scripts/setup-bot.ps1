@@ -22,21 +22,24 @@ Check "npm install fallito."
 
 # 1. Login Cloudflare (apre il browser)
 Step "1. Login a Cloudflare"
-npx wrangler whoami *> $null
-if ($LASTEXITCODE -ne 0) {
+# "wrangler whoami" esce con codice 0 anche se non autenticato: si controlla il testo.
+function Test-CfLogin { $o = (npx wrangler whoami 2>&1 | Out-String); return ($LASTEXITCODE -eq 0 -and $o -notmatch "not authenticated") }
+if (-not (Test-CfLogin)) {
     npx wrangler login
-    Check "Login a Cloudflare non riuscito."
+    if (-not (Test-CfLogin)) { Fail "Login a Cloudflare non riuscito." }
+    Write-Host "Login effettuato." -ForegroundColor Green
 } else { Write-Host "Gia' loggato." -ForegroundColor Green }
 
 # 2. Database D1 e aggiornamento wrangler.jsonc
 Step "2. Database D1 '$DbName'"
-$config = Get-Content ".\wrangler.jsonc" -Raw
+$config = Get-Content ".\wrangler.jsonc" -Raw -Encoding UTF8
 if ($config -match "REPLACE_ME") {
     $out = (npx wrangler d1 create $DbName 2>&1 | Out-String)
     Write-Host $out
     $m = [regex]::Match($out, '([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})')
     if ($m.Success) { $dbId = $m.Groups[1].Value }
     else { $dbId = Read-Host "Non trovo il database_id nell'output (se il DB esiste gia', prendilo con 'npx wrangler d1 list'): incollalo qui" }
+    if ($dbId -notmatch '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$') { Fail "database_id non valido: wrangler.jsonc non modificato." }
     $config = $config.Replace("REPLACE_ME", $dbId)
     [IO.File]::WriteAllText((Resolve-Path ".\wrangler.jsonc"), $config, (New-Object System.Text.UTF8Encoding $false))
     Write-Host "database_id impostato: $dbId" -ForegroundColor Green
@@ -53,7 +56,12 @@ Check "Migration non applicate."
 Step "4. Deploy del Worker"
 $deployOut = (npx wrangler deploy 2>&1 | Out-String)
 Write-Host $deployOut
-if ($LASTEXITCODE -ne 0) { Fail "Deploy non riuscito." }
+if ($LASTEXITCODE -ne 0) {
+    if ($deployOut -match "workers\.dev subdomain") {
+        Fail "Manca il sottodominio workers.dev: lancia 'npx wrangler deploy' a mano, rispondi Y alla registrazione, poi rilancia questo script."
+    }
+    Fail "Deploy non riuscito."
+}
 $u = [regex]::Match($deployOut, 'https://[^\s]+\.workers\.dev')
 if ($u.Success) { $workerUrl = $u.Value }
 else { $workerUrl = Read-Host "Non trovo l'URL del Worker: incollalo (es. https://bot-compleanni.xxx.workers.dev)" }
