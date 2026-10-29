@@ -1,7 +1,21 @@
 # AFU — Bot Telegram Compleanni
 
-**Analisi Funzionale** · versione 1.0 · 28/10/2026
+**Analisi Funzionale** · versione 1.1 · 29/10/2026
 Committente e unico utente MVP: Fabrizio
+
+## Registro modifiche
+
+| Versione | REV | Decisione | Requisiti |
+|---|---|---|---|
+| 1.1 | REV-001 — Tono più caldo ed emoji | Accettata con modifiche | Aggiunto RNF-19 (guida di stile). Aggiornati tutti i mockup di §5. |
+| 1.1 | REV-002 — Telefono da contatto condiviso | Accettata con modifiche | Modificati RF-01 e RF-04. Aggiunti BR-25 e V-08. Aggiornati §2 Out of scope, mockup §5.2 e l'alternativa scartata "Contatto condiviso da Telegram". |
+| 1.1 | REV-003 — `/gruppi` con pulsanti e scheda gruppo | Accettata con modifiche | Modificati RF-07, RF-19 e RNF-14. Aggiunti V-09 e l'idea futura RF-52. Aggiornati §5.1, i nuovi mockup §5.9 e l'alternativa scartata "Pulsanti per navigare le liste". |
+| 1.1 | REV-004 — Ricerca morbida del gruppo | Accettata con modifiche | Modificati RF-17 e RF-19. Aggiunto BR-26. |
+| 1.1 | REV-005 — Pulsanti di contatto nella scheda | Accettata con modifiche | Modificati RF-03 e RF-11. Aggiornato il mockup §5.6. |
+| 1.1 | REV-006 — Chiusura di PA-01 | Accettata | PA-01 chiuso come verificato. |
+| 1.1 | REV-007 — Stato e statistiche | Accettata con modifiche | Aggiunti RF-31 (`/stato`), RF-32 (`/statistiche`) e N-06 (avviso di buco del cron). Aggiornati §8 (Impostazioni), §5.1 e i mockup §5.10-5.12. |
+| 1.1 | — | — | Aggiunte le decisioni D-23…D-29 e le alternative scartate emerse dall'analisi (priorità "Silenziosa", anticipo di RF-50, onomastici e anniversari). |
+| 1.0 | — | — | Prima versione (MVP). |
 
 ---
 
@@ -22,7 +36,7 @@ In v2 il progetto diventa un repository pubblico, che chiunque può installare c
 |---|---|
 | **Proprietario** | L'unico utente autorizzato, identificato dal suo ID Telegram. Usa tutte le funzioni. |
 | **Utente estraneo** | Chiunque altro scriva al bot. Può usare solo `/id`; tutto il resto viene ignorato in silenzio. |
-| **Scheduler** | Il Cron Trigger orario, che genera pre-reminder, reminder, recuperi, passaggi di stato e backup mensili. |
+| **Scheduler** | Il Cron Trigger orario, che genera pre-reminder, reminder, recuperi, passaggi di stato, backup mensili e avvisi di buco del cron (N-06). |
 | **Telegram** | Recapita i messaggi al bot via webhook e invia i messaggi del bot. |
 
 ### In scope (MVP)
@@ -34,6 +48,13 @@ In v2 il progetto diventa un repository pubblico, che chiunque può installare c
 - Import CSV, export CSV, backup/ripristino JSON, backup automatico mensile
 - Sicurezza: whitelist del proprietario e verifica della provenienza delle chiamate al webhook
 
+### In scope (v1.1)
+- Scheda gruppo e ricerca dei gruppi per parte del nome (`/gruppi [nome]`)
+- Pulsanti di contatto nella scheda persona
+- Telefono acquisito da un contatto condiviso, nello step Telefono
+- Comandi `/stato` e `/statistiche`, avviso automatico di buco del cron
+- Guida di stile dei testi: tono caldo e sobrio, emoji coerenti
+
 ### In scope (v2)
 - Configurabilità esterna (fuso orario, slot, profili), README e guida all'installazione, script di setup, pubblicazione del repository con licenza MIT
 
@@ -41,7 +62,7 @@ In v2 il progetto diventa un repository pubblico, che chiunque può installare c
 - **Multi-utente** (più proprietari sulla stessa istanza). Il modello dati non deve impedirlo in futuro.
 - Invio automatico degli auguri alla persona: il bot prepara, l'utente invia.
 - Gestione regali, note libere, email e indirizzi.
-- Import da vCard o rubrica e aggiunta tramite contatto condiviso.
+- Import da vCard o rubrica e creazione di una persona a partire da un contatto condiviso. *(v1.1)* Il contatto condiviso è ammesso solo come scorciatoia per il campo Telefono (RF-01, RF-04).
 - Integrazioni con calendari esterni.
 
 ## 3. Glossario
@@ -61,6 +82,7 @@ In v2 il progetto diventa un repository pubblico, che chiunque può installare c
 | **Esito** | Stato finale dell'occorrenza: *fatto*, *saltato*, *non confermato*. |
 | **Messaggio di auguri** | Testo precompilato per scrivere alla persona. Esiste un default globale, sostituibile per singola persona. |
 | **Comando persona** | Il comando `/p_<id>` mostrato nelle liste: toccandolo si apre la scheda della persona. |
+| **Scheda gruppo** *(v1.1)* | Messaggio con nome del gruppo, numero di persone, lista delle persone e pulsanti Rinomina / Elimina (RF-19). |
 
 ## 4. Requisiti funzionali
 
@@ -73,6 +95,13 @@ Il bot raccoglie i dati un campo alla volta. I campi opzionali hanno il pulsante
 - *Dato* che avvio "Aggiungi persona", *quando* rispondo a tutti i campi obbligatori e salto gli opzionali, *allora* la persona viene salvata con priorità Media e il bot mostra la scheda.
 - *Dato* che esiste già una persona con stesso nome e stessa data, *quando* confermo il salvataggio, *allora* il bot avvisa del possibile duplicato e chiede conferma esplicita.
 
+*(v1.1)* **Telefono da contatto condiviso.** Allo step Telefono, oltre a scrivere il numero, si può condividere un contatto dalla rubrica (📎 → Contatto). Il bot prende il numero principale del contatto, lo normalizza (BR-25) e chiede sempre conferma: "📱 <numero>, giusto?" con Sì / Correggi. Sì passa allo step successivo; Correggi ripete la domanda testuale. Nome, vCard e utente Telegram del contatto vengono ignorati. Un contatto inviato in un altro step viene ignorato e il bot ripete la domanda di quello step. La domanda dello step suggerisce anche questa possibilità.
+- *Dato* che sono allo step Telefono, *quando* condivido il contatto di Marco con numero `393331234567`, *allora* il bot chiede "📱 +393331234567, giusto?" e, se premo Sì, passa allo step Instagram con quel numero.
+- *Dato* che il contatto ha il numero `333 1234567`, *quando* lo condivido, *allora* il bot propone `+393331234567`.
+- *Dato* che premo Correggi, *allora* il bot ripete "Telefono?" e il numero non viene salvato.
+- *Dato* che sono allo step Nome, *quando* condivido un contatto, *allora* il bot lo ignora e ripete la domanda del nome.
+- *Dato* che il numero normalizzato non è valido per BR-15, *quando* condivido il contatto, *allora* il bot lo segnala e ripete la domanda testuale.
+
 **RF-02 — Inserimento e validazione della data** · MVP
 Unico formato ammesso: `gg/mm/aaaa`, oppure `gg/mm` se l'anno è sconosciuto. Il bot risponde sempre con la data interpretata da confermare.
 - *Dato* che scrivo `14/03/1994`, *quando* invio, *allora* il bot chiede "14 marzo 1994, giusto?" con Sì / Correggi.
@@ -80,13 +109,24 @@ Unico formato ammesso: `gg/mm/aaaa`, oppure `gg/mm` se l'anno è sconosciuto. Il
 - *Dato* che scrivo `29/02/1995` (anno non bisestile), *quando* invio, *allora* il bot rifiuta la data.
 - *Dato* che scrivo `29/02` senza anno, *quando* invio, *allora* la data viene accettata.
 
-**RF-03 — Scheda persona** · MVP
-Il comando `/p_<id>` mostra: nome e nickname, data di nascita, età che compirà e giorni mancanti, priorità, gruppi, contatti presenti, messaggio personalizzato (se presente), storico esiti per anno. Pulsanti: Modifica, Elimina.
+**RF-03 — Scheda persona** · MVP · modificato in v1.1
+Il comando `/p_<id>` mostra: nome e nickname, data di nascita, età che compirà e giorni mancanti, priorità, gruppi, telefono (se presente), messaggio personalizzato (se presente), storico esiti per anno.
+*(v1.1)* Gli username di Instagram e Telegram non compaiono più nel testo. I contatti presenti diventano pulsanti (RF-11). Il telefono resta nel testo perché si possa chiamare o copiare (V-04).
+Pulsanti, in quest'ordine:
+- riga dei contatti: [WhatsApp] [Instagram] [Telegram], solo per i contatti presenti;
+- [Segna fatto], se previsto da RF-21;
+- [Modifica] [Elimina].
+
+La stessa tastiera si usa quando la scheda viene ridisegnata dopo Segna fatto o dopo una modifica.
 - *Dato* che tocco `/p_12` in una lista, *quando* il bot risponde, *allora* vedo la scheda della persona 12 con i pulsanti Modifica ed Elimina.
 - *Dato* che l'anno di nascita non è noto, *quando* apro la scheda, *allora* l'età non compare.
+- *(v1.1)* *Dato* che Marco ha telefono e Instagram ma non Telegram, *quando* apro la sua scheda, *allora* vedo il numero nel testo, i pulsanti [WhatsApp] [Instagram] sopra [Modifica] [Elimina], e nessuno username nel testo.
+- *(v1.1)* *Dato* che premo WhatsApp nella scheda, *allora* si apre la chat con Marco senza testo precompilato, anche se c'è un'occorrenza aperta.
+- *(v1.1)* *Dato* che una persona non ha contatti, *quando* apro la scheda, *allora* la riga dei contatti non compare.
 
-**RF-04 — Modifica per campo** · MVP
-Modifica apre un menù di pulsanti: Nome · Nickname · Data · Telefono · Instagram · Telegram · Gruppi · Priorità · Messaggio. Il bot chiede solo il campo scelto, salva e rimostra la scheda. I campi opzionali hanno anche "Svuota".
+**RF-04 — Modifica per campo** · MVP · modificato in v1.1
+Modifica apre un menù di pulsanti: Nome · Nickname · Data · Telefono · Instagram · Telegram · Gruppi · Priorità · Messaggio. Il bot chiede solo il campo scelto, salva e rimostra la scheda. I campi opzionali hanno anche "Svuota". *(v1.1)* In Modifica → Telefono si può anche condividere un contatto, con le stesse regole di RF-01 (BR-25 e conferma).
+- *(v1.1)* *Dato* che premo Modifica → Telefono e condivido un contatto, *quando* confermo il numero proposto, *allora* viene aggiornato solo il telefono e rivedo la scheda.
 - *Dato* che sono nella scheda, *quando* premo Modifica → Instagram e invio un nuovo username, *allora* viene aggiornato solo quel campo e rivedo la scheda.
 - *Dato* che premo Modifica → Telefono → Svuota, *quando* confermo, *allora* il telefono viene rimosso.
 
@@ -99,8 +139,18 @@ Modifica apre un menù di pulsanti: Nome · Nickname · Data · Telefono · Inst
 
 ### 4.2 Gruppi
 
-**RF-07 — Gestione gruppi** · MVP
+**RF-07 — Gestione gruppi** · MVP · modificato in v1.1
 Il comando `/gruppi` elenca i gruppi con il numero di persone e permette di crearne, rinominarne ed eliminarne. Il nome è univoco senza distinzione tra maiuscole e minuscole.
+*(v1.1)* `/gruppi` senza argomento (o l'alias `/gruppo`) mostra l'elenco gruppi come pulsanti, uno per gruppo, nella forma "Famiglia (8)":
+- ordine alfabetico, su due colonne, più [➕ Nuovo gruppo];
+- il tocco su un gruppo manda un nuovo messaggio con la scheda gruppo (RF-19), senza navigazione sul posto né pulsante Indietro;
+- Rinomina ed Elimina si avviano dalla scheda gruppo, già sul gruppo scelto, senza il passaggio "Quale gruppo?";
+- oltre 60 gruppi l'elenco è testuale, con l'invito a scrivere `/gruppi <nome>`;
+- senza gruppi, il bot lo dice e mostra solo [➕ Nuovo gruppo].
+- *(v1.1)* *Dato* che ho i gruppi Famiglia (8) e Lavoro (5), *quando* scrivo `/gruppi`, *allora* vedo i pulsanti [Famiglia (8)] [Lavoro (5)] e [➕ Nuovo gruppo].
+- *(v1.1)* *Dato* che tocco [Famiglia (8)], *allora* ricevo un nuovo messaggio con la scheda gruppo di Famiglia.
+- *(v1.1)* *Dato* che dalla scheda gruppo premo Rinomina, *allora* il bot chiede direttamente il nuovo nome di quel gruppo.
+- *(v1.1)* *Dato* che premo un gruppo eliminato o rinominato nel frattempo, *allora* il bot segnala che il gruppo non esiste più e mostra l'elenco aggiornato.
 - *Dato* che esiste "Famiglia", *quando* provo a creare "famiglia", *allora* il bot rifiuta per nome duplicato.
 - *Dato* che rinomino "Lavoro" in "Ufficio", *allora* tutte le persone associate mostrano "Ufficio".
 - *Dato* che elimino un gruppo con 8 persone, *quando* il bot chiede conferma indicando "8 persone perderanno questa etichetta" e confermo, *allora* il gruppo viene eliminato e le persone restano.
@@ -121,8 +171,8 @@ Un messaggio **per persona** in ogni slot previsto dal profilo, finché l'occorr
 - *Dato* che due persone compiono gli anni lo stesso giorno, *quando* scatta lo slot, *allora* ricevo due messaggi separati, ciascuno con i propri pulsanti.
 - *Dato* che l'anno scorso l'occorrenza era *non confermato*, *quando* ricevo il reminder, *allora* la riga "L'anno scorso" non compare.
 
-**RF-11 — Pulsanti di contatto** · MVP
-Compaiono solo per i contatti presenti nella scheda.
+**RF-11 — Pulsanti di contatto** · MVP · modificato in v1.1
+Compaiono solo per i contatti presenti nella scheda. *(v1.1)* Si usano nei promemoria (reminder, recupero, `/oggi`) e nella scheda persona (RF-03). Il testo precompilato di WhatsApp e il pulsante Copia messaggio valgono solo nei promemoria. Nella scheda WhatsApp apre la chat vuota (`wa.me/<numero>`) e Copia messaggio non c'è. Le etichette dei pulsanti di contatto non hanno icone (RNF-19).
 | Pulsante | Destinazione | Testo precompilato |
 |---|---|---|
 | WhatsApp | `wa.me/<numero>?text=<messaggio>` | Sì |
@@ -154,24 +204,43 @@ Esiste un messaggio di default globale con segnaposto `{nome}` (sostituito dal n
 
 ### 4.4 Viste e ricerche
 
-Tutte le liste sono testuali: una riga per persona con giorno della settimana, data, nickname (o nome), età che compirà (se nota) e comando `/p_<id>`. Ordinamento per prossimo compleanno.
+Tutte le liste di persone sono testuali (l'elenco gruppi a pulsanti di RF-07 non è una lista di persone, RNF-14): una riga per persona con giorno della settimana, data, nickname (o nome), età che compirà (se nota) e comando `/p_<id>`. Ordinamento per prossimo compleanno.
 
 **RF-16 — `/oggi`** · MVP
 - *Dato* che oggi ci sono compleanni, *quando* scrivo `/oggi`, *allora* ricevo per ciascuno lo stesso messaggio del reminder del giorno, con i suoi pulsanti e lo stato attuale.
 - *Dato* che oggi non ci sono compleanni, *allora* il bot lo dice e indica il prossimo.
 
-**RF-17 — `/prossimi [giorni] [gruppo]`** · MVP
-Default 30 giorni, massimo 366. Filtro per gruppo opzionale.
+**RF-17 — `/prossimi [giorni] [gruppo]`** · MVP · modificato in v1.1
+Default 30 giorni, massimo 366. Filtro per gruppo opzionale. *(v1.1)* Il gruppo si cerca con la stessa regola di `/gruppi <nome>` (BR-26).
 - *Dato* che scrivo `/prossimi 7 famiglia`, *allora* vedo i compleanni dei prossimi 7 giorni delle persone del gruppo Famiglia.
-- *Dato* che il gruppo indicato non esiste, *allora* il bot lo segnala ed elenca i gruppi esistenti.
+- *(v1.1)* *Dato* che il gruppo si chiama "👨‍👩‍👧 Famiglia", *quando* scrivo `/prossimi 7 fam`, *allora* vedo la lista filtrata su quel gruppo.
+- *(v1.1)* *Dato* che "fam" corrisponde a "Famiglia" e "Famiglia Rossi", *quando* scrivo `/prossimi 7 fam`, *allora* il bot mostra un pulsante per ciascun gruppo; il tocco rilancia la lista dei prossimi 7 giorni filtrata su quel gruppo.
+- *Dato* che il gruppo indicato non esiste, *allora* il bot lo segnala ed elenca i gruppi esistenti. *(v1.1)* L'elenco è quello a pulsanti di RF-07.
 
 **RF-18 — `/cerca <testo>`** · MVP
 Ricerca per parte del nome o del nickname, senza distinzione tra maiuscole e minuscole.
 - *Dato* che un solo risultato corrisponde, *allora* il bot apre direttamente la scheda.
 - *Dato* che corrispondono più risultati, *allora* il bot mostra la lista.
 
-**RF-19 — `/gruppo <nome>`** · MVP
+**RF-19 — `/gruppi <nome>` e scheda gruppo** · MVP · modificato in v1.1
 - *Dato* che scrivo `/gruppo lavoro`, *allora* vedo tutte le persone del gruppo, ordinate per prossimo compleanno.
+
+*(v1.1)* `/gruppi <testo>` e `/gruppo <testo>` sono lo stesso comando: `/gruppo` resta accettato come alias, ma nel menu e in `/aiuto` compare solo `/gruppi [nome]`. Il testo si cerca come parte del nome del gruppo, secondo BR-26.
+- Un solo gruppo trovato, oppure una corrispondenza esatta: si apre la scheda gruppo.
+- Più gruppi trovati e nessuna corrispondenza esatta: un pulsante per ogni gruppo trovato; il tocco apre la scheda gruppo.
+- Nessun gruppo trovato: il bot lo segnala e mostra l'elenco gruppi di RF-07.
+- Senza argomento: l'elenco gruppi di RF-07.
+
+La **scheda gruppo** contiene:
+- titolo con il nome del gruppo e il numero di persone;
+- la lista delle persone nel formato §5.7, ordinata per prossimo compleanno, con i comandi `/p_<id>`;
+- i pulsanti [✏️ Rinomina] [🗑 Elimina], che agiscono su quel gruppo. Se la lista è spezzata in più messaggi, i pulsanti stanno sull'ultimo.
+
+Valgono BR-17 e la conferma dell'eliminazione con il conteggio delle persone (RF-07, RNF-05).
+- *(v1.1)* *Dato* che il gruppo si chiama "👨‍👩‍👧 Famiglia", *quando* scrivo `/gruppi fam`, *allora* si apre la sua scheda gruppo.
+- *(v1.1)* *Dato* che esistono "Lavoro" e "Lavoro ex", *quando* scrivo `/gruppi lavoro`, *allora* si apre direttamente "Lavoro" (la corrispondenza esatta vince).
+- *(v1.1)* *Dato* che "fam" corrisponde a "Famiglia" e "Famiglia Rossi", *quando* scrivo `/gruppi fam`, *allora* vedo due pulsanti e il tocco apre la scheda del gruppo scelto.
+- *(v1.1)* *Dato* che il gruppo non ha persone, *quando* apro la scheda gruppo, *allora* vedo il nome, "0 persone" e i pulsanti Rinomina ed Elimina.
 
 **RF-20 — `/mese [mese]`** · MVP
 Default: mese corrente. Il mese si indica per nome ("marzo") o per numero.
@@ -217,7 +286,30 @@ Risponde a **chiunque** con il suo ID Telegram numerico. Serve per configurare l
 **RF-30 — Whitelist del proprietario** · MVP
 - *Dato* che un utente diverso dal proprietario scrive al bot, *quando* invia un qualsiasi comando diverso da `/id`, *allora* il bot non risponde e non salva nulla.
 
-### 4.7 Evoluzioni
+### 4.7 Stato e statistiche *(v1.1)*
+
+**RF-31 — `/stato`** · v1.1
+Mostra lo stato di salute del bot:
+- ora dell'ultima esecuzione del cron;
+- invii di oggi e degli ultimi 7 giorni, divisi in inviati, falliti (in attesa di nuovo tentativo) e abbandonati, con nome e tipo di promemoria per ogni abbandonato;
+- data ed esito dell'ultimo backup mensile;
+- stato del webhook letto da Telegram: data e testo dell'ultimo errore, numero di update in coda.
+
+Se un valore non è ancora stato registrato, compare "mai registrato". Se la lettura dello stato del webhook non riesce, il resto viene mostrato comunque, con la sola riga del webhook segnata come non disponibile.
+- *Dato* che il cron gira regolarmente e oggi sono partiti 3 reminder, *quando* scrivo `/stato`, *allora* vedo l'ultima esecuzione dell'ora corrente e "Oggi: 3 inviati, 0 falliti, 0 abbandonati".
+- *Dato* che un reminder di ieri è stato abbandonato dopo i tentativi (N-03), *quando* scrivo `/stato`, *allora* lo vedo nella riga degli ultimi 7 giorni con il nome della persona.
+- *Dato* che il bot è appena stato aggiornato e il cron non ha ancora girato, *quando* scrivo `/stato`, *allora* l'ultima esecuzione risulta "mai registrata".
+
+**RF-32 — `/statistiche`** · v1.1
+Mostra cifre sintetiche sulla rubrica e sull'andamento. Per il dettaglio di un singolo anno resta `/anno` (RF-22).
+- totale persone, con la suddivisione per priorità e per gruppo (una persona in più gruppi conta in ciascuno);
+- compleanni per mese, come istogramma testuale di 12 righe;
+- numero di persone senza anno di nascita e numero di persone senza alcun contatto (solo conteggi, senza elenchi);
+- percentuale di *fatto* sul totale delle occorrenze chiuse, per ciascun anno con storico, dal più recente.
+- *Dato* che ho 112 persone, *quando* scrivo `/statistiche`, *allora* vedo il totale, le suddivisioni per priorità, per gruppo e per mese, i conteggi delle schede senza anno e senza contatti, e la percentuale di *fatto* per anno.
+- *Dato* che non c'è ancora uno storico, *quando* scrivo `/statistiche`, *allora* la sezione sull'andamento dice che non ci sono ancora anni con esiti.
+
+### 4.8 Evoluzioni
 
 **RF-40 — Configurabilità esterna** · v2: fuso orario, orari degli slot e profili di priorità modificabili senza toccare il codice.
 **RF-41 — README e guida all'installazione** · v2 (vedi §12).
@@ -225,6 +317,7 @@ Risponde a **chiunque** con il suo ID Telegram numerico. Serve per configurare l
 **RF-43 — Pubblicazione del repository** con licenza MIT · v2.
 **RF-50 — Vista schede incomplete** (persone senza telefono o contatti) · Futuro.
 **RF-51 — Multilingua completo** · Futuro.
+**RF-52 — Gestione dei membri dalla scheda gruppo** (aggiungere o togliere persone da un gruppo partendo dalla scheda gruppo) · Futuro *(v1.1)*. Oggi si fa dalla scheda persona (RF-08).
 
 ## 5. Flussi utente e conversazioni
 
@@ -239,10 +332,11 @@ Risponde a **chiunque** con il suo ID Telegram numerico. Serve per configurare l
 | `/oggi` | Compleanni di oggi | RF-16 |
 | `/prossimi [giorni] [gruppo]` | Prossimi compleanni | RF-17 |
 | `/mese [mese]` | Compleanni del mese | RF-20 |
-| `/gruppo <nome>` | Persone di un gruppo | RF-19 |
-| `/gruppi` | Gestione gruppi | RF-07 |
+| `/gruppi [nome]` *(v1.1)* | Senza nome: elenco gruppi a pulsanti. Con nome: ricerca e scheda gruppo. Alias accettato: `/gruppo` | RF-07, RF-19 |
 | `/scaduti` | Ultimi 7 giorni non fatti | RF-21 |
 | `/anno [anno]` | Riepilogo annuale | RF-22 |
+| `/statistiche` *(v1.1)* | Statistiche della rubrica e andamento | RF-32 |
+| `/stato` *(v1.1)* | Salute di cron, invii, backup e webhook | RF-31 |
 | `/messaggio` | Modifica messaggio di default | RF-15 |
 | `/modello` | Scarica il modello CSV | RF-23 |
 | `/export` | Esporta CSV | RF-25 |
@@ -251,29 +345,36 @@ Risponde a **chiunque** con il suo ID Telegram numerico. Serve per configurare l
 | `/annulla` | Interrompe un flusso guidato | RF-06 |
 | `/id` | Mostra il proprio ID Telegram | RF-29 |
 
-### 5.2 Inserimento persona (esempio)
+*(v1.1)* Tutti i mockup seguono la guida di stile RNF-19. Sono indicativi del tono e della struttura: i testi definitivi stanno nel punto unico dei testi (RNF-15).
+
+### 5.2 Inserimento persona (esempio) *(v1.1)*
 ```
 Tu:  /nuovo
-Bot: Nome completo?                                   [Annulla]
+Bot: 👤 Come si chiama? Nome e cognome                [Annulla]
 Tu:  Marco Rossi
-Bot: Nickname? (come lo chiami nei messaggi)          [Salta]
+Bot: 💬 Come lo chiami nei messaggi? (nickname)       [⏭ Salta]
 Tu:  Marchino
-Bot: Data di nascita? Formato gg/mm/aaaa, oppure gg/mm se non sai l'anno
+Bot: 🎂 Quando è nato? Formato gg/mm/aaaa, oppure gg/mm se non sai l'anno
 Tu:  14/03/1994
 Bot: 14 marzo 1994, giusto?                           [Sì] [Correggi]
-Bot: Telefono? (con prefisso, es. +39 333 1234567)    [Salta]
-Bot: Username Instagram?                              [Salta]
-Bot: Username Telegram?                               [Salta]
-Bot: Gruppi?        [☐ Famiglia] [☑ Beach tennis] [☐ Lavoro]
+Bot: 📱 Telefono? Scrivilo con il prefisso (es. +39 333 1234567)
+     oppure condividi il contatto 📎                   [⏭ Salta]
+Tu:  [condivide il contatto di Marco]
+Bot: 📱 +393331234567, giusto?                        [Sì] [Correggi]
+Bot: 📸 Username Instagram?                           [⏭ Salta]
+Bot: ✈️ Username Telegram?                            [⏭ Salta]
+Bot: 👥 Gruppi?     [☐ Famiglia] [☑ Beach tennis] [☐ Lavoro]
                     [➕ Nuovo gruppo] [Fine]
-Bot: Priorità?      [Alta] [Media ✓] [Bassa]
-Bot: Messaggio di auguri personalizzato? Se salti uso quello standard.  [Salta]
-Bot: Riepilogo: … (scheda)                            [Salva] [Annulla]
+Bot: ⭐ Priorità?   [Alta] [Media ✓] [Bassa]
+Bot: ✍️ Messaggio di auguri personalizzato? Se salti uso quello standard.  [⏭ Salta]
+Bot: 📋 Riepilogo: … (scheda)                         [Salva] [Annulla]
+Tu:  [Salva]
+Bot: 🎉 Fatto! Marchino è in rubrica.
 ```
 
-### 5.3 Reminder del giorno
+### 5.3 Reminder del giorno *(v1.1)*
 ```
-🎂 Oggi è il compleanno di Marchino (Marco Rossi), compie 32 anni
+🎂 Oggi è il compleanno di Marchino (Marco Rossi), compie 32 anni!
 Gruppi: Beach tennis
 📱 +39 333 1234567
 L'anno scorso: fatto ✅
@@ -296,39 +397,94 @@ L'anno scorso: fatto ✅
 [Fatto ✅] [Saltato]
 ```
 
-### 5.6 Scheda
+### 5.6 Scheda *(v1.1)*
 ```
-Marco Rossi — "Marchino"
-14/03/1994 · compie 33 anni tra 137 giorni
+👤 Marco Rossi — "Marchino"
+🎂 14/03/1994 · compie 33 anni tra 137 giorni
 Priorità: alta · Gruppi: Beach tennis, Lavoro
-📱 +39 333 1234567 · IG @marco.rossi · TG @mrossi
+📱 +39 333 1234567
 Messaggio: standard
 Storico: 2025 fatto · 2024 saltato
 
-[Modifica] [Elimina]
+[WhatsApp] [Instagram] [Telegram]
+[✏️ Modifica] [🗑 Elimina]
 ```
+Se c'è un'occorrenza da segnare (RF-21), [Segna fatto] compare tra la riga dei contatti e [✏️ Modifica] [🗑 Elimina].
 
-### 5.7 Liste (`/prossimi`, `/gruppo`, `/cerca`)
+### 5.7 Liste (`/prossimi`, `/gruppi <nome>`, `/cerca`) *(v1.1)*
 ```
-Prossimi 30 giorni (Famiglia)
+📆 Prossimi 30 giorni (Famiglia)
 
 Gio 30/10  Anna (28)      /p_4
 Dom 02/11  Luca (35)      /p_17
 Mer 12/11  Giulia         /p_9
 ```
-In `/mese` le righe sono raggruppate per settimana o in ordine di giorno; nelle altre viste la lista è continua.
+In `/mese` le righe sono raggruppate per settimana o in ordine di giorno; nelle altre viste la lista è continua. Le emoji stanno solo nell'intestazione, mai nelle righe (RNF-19).
 
-### 5.8 Import CSV
+### 5.8 Import CSV *(v1.1)*
 ```
 Tu:  [invia compleanni.csv]
-Bot: Anteprima import
+Bot: 📥 Anteprima import
      104 persone nuove
      5 duplicati (saltati): Marco Rossi 14/03, …
-     3 errori: riga 12 data "31/04" non valida; riga 40 nome mancante; …
+     ⚠️ 3 errori: riga 12 data "31/04" non valida; riga 40 nome mancante; …
      Gruppi da creare: Calcetto, Università
      [Importa] [Annulla]
 Tu:  [Importa]
-Bot: Importate 104 persone, creati 2 gruppi.
+Bot: 🎉 Importate 104 persone, creati 2 gruppi.
+```
+
+### 5.9 Elenco gruppi e scheda gruppo *(v1.1)*
+```
+Tu:  /gruppi
+Bot: 👥 I tuoi gruppi
+     [Beach tennis (6)]  [Famiglia (8)]
+     [Lavoro (5)]        [Università (12)]
+     [➕ Nuovo gruppo]
+Tu:  [Famiglia (8)]
+Bot: 👥 Famiglia · 8 persone
+
+     Gio 30/10  Anna (28)      /p_4
+     Dom 02/11  Luca (35)      /p_17
+     …
+     [✏️ Rinomina] [🗑 Elimina]
+
+Tu:  /gruppi fam
+Bot: 🔍 Più gruppi corrispondono a «fam»:
+     [Famiglia (8)] [Famiglia Rossi (3)]
+```
+
+### 5.10 Stato *(v1.1)*
+```
+Tu:  /stato
+Bot: 🩺 Stato del bot
+     ⏱ Ultimo controllo orario: oggi alle 15:00
+     📨 Oggi: 3 inviati, 0 falliti, 0 abbandonati
+     📨 Ultimi 7 giorni: 21 inviati, 1 abbandonato
+        – Luca, reminder delle 18:00 del 25/10
+     💾 Ultimo backup mensile: 01/10 alle 9:00 ✅
+     🔗 Webhook: nessun errore, 0 update in coda
+```
+
+### 5.11 Statistiche *(v1.1)*
+```
+Tu:  /statistiche
+Bot: 📊 Statistiche
+     112 persone · Alta 18 · Media 70 · Bassa 24
+     Gruppi: Famiglia 8 · Lavoro 5 · Beach tennis 6 · …
+     Senza anno di nascita: 23 · Senza contatti: 41
+
+     🎂 Compleanni per mese
+     Gen ████████  11
+     Feb █████      7
+     …
+     ✅ Auguri fatti: 2026 87% · 2025 81%
+```
+
+### 5.12 Avviso di buco del cron *(v1.1)*
+```
+⚠️ Il controllo orario non è girato dalle 14:00 alle 19:00 di oggi:
+alcuni promemoria potrebbero essere andati persi. Controlla /oggi e /scaduti.
 ```
 
 ## 6. Regole di business e casi limite
@@ -357,6 +513,14 @@ Bot: Importate 104 persone, creati 2 gruppi.
 - **BR-15** Il telefono è salvato in formato internazionale. Senza prefisso si assume +39.
 - **BR-16** Gli username di Instagram e Telegram si salvano senza `@` (se presente viene rimosso).
 - **BR-17** Nomi dei gruppi univoci senza distinzione tra maiuscole e minuscole.
+- **BR-25** *(v1.1)* **Numero da contatto condiviso.** Si tengono solo le cifre e l'eventuale "+" iniziale. Poi:
+  - con "+" iniziale il numero si prende così com'è;
+  - con "00" iniziale, "00" diventa "+";
+  - con 9-10 cifre il numero è nazionale e si antepone +39;
+  - con 11 cifre o più il numero è già internazionale e si antepone "+".
+
+  Il risultato va validato con BR-15 e confermato dall'utente (RF-01).
+- **BR-26** *(v1.1)* **Ricerca dei gruppi** (`/gruppi <nome>`, filtro di `/prossimi`). Testo cercato e nomi dei gruppi si confrontano con una chiave che ignora maiuscole, accenti ed emoji e compatta gli spazi: "famiglia" corrisponde esattamente a "👨‍👩‍👧 Famiglia". Il testo si cerca in qualsiasi parte del nome, come in `/cerca`. Una corrispondenza esatta della chiave vince sulle parziali. La chiave si calcola al momento e non modifica i nomi salvati; l'unicità resta quella di BR-17.
 
 ### Import CSV
 - **BR-18** Colonne: `nome; nickname; data; telefono; instagram; telegram; gruppi; priorita; messaggio`. Obbligatori: `nome`, `data`.
@@ -398,6 +562,7 @@ Entro D+7, *saltato* e *non confermato* possono passare a *fatto* (BR-08).
 | Invio | Quando |
 |---|---|
 | Backup automatico | 1° del mese alle 9:00 |
+| Avviso di buco del cron *(v1.1)* | Alla prima esecuzione dopo un'interruzione di oltre 2 ore (N-06) |
 
 ### Regole di invio
 - **N-01** Un solo Cron Trigger orario gestisce tutti gli invii. A ogni esecuzione il bot calcola l'ora locale e invia ciò che è previsto per quell'ora.
@@ -405,6 +570,9 @@ Entro D+7, *saltato* e *non confermato* possono passare a *fatto* (BR-08).
 - **N-03** Se un invio fallisce per un errore di Telegram, viene ritentato all'esecuzione successiva, ma solo entro la stessa giornata; poi viene abbandonato.
 - **N-04** Uno slot saltato per un malfunzionamento della piattaforma non viene recuperato. Il recupero del giorno dopo e `/oggi` fanno da rete di sicurezza.
 - **N-05** Granularità: ore piene. Non sono possibili orari come 9:30.
+- **N-06** *(v1.1)* **Avviso di buco del cron.** A ogni esecuzione il cron registra la propria ora. Se trova un'ora registrata più vecchia di 2 ore, invia un solo avviso con l'intervallo scoperto e l'invito a controllare `/oggi` e `/scaduti` (§5.12). Poi aggiorna l'ora. Se non c'è ancora un'ora registrata (prima esecuzione dopo il deploy), l'avviso non parte. Gli slot persi non vengono recuperati (N-04).
+  - *Dato* che il cron ha girato alle 14:00 e poi di nuovo solo alle 19:00, *quando* gira alle 19:00, *allora* ricevo un avviso che indica il buco tra le 14:00 e le 19:00.
+  - *Dato* che il cron gira ogni ora regolarmente, *allora* nessun avviso parte.
 
 ## 8. Modello dati concettuale
 
@@ -415,7 +583,7 @@ Entro D+7, *saltato* e *non confermato* possono passare a *fatto* (BR-08).
 | **Appartenenza** | persona, gruppo — relazione molti-a-molti |
 | **Occorrenza** | id, persona, anno, data effettiva, stato (aperta / fatto / saltato / non confermato), data e ora dell'esito |
 | **Invio** | occorrenza, tipo (pre-reminder / reminder / recupero), riferimento (giorni prima o slot), data e ora, esito dell'invio, id del messaggio Telegram |
-| **Impostazioni** | messaggio di auguri di default |
+| **Impostazioni** | messaggio di auguri di default; *(v1.1)* dati tecnici: ora dell'ultima esecuzione del cron (N-06, RF-31), data ed esito dell'ultimo backup mensile (RF-31). I dati tecnici non entrano nel backup e il ripristino non li modifica. |
 | **Stato conversazione** | flusso in corso (inserimento, modifica, import…), step corrente, dati parziali, scadenza |
 | **Profilo di priorità** | priorità, giorni dei pre-reminder, slot del giorno — costante nell'MVP, entità configurabile in v2 |
 
@@ -447,8 +615,18 @@ Note:
 
 ### Usabilità
 - **RNF-13** Interazione il più possibile guidata: nessuna sintassi da ricordare oltre al formato della data.
-- **RNF-14** Pulsanti solo per le azioni; la navigazione nelle liste usa i comandi `/p_<id>` nel testo.
+- **RNF-14** Pulsanti solo per le azioni; la navigazione nelle liste usa i comandi `/p_<id>` nel testo. *(v1.1)* Eccezione: i gruppi, che sono pochi, si scelgono con pulsanti (elenco gruppi di RF-07, scelta tra più gruppi trovati in RF-17 e RF-19). Le liste di persone restano senza pulsanti.
 - **RNF-15** Testi del bot raccolti in un unico punto, per facilitarne modifica e traduzione futura.
+- **RNF-19** *(v1.1)* **Guida di stile dei testi.** Il tono è caldo, personale e sobrio, senza diventare verboso. Valgono anche per le funzionalità future.
+  - Un'emoji "di sezione" all'inizio di titoli e intestazioni (es. 🎂, 📅, 📆, 👥, 📊), mai dentro le righe delle liste, per non rompere l'allineamento.
+  - 👋 nel benvenuto; 🎉 o ✅ nelle conferme di successo.
+  - ⚠️ negli avvisi e ❌ negli errori.
+  - Un'icona per campo nelle domande dei flussi guidati.
+  - Icone solo sui pulsanti di azione (✏️ Modifica, 🗑 Elimina, ⏭ Salta, ➕ Nuovo gruppo…). I pulsanti di contatto (WhatsApp, Instagram, Telegram, Copia messaggio) restano senza icona, per non essere troncati su mobile.
+  - Nessuna emoji legata a priorità o gruppo.
+  - Esclusi: il messaggio di auguri di default (A-06) e i messaggi personalizzati, che sono dati dell'utente.
+  - *Dato* che salvo una persona, *allora* la conferma contiene un'emoji di successo e il nome della persona.
+  - *Dato* che apro una lista, *allora* l'emoji compare solo nell'intestazione.
 
 ### Prestazioni e volumi
 - **RNF-16** Dimensionamento: circa 100-200 persone. Liste senza paginazione entro questi volumi.
@@ -467,6 +645,8 @@ Note:
 - **V-05** I link di Instagram (`ig.me/m/`) e Telegram (`t.me/`) aprono la chat ma non accettano testo precompilato: per questi canali c'è il pulsante "Copia messaggio".
 - **V-06** Il link WhatsApp funziona solo con il numero in formato internazionale.
 - **V-07** Limiti sui file Telegram (20 MB in ricezione dal bot, 50 MB in invio): irrilevanti per i volumi previsti.
+- **V-08** *(v1.1)* Un contatto condiviso porta un solo numero, quello principale scelto da Telegram, spesso senza "+". Gli altri numeri stanno solo nella vCard, che può mancare. Il pulsante "condividi contatto" della tastiera di Telegram condivide solo il contatto dell'utente stesso, quindi non è utilizzabile: si condivide da 📎 → Contatto.
+- **V-09** *(v1.1)* Una tastiera inline ha al massimo 100 pulsanti: per questo l'elenco gruppi a pulsanti è limitato a 60 gruppi (RF-07).
 
 ### Assunzioni
 - **A-01** Un solo utente per istanza; fuso orario Europe/Rome.
@@ -504,6 +684,13 @@ Note:
 | D-20 | Segreti, testi, fuso, slot e profili centralizzati già nell'MVP | Rende la v2 configurabile senza riscritture, a costo quasi nullo. |
 | D-21 | Repository pubblico in v2, licenza MIT | Prima funziona per l'autore, poi diventa riusabile. |
 | D-22 | Separatore `|` per i gruppi nel CSV | Evita il conflitto con il `;` usato come separatore di colonna. |
+| D-23 *(v1.1)* | Guida di stile con tono caldo ma sobrio (RNF-19) | Una regola stabile vale anche per le feature future; il livello sobrio rispetta l'allineamento delle liste e la larghezza dei pulsanti. |
+| D-24 *(v1.1)* | Contatto condiviso solo come scorciatoia per il telefono, sempre con conferma | Fa risparmiare tempo senza creare la persona dal contatto; la conferma neutralizza i numeri senza "+" (V-08). |
+| D-25 *(v1.1)* | Un solo concetto di "scheda gruppo", raggiungibile da elenco, ricerca e scelta tra più gruppi; `/gruppi` e `/gruppo` unificati | Evita tre modi diversi di aprire un gruppo. |
+| D-26 *(v1.1)* | Ricerca dei gruppi per parte del nome, ignorando emoji e accenti, con priorità alla corrispondenza esatta | Con le emoji nei nomi la ricerca esatta era inutilizzabile; si allinea a `/cerca`. |
+| D-27 *(v1.1)* | Nella scheda persona WhatsApp apre la chat vuota; il telefono resta nel testo | La scheda si apre tutto l'anno; il numero nel testo è l'unico modo di chiamare (V-04). |
+| D-28 *(v1.1)* | `/stato` su richiesta più l'avviso di buco rilevato a posteriori (N-06) | Un cron fermo non può avvisare da solo; il buco si segnala alla ripartenza. |
+| D-29 *(v1.1)* | `/statistiche` separato da `/anno`, con solo conteggi | Poche cifre utili, senza duplicare il riepilogo annuale. |
 
 ### Alternative scartate
 | Alternativa | Motivo |
@@ -516,8 +703,17 @@ Note:
 | Messaggio unico per più compleanni nello stesso giorno | I pulsanti devono riferirsi a una sola persona. |
 | Ricerca per età o segno zodiacale | Nessun uso reale. |
 | Import vCard / Google Contatti | L'utente non usa Google per i contatti. |
-| Contatto condiviso da Telegram | Troppo lento per l'onboarding. |
-| Pulsanti per navigare le liste | Muro di pulsanti e paginazione oltre 30 elementi. |
+| Creare una persona da un contatto condiviso di Telegram *(riformulata in v1.1)* | Troppo lento per l'onboarding. Il contatto è ammesso solo come scorciatoia per il telefono (RF-01, D-24). |
+| Pulsanti per navigare le liste di persone *(riformulata in v1.1)* | Muro di pulsanti e paginazione oltre 30 elementi. Non vale per i gruppi, che sono pochi (RNF-14). |
+| Stile dei testi sobrio o giocoso a scelta nelle impostazioni *(v1.1)* | Eccessivo per un uso personale; basta una guida di stile unica. |
+| Emoji per priorità o per gruppo *(v1.1)* | Rumore visivo, senza un'informazione in più. |
+| Numero da contatto preso senza conferma *(v1.1)* | Un numero senza "+" verrebbe salvato sbagliato in silenzio (V-08). |
+| Navigazione sul posto con pulsante Indietro nella scheda gruppo *(v1.1)* | Coerenza con `/p_<id>`, che manda sempre un nuovo messaggio. |
+| WhatsApp con auguri precompilati e Copia messaggio nella scheda *(v1.1)* | La scheda si usa tutto l'anno; per gli auguri ci sono reminder, recupero e `/oggi`. |
+| Username di Instagram e Telegram nell'etichetta dei pulsanti *(v1.1)* | Con tre pulsanti su una riga verrebbero troncati su mobile. |
+| Priorità "Silenziosa" (nessun promemoria, solo nelle liste) *(v1.1)* | Non necessaria all'utente. |
+| Vista delle schede incomplete anticipata nella v1.1 *(v1.1)* | Non necessaria ora; resta tra le idee future (RF-50). `/statistiche` ne mostra solo il conteggio. |
+| Onomastici e anniversari *(v1.1)* | Allargherebbero il dominio a ricorrenze generiche, fuori dall'obiettivo. |
 | Rifare tutto il guidato per modificare | Troppi passaggi per correggere un campo. |
 | Più formati di data accettati | L'utente preferisce un formato unico. |
 | Calendario a pulsanti per la data | Scomodo per scegliere l'anno di nascita. |
@@ -535,6 +731,13 @@ Note:
 - `/start`, `/aiuto`, `/id`, whitelist, token segreto del webhook (RF-28…30, RNF-02…04)
 - Centralizzazione di testi, segreti, fuso, slot e profili (RNF-15, RNF-18)
 
+### v1.1
+- Gruppi: elenco a pulsanti, scheda gruppo, ricerca per parte del nome, `/gruppi [nome]` con alias `/gruppo` (RF-07, RF-17, RF-19, BR-26, RNF-14)
+- Scheda persona con pulsanti di contatto (RF-03, RF-11)
+- Telefono da contatto condiviso (RF-01, RF-04, BR-25, V-08)
+- `/stato`, `/statistiche`, avviso di buco del cron (RF-31, RF-32, N-06)
+- Guida di stile dei testi (RNF-19)
+
 ### v2
 - Configurabilità esterna di fuso orario, slot e profili (RF-40)
 - README con guida completa (RF-41), basata sul percorso seguito dall'autore:
@@ -550,11 +753,48 @@ Note:
 ### Idee future
 - Vista delle schede incomplete (RF-50)
 - Multilingua completo (RF-51)
+- Gestione dei membri dalla scheda gruppo (RF-52)
 - Riepilogo annuale inviato in automatico il 31/12
 
 ## 13. Punti aperti
 
 Nessun punto aperto bloccante.
 
-Da confermare in fase di sviluppo:
-- **PA-01** Il comportamento del numero cliccabile nel testo (V-04) va verificato sui client Telegram usati (Android, iOS, desktop). Se non soddisfacente, l'alternativa è un pulsante "Chiama" che punta a una pagina `https://` del Worker che reindirizza a `tel:`: fattibilità da verificare, perché espone un endpoint pubblico in più.
+Punti chiusi:
+- **PA-01** ~~Il comportamento del numero cliccabile nel testo (V-04) va verificato sui client Telegram usati (Android, iOS, desktop).~~ *(v1.1)* **Chiuso: verificato.** Il numero nel testo è cliccabile sui client in uso; il pulsante "Chiama" tramite una pagina del Worker non serve.
+
+## Impatto della versione 1.1
+
+### Requisiti cambiati per area
+- **Anagrafica e gruppi** (feature 001):
+  - RF-01 e RF-04: telefono da contatto condiviso, con BR-25 e V-08;
+  - RF-03: pulsanti di contatto nella scheda, username fuori dal testo;
+  - RF-07: elenco gruppi a pulsanti, Rinomina ed Elimina dalla scheda gruppo, V-09;
+  - RNF-14: eccezione per i gruppi.
+- **Promemoria** (feature 002):
+  - RF-11: i pulsanti di contatto si usano anche nella scheda, senza testo precompilato;
+  - N-06: avviso di buco del cron, con registrazione dell'ora di ogni esecuzione.
+- **Viste** (feature 003):
+  - RF-19: `/gruppi [nome]`, scheda gruppo, alias `/gruppo`;
+  - RF-17: filtro gruppo con la ricerca di BR-26;
+  - nuovi RF-31 `/stato` e RF-32 `/statistiche`.
+- **Import, export e backup** (feature 004):
+  - il backup mensile registra data ed esito, per RF-31;
+  - backup e ripristino escludono i dati tecnici delle impostazioni.
+- **Trasversale**: RNF-19, guida di stile su tutti i testi e mockup §5; tocca tutte le feature.
+
+### Modello dati
+- Nessuna nuova entità e nessuna migration di struttura prevista. Le Impostazioni ricevono nuovi dati tecnici: ultima esecuzione del cron, ultimo backup mensile ed esito.
+- Dati esistenti in produzione:
+  - nessuna conversione;
+  - i dati tecnici nascono vuoti: `/stato` mostra "mai registrato" e N-06 non scatta fino alla prima esecuzione dopo il deploy;
+  - i nomi dei gruppi non cambiano, perché la chiave di BR-26 si calcola al momento;
+  - il messaggio di auguri di default e i messaggi personalizzati non vengono toccati;
+  - i messaggi già inviati restano con il testo vecchio;
+  - lo storico di invii e occorrenze è già utilizzabile da `/stato` e `/statistiche`.
+
+### Ordine di realizzazione consigliato
+1. **Gruppi**: RF-07, RF-17, RF-19, BR-26, RNF-14, V-09. È la priorità più alta, perché oggi `/gruppo` è inutilizzabile con le emoji.
+2. **Scheda e contatti**: RF-03, RF-11, RF-01, RF-04, BR-25, V-08.
+3. **Stato e statistiche**: RF-31, RF-32, N-06.
+4. **Guida di stile**: RNF-19 e mockup §5. Va per ultima, così copre anche i testi nuovi dei cicli precedenti.
