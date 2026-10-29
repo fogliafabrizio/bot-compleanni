@@ -13,7 +13,7 @@ Committente e unico utente MVP: Fabrizio
 | 1.1 | REV-004 — Ricerca morbida del gruppo | Accettata con modifiche | Modificati RF-17 e RF-19. Aggiunto BR-26, con la chiave di almeno 2 caratteri per i nomi dei gruppi (decisione del proprietario, 29/10/2026). |
 | 1.1 | REV-005 — Pulsanti di contatto nella scheda | Accettata con modifiche | Modificati RF-03 e RF-11. Aggiornato il mockup §5.6. |
 | 1.1 | REV-006 — Chiusura di PA-01 | Accettata | PA-01 chiuso come verificato. |
-| 1.1 | REV-007 — Stato e statistiche | Accettata con modifiche | Aggiunti RF-31 (`/stato`), RF-32 (`/statistiche`) e N-06 (avviso di buco del cron). Aggiornati §8 (Impostazioni), §5.1 e i mockup §5.10-5.12. |
+| 1.1 | REV-007 — Stato e statistiche | Accettata con modifiche | Aggiunti RF-31 (`/stato`), RF-32 (`/statistiche`) e N-06 (avviso di buco del cron). Aggiornati §8 (Impostazioni), §5.1 e i mockup §5.10-5.12. Nel mockup §5.10 la riga degli ultimi 7 giorni riporta anche i falliti, come chiede RF-31, e "mai registrato" è uniforme (decisione del proprietario, 29/10/2026). |
 | 1.1 | — | — | Aggiunte le decisioni D-23…D-29 e le alternative scartate emerse dall'analisi (priorità "Silenziosa", anticipo di RF-50, onomastici e anniversari). |
 | 1.0 | — | — | Prima versione (MVP). |
 
@@ -298,7 +298,7 @@ Mostra lo stato di salute del bot:
 Se un valore non è ancora stato registrato, compare "mai registrato". Se la lettura dello stato del webhook non riesce, il resto viene mostrato comunque, con la sola riga del webhook segnata come non disponibile.
 - *Dato* che il cron gira regolarmente e oggi sono partiti 3 reminder, *quando* scrivo `/stato`, *allora* vedo l'ultima esecuzione dell'ora corrente e "Oggi: 3 inviati, 0 falliti, 0 abbandonati".
 - *Dato* che un reminder di ieri è stato abbandonato dopo i tentativi (N-03), *quando* scrivo `/stato`, *allora* lo vedo nella riga degli ultimi 7 giorni con il nome della persona.
-- *Dato* che il bot è appena stato aggiornato e il cron non ha ancora girato, *quando* scrivo `/stato`, *allora* l'ultima esecuzione risulta "mai registrata".
+- *Dato* che il bot è appena stato aggiornato e il cron non ha ancora girato, *quando* scrivo `/stato`, *allora* l'ultimo controllo orario risulta "mai registrato".
 
 **RF-32 — `/statistiche`** · v1.1
 Mostra cifre sintetiche sulla rubrica e sull'andamento. Per il dettaglio di un singolo anno resta `/anno` (RF-22).
@@ -460,7 +460,7 @@ Tu:  /stato
 Bot: 🩺 Stato del bot
      ⏱ Ultimo controllo orario: oggi alle 15:00
      📨 Oggi: 3 inviati, 0 falliti, 0 abbandonati
-     📨 Ultimi 7 giorni: 21 inviati, 1 abbandonato
+     📨 Ultimi 7 giorni: 21 inviati, 0 falliti, 1 abbandonato
         – Luca, reminder delle 18:00 del 25/10
      💾 Ultimo backup mensile: 01/10 alle 9:00 ✅
      🔗 Webhook: nessun errore, 0 update in coda
