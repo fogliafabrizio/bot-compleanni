@@ -111,3 +111,14 @@ export const DOCUMENT_CAPTION_MAX_LENGTH = 1024;
 export const IMPORT_ERROR_VALUE_MAX = 30;
 export const PREVIEW_GROUPS_PER_LINE = 10;
 export const PREVIEW_MAX_MESSAGES = 30;
+
+// --- Stato e statistiche v1.1 (feature 007) ---
+
+// N-06, D-28: avviso oltre 2 ore reali tra le ore piene previste.
+export const GAP_ALERT_THRESHOLD_HOURS = 2;
+
+// RF-31: oggi e i 6 giorni precedenti (FR-010).
+export const STATUS_WINDOW_DAYS = 7;
+
+// RF-32: blocchi █ del mese con più compleanni.
+export const STATS_BAR_WIDTH = 10;

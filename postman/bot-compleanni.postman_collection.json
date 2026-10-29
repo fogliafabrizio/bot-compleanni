@@ -1,8 +1,8 @@
 {
   "info": {
     "name": "Bot compleanni — test locale completo",
-    "description": "Versione 2.2.0. Test del webhook in locale (`wrangler dev`), feature 001–006: sicurezza, comandi, viste, esiti dei promemoria, flussi guidati (/nuovo e modifica anche con il contatto condiviso, elimina, gruppi, /messaggio), import CSV, export, backup e ripristino.\n\nIl Worker risponde sempre 200 vuoto: la risposta del bot arriva **nella chat Telegram del proprietario** (il Worker locale usa la Bot API reale con il token di `.dev.vars`). I test controllano anche il D1 locale tramite `postman/helper.mjs` (porta 8788): stato del flusso e campi salvati.\n\nAvvio: `scripts/smoke-postman.ps1`, poi Runner sull'intera collection (o cartella per cartella, **in ordine**). Istruzioni e limiti in `postman/README.md`.",
-    "version": "2.2.0",
+    "description": "Versione 2.3.0. Test del webhook in locale (`wrangler dev`), feature 001–007: sicurezza, comandi, viste, esiti dei promemoria, flussi guidati (/nuovo e modifica anche con il contatto condiviso, elimina, gruppi, /messaggio), import CSV, export, backup e ripristino, /stato e /statistiche.\n\nIl Worker risponde sempre 200 vuoto: la risposta del bot arriva **nella chat Telegram del proprietario** (il Worker locale usa la Bot API reale con il token di `.dev.vars`). I test controllano anche il D1 locale tramite `postman/helper.mjs` (porta 8788): stato del flusso e campi salvati.\n\nAvvio: `scripts/smoke-postman.ps1`, poi Runner sull'intera collection (o cartella per cartella, **in ordine**). Istruzioni e limiti in `postman/README.md`.",
+    "version": "2.3.0",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "event": [
@@ -658,7 +658,7 @@
                 "webhook"
               ]
             },
-            "description": "Atteso: elenco comandi con `/gruppi [nome] — elenco gruppi a pulsanti; con un nome cerca il gruppo e apre la scheda` e **nessuna** riga `/gruppo` (RF-19, AFU §5.1). Le righe `/oggi`, `/prossimi [giorni] [gruppo]`, `/cerca <testo>`, `/mese [mese]`, `/scaduti — ultimi 7 giorni non fatti`, `/anno [anno]` stanno **prima** di `/annulla`."
+            "description": "Atteso: elenco comandi con `/gruppi [nome] — elenco gruppi a pulsanti; con un nome cerca il gruppo e apre la scheda` e **nessuna** riga `/gruppo` (RF-19, AFU §5.1). Le righe `/oggi`, `/prossimi [giorni] [gruppo]`, `/cerca <testo>`, `/mese [mese]`, `/scaduti — ultimi 7 giorni non fatti`, `/anno [anno]` stanno **prima** di `/annulla`. *(v1.1, 007)* Subito dopo `/anno [anno] — riepilogo dell'anno`: `/statistiche — statistiche della rubrica e andamento` e `/stato — salute di cron, invii, backup e webhook` (§5.1, FR-016)."
           }
         },
         {
@@ -2596,6 +2596,190 @@
               ]
             },
             "description": "Atteso: stesso errore."
+          }
+        }
+      ]
+    },
+    {
+      "name": "08b · /stato e /statistiche (RF-31, RF-32, N-06)",
+      "description": "Eseguire dopo la 08 e prima della 09 (Segna fatto cambia gli esiti). `/stato` legge le chiavi tecniche, gli invii degli ultimi 7 giorni e `getWebhookInfo`; `/statistiche` solo cifre, senza elenchi. L'avviso di buco (N-06) non si prova da qui: vedi README.",
+      "item": [
+        {
+          "name": "/stato",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Telegram-Bot-Api-Secret-Token",
+                "value": "{{webhookSecret}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"update_id\": {{$randomInt}},\n  \"message\": {\n    \"message_id\": {{$randomInt}},\n    \"from\": { \"id\": {{ownerId}} },\n    \"chat\": { \"id\": {{ownerId}}, \"type\": \"private\" },\n    \"text\": \"/stato\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/webhook",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "webhook"
+              ]
+            },
+            "description": "RF-31, AFU §5.10. Atteso, nell'ordine: `🩺 Stato del bot`; `⏱ Ultimo controllo orario: …` (\"mai registrato\" se il cron locale non è mai girato dopo il seed, altrimenti \"oggi alle H:00\"); `📨 Oggi: <i> inviati, <f> falliti, <a> abbandonati` (singolari con 1); `📨 Ultimi 7 giorni: …` con i tre conteggi (con i soli dati di prova: 3 inviati, 0 falliti, 0 abbandonati) e una riga `   – <nome>, <tipo> del GG/MM` per ogni abbandonato; `💾 Ultimo backup mensile: …` (\"mai registrato\" finché il backup mensile non è stato tentato); `🔗 Webhook: nessun errore, 0 update in coda` oppure `🔗 Webhook: non disponibile` (in locale il webhook di solito non è impostato: la riga può mostrare l'ultimo errore del bot reale). Le altre righe compaiono comunque (FR-012)."
+          }
+        },
+        {
+          "name": "Cron ora → cron_last_run",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "const hourIso = new Date(Math.floor(Date.now() / 3600000) * 3600000).toISOString();",
+                  "pm.sendRequest({ url: pm.variables.get(\"helperUrl\") + \"/query\", method: \"POST\", header: { \"Content-Type\": \"application/json\" }, body: { mode: \"raw\", raw: JSON.stringify({ sql: \"SELECT value FROM settings WHERE key = 'cron_last_run'\" }) } }, (err, res) => {",
+                  "  pm.test(\"Helper: query riuscita\", () => { pm.expect(err).to.equal(null); pm.expect(res.code).to.equal(200); });",
+                  "  if (err || res.code !== 200) return;",
+                  "  pm.test(\"N-06: cron_last_run = ora piena corrente in UTC\", () => { pm.expect(res.json().rows[0].value).to.eql(hourIso); });",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/__scheduled?cron=0+*+*+*+*",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "__scheduled"
+              ],
+              "query": [
+                {
+                  "key": "cron",
+                  "value": "0+*+*+*+*"
+                }
+              ]
+            },
+            "description": "N-06, RF-31: esegue il Cron Trigger con l'ora **attuale** (`wrangler dev --test-scheduled`) e controlla su D1 che `cron_last_run` sia l'ora piena corrente in UTC (es. `2026-10-29T14:00:00.000Z`). Se l'ultima esecuzione registrata è di oltre 2 ore fa arriva anche l'avviso di buco `⚠️ Il controllo orario non è girato …`: è atteso. A un'ora senza slot non partono promemoria."
+          }
+        },
+        {
+          "name": "/stato dopo il cron",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Telegram-Bot-Api-Secret-Token",
+                "value": "{{webhookSecret}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"update_id\": {{$randomInt}},\n  \"message\": {\n    \"message_id\": {{$randomInt}},\n    \"from\": { \"id\": {{ownerId}} },\n    \"chat\": { \"id\": {{ownerId}}, \"type\": \"private\" },\n    \"text\": \"/stato\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/webhook",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "webhook"
+              ]
+            },
+            "description": "RF-31: come la richiesta precedente, ma la riga del controllo orario è `⏱ Ultimo controllo orario: oggi alle H:00` con l'ora piena appena eseguita (ora di Roma)."
+          }
+        },
+        {
+          "name": "/statistiche",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Telegram-Bot-Api-Secret-Token",
+                "value": "{{webhookSecret}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"update_id\": {{$randomInt}},\n  \"message\": {\n    \"message_id\": {{$randomInt}},\n    \"from\": { \"id\": {{ownerId}} },\n    \"chat\": { \"id\": {{ownerId}}, \"type\": \"private\" },\n    \"text\": \"/statistiche\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/webhook",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "webhook"
+              ]
+            },
+            "description": "RF-32, AFU §5.11. Atteso con i soli dati di prova: `📊 Statistiche`; `6 persone · Alta 0 · Media 6 · Bassa 0`; `Gruppi: 👨‍👩‍👧 Smoke Casa 1 · Smoke Casa Rossi 1 · Smoke Famiglia 1 · Smoke Lavoro 2 · Senza gruppo 2` (ordine dell'elenco gruppi, le emoji non contano); `Senza anno di nascita: 2 · Senza contatti: 5`; riga vuota, `🎂 Compleanni per mese` e **12 righe** `Gen`…`Dic` in monospazio (barre █, 10 blocchi al mese massimo); `✅ Auguri fatti: <anno> 0% · <anno−1> 50%` (con Fatto su Marco dalla cartella 03 l'anno corrente diventa 33%). Nessun nome di persona."
           }
         }
       ]
@@ -10761,7 +10945,7 @@
                 "webhook"
               ]
             },
-            "description": "Atteso: `compleanni-backup-AAAA-MM-GG.json` con didascalia `Backup: N persone, M gruppi, K occorrenze. …`."
+            "description": "Atteso: `compleanni-backup-AAAA-MM-GG.json` con didascalia `Backup: N persone, M gruppi, K occorrenze. …`. Nel JSON `settings` contiene **solo** `default_message`: le chiavi tecniche (`cron_last_run`, `auto_backup_last`, `auto_backup`, `bot_commands`) non entrano nel backup (§8, FR-002)."
           }
         }
       ]

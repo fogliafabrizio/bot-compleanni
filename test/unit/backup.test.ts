@@ -167,3 +167,22 @@ describe("FR-016, research R-11: il ripristino non applica FR-006a", () => {
     if (r.ok) expect(r.backup.groups).toEqual([{ id: 5, name: "🏖", name_norm: "🏖" }]);
   });
 });
+
+describe("§8, FR-002, FR-003: chiavi tecniche", () => {
+  it("FR-003: la validazione accetta settings con cron_last_run e auto_backup_last oltre a default_message", () => {
+    const b = buildBackup(DATA, ISO) as unknown as { settings: Record<string, unknown> };
+    b.settings = {
+      ...b.settings,
+      cron_last_run: "2026-10-29T14:00:00.000Z",
+      auto_backup_last: '{"at":"2026-10-01T07:00:00.000Z","esito":"riuscito"}',
+    };
+    const r = parseBackup(bytes(b), TODAY);
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.backup.settings).toEqual({ default_message: "Ciao {nome}" });
+  });
+
+  it("FR-002: buildBackup restituisce settings con la sola chiave default_message", () => {
+    expect(Object.keys(buildBackup(DATA, ISO).settings)).toEqual(["default_message"]);
+  });
+});

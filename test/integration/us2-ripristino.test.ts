@@ -1,5 +1,8 @@
 import { env } from "cloudflare:test";
 import { describe, expect, it } from "vitest";
+import BACKUP_OK from "../../postman/fixtures/backup-ok.json?raw";
+import { BACKUP_FORMAT_VERSION } from "../../src/config";
+import { TECHNICAL_KEYS } from "../../src/db/settings";
 import { T } from "../../src/texts";
 import { addHours } from "../../src/time";
 import { NOW, OWNER_ID } from "../helpers/constants";
@@ -213,5 +216,55 @@ describe("US2: /ripristina (RF-26, RNF-05, FR-018…FR-021)", () => {
     expect(deps.tg.messages()).toHaveLength(1);
     expect(deps.tg.lastText()).toContain("Festa Oggi");
     expect(deps.tg.messages()[0]!.chatId).toBe(OWNER_ID);
+  });
+});
+
+describe("§8, FR-003, FR-022, SC-005: ripristino e dati tecnici", () => {
+  const technical = () =>
+    rows<{ key: string; value: string; updated_at: string }>(
+      `SELECT key, value, updated_at FROM settings WHERE key IN (${TECHNICAL_KEYS.map(() => "?").join(", ")}) ORDER BY key`,
+      ...TECHNICAL_KEYS,
+    );
+
+  async function seedTechnical(): Promise<void> {
+    await env.DB.batch(
+      TECHNICAL_KEYS.map((k, i) =>
+        env.DB.prepare("INSERT INTO settings (key, value, updated_at) VALUES (?, ?, ?)").bind(k, `valore-${k}`, `2026-10-0${i + 1}T07:00:00.000Z`),
+      ),
+    );
+  }
+
+  it("§8, FR-003: il ripristino di backup-ok.json lascia value e updated_at delle chiavi tecniche identici", async () => {
+    await seedTechnical();
+    const before = await technical();
+    expect(before).toHaveLength(TECHNICAL_KEYS.length);
+    const deps = makeDeps();
+    await restore(deps, BACKUP_OK);
+    expect(deps.tg.lastText()).toContain("Ripristino completato");
+    expect(await technical()).toEqual(before);
+  });
+
+  it("§8, FR-003: file con cron_last_run e auto_backup_last in settings → accettato, ripristina default_message, ignora le chiavi tecniche", async () => {
+    await seedTechnical();
+    const before = await technical();
+    const b = JSON.parse(BACKUP_OK) as { settings: Record<string, unknown> };
+    b.settings = {
+      default_message: "Dal file {nome}",
+      cron_last_run: "2030-01-01T00:00:00.000Z",
+      auto_backup_last: '{"at":"2030-01-01T00:00:00.000Z","esito":"riuscito"}',
+    };
+    const deps = makeDeps();
+    await restore(deps, JSON.stringify(b));
+    expect(deps.tg.lastText()).toContain("Ripristino completato");
+    expect((await rows<{ value: string }>("SELECT value FROM settings WHERE key = 'default_message'"))[0]?.value).toBe("Dal file {nome}");
+    expect(await technical()).toEqual(before);
+  });
+
+  it("FR-022: un backup creato prima del rilascio (formato invariato) resta ripristinabile", async () => {
+    expect((JSON.parse(BACKUP_OK) as { version: number }).version).toBe(BACKUP_FORMAT_VERSION);
+    const deps = makeDeps();
+    await restore(deps, BACKUP_OK);
+    expect(deps.tg.lastText()).toBe("Ripristino completato: 2 persone, 1 gruppi, 1 occorrenze.\nMessaggio di auguri standard: quello iniziale");
+    expect(await count("persons")).toBe(2);
   });
 });

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { count, insertDelivery, insertOccurrence, insertPerson, rows } from "../helpers/db";
 import { localInstant, runAt } from "../helpers/cron";
-import { makeCronDeps } from "../helpers/deps";
+import { makeCronDeps, type TestCronDeps } from "../helpers/deps";
 import { runHourly } from "../../src/cron/hourly";
 import { localDayStartUtc } from "../../src/time";
 
@@ -111,5 +111,64 @@ describe("N-03, N-04, RNF-10, RNF-12: retry e isolamento degli errori", () => {
     const sent = await rows<{ ref: number; sent_at: string }>("SELECT ref, sent_at FROM deliveries ORDER BY ref");
     expect(sent.find((s) => s.ref === 9)?.sent_at).toBe(at9);
     expect(sent.find((s) => s.ref === 13)?.sent_at).toBe(at13);
+  });
+});
+
+describe("R-04, FR-010: sent_at scritto al reclamo", () => {
+  type Seen = { status: string; sent_at: string | null };
+
+  // Registra lo stato delle righe deliveries nel momento di ogni sendMessage (dopo il reclamo).
+  function watchClaims(deps: TestCronDeps, fail?: () => Error): Seen[][] {
+    const seen: Seen[][] = [];
+    const original = deps.tg.sendMessage.bind(deps.tg);
+    deps.tg.sendMessage = async (...args: Parameters<typeof original>) => {
+      seen.push(await rows<Seen>("SELECT status, sent_at FROM deliveries ORDER BY id"));
+      if (fail) throw fail();
+      return original(...args);
+    };
+    return seen;
+  }
+
+  it("FR-010: nuova riga in_invio → sent_at = istante del reclamo; successo → sent_at = istante di invio", async () => {
+    await insertPerson({ id: 1, fullName: "Marco Rossi", day: 14, month: 3, priority: "alta" });
+    const deps = makeCronDeps();
+    const at9 = localInstant(2027, 3, 14, 9);
+    const sentAt = new Date(at9.getTime() + 5_000);
+    const seen = watchClaims(deps);
+    const original = deps.tg.sendMessage;
+    deps.tg.sendMessage = async (...args: Parameters<typeof original>) => {
+      const r = await original(...args);
+      deps.setNow(sentAt);
+      return r;
+    };
+    await runAt(deps, 2027, 3, 14, 9);
+    expect(seen).toEqual([[{ status: "in_invio", sent_at: at9.toISOString() }]]);
+    expect(await rows("SELECT status, sent_at FROM deliveries")).toEqual([{ status: "inviato", sent_at: sentAt.toISOString() }]);
+  });
+
+  it("FR-010: retry (UPDATE fallito → in_invio) → sent_at = istante del nuovo reclamo", async () => {
+    await insertPerson({ id: 1, fullName: "Marco Rossi", day: 14, month: 3, priority: "alta" });
+    const deps = makeCronDeps();
+    deps.tg.failNext(500);
+    await runAt(deps, 2027, 3, 14, 9);
+    const seen = watchClaims(deps);
+    await runAt(deps, 2027, 3, 14, 10);
+    expect(seen[0]).toEqual([{ status: "in_invio", sent_at: localInstant(2027, 3, 14, 10).toISOString() }]);
+  });
+
+  it("FR-010: esito di errore → fallito con sent_at NULL", async () => {
+    await insertPerson({ id: 1, fullName: "Marco Rossi", day: 14, month: 3, priority: "alta" });
+    const deps = makeCronDeps();
+    const seen = watchClaims(deps, () => new Error("rete"));
+    await runAt(deps, 2027, 3, 14, 9);
+    expect(seen[0]![0]!.sent_at).toBe(localInstant(2027, 3, 14, 9).toISOString());
+    expect(await rows("SELECT status, sent_at FROM deliveries")).toEqual([{ status: "fallito", sent_at: null }]);
+  });
+
+  it("R-05, FR-010: righe in coda oltre il tetto → fallito con sent_at NULL", async () => {
+    for (let i = 1; i <= 41; i++) await insertPerson({ id: i, fullName: `Persona ${i}`, day: 14, month: 3, priority: "alta" });
+    const deps = makeCronDeps();
+    await runAt(deps, 2027, 3, 14, 9);
+    expect(await count("deliveries", "status = 'fallito' AND attempts = 0 AND sent_at IS NULL")).toBe(1);
   });
 });

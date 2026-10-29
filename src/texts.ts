@@ -7,10 +7,13 @@ import {
   IMPORT_MAX_ROWS,
   OUTCOME_CORRECTION_DAYS,
   RECEIVED_FILE_MAX_BYTES,
+  STATUS_WINDOW_DAYS,
   TELEGRAM_DOWNLOAD_MAX_BYTES,
   TEXT_LIMITS,
 } from "./config";
+import type { Kind } from "./domain/schedule";
 import type { BotCommand } from "./telegram/types";
+import type { LocalClock, LocalDate } from "./time";
 
 export const MONTHS_IT = [
   "gennaio",
@@ -30,6 +33,9 @@ export const MONTHS_IT = [
 // Giorni della settimana delle liste (AFU §5.7): indice = Date.getUTCDay().
 export const WEEKDAYS_IT = ["Dom", "Lun", "Mar", "Mer", "Gio", "Ven", "Sab"] as const;
 
+// Mesi abbreviati dell'istogramma di /statistiche (AFU §5.11): "Gen" … "Dic".
+export const MONTHS_SHORT = MONTHS_IT.map((m) => m.charAt(0).toUpperCase() + m.slice(1, 3));
+
 const daysSuffix = (group: string | null) => (group ? ` (${group})` : "");
 
 const MB = 1024 * 1024;
@@ -43,6 +49,25 @@ export interface Counts {
   groups: number;
   occurrences: number;
 }
+
+const pad2 = (n: number) => String(n).padStart(2, "0");
+
+// Orari di /stato e dell'avviso di buco (AFU §5.10, §5.12): "H:MM", ora senza zero iniziale.
+const clock = (c: LocalClock) => `${c.hour}:${pad2(c.minute)}`;
+const ddmm = (d: LocalDate) => `${pad2(d.day)}/${pad2(d.month)}`;
+const sameDay = (a: LocalDate, b: LocalDate) => a.year === b.year && a.month === b.month && a.day === b.day;
+
+// Conteggi degli invii di /stato (AFU §5.10): "3 inviati, 0 falliti, 1 abbandonato".
+export interface DeliveryCounts {
+  inviati: number;
+  falliti: number;
+  abbandonati: number;
+}
+
+const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
+const deliveryCounts = (c: DeliveryCounts) =>
+  `${plural(c.inviati, "inviato", "inviati")}, ${plural(c.falliti, "fallito", "falliti")}, ` +
+  plural(c.abbandonati, "abbandonato", "abbandonati");
 
 const countsText = (c: Counts) =>
   `${thousands(c.persons)} persone, ${thousands(c.groups)} gruppi, ${thousands(c.occurrences)} occorrenze`;
@@ -238,6 +263,52 @@ export const T = {
   yearNone: "nessuno",
   yearInvalid: (min: number, max: number) => `Anno non valido: scrivi un anno tra ${min} e ${max}`,
 
+  // /statistiche (RF-32, AFU §5.11, contracts/statistiche.md)
+  statsTitle: "📊 Statistiche",
+  statsPersons: (n: number, alta: number, media: number, bassa: number) =>
+    `${plural(n, "persona", "persone")} · Alta ${alta} · Media ${media} · Bassa ${bassa}`,
+  statsGroup: (name: string, n: number) => `${name} ${n}`,
+  statsNoGroup: (n: number) => `Senza gruppo ${n}`,
+  statsGroups: (items: readonly string[]) => `Gruppi: ${items.length > 0 ? items.join(" · ") : "nessun gruppo"}`,
+  statsMissing: (senzaAnno: number, senzaContatti: number) =>
+    `Senza anno di nascita: ${senzaAnno} · Senza contatti: ${senzaContatti}`,
+  statsMonthsTitle: "🎂 Compleanni per mese",
+  statsYear: (year: number, percent: number) => `${year} ${percent}%`,
+  statsDone: (items: readonly string[]) =>
+    `✅ Auguri fatti: ${items.length > 0 ? items.join(" · ") : "non ci sono ancora anni con esiti"}`,
+
+  // Avviso di buco del cron (N-06, FR-006, AFU §5.12)
+  gapAlert: (from: LocalClock, to: LocalClock, today: LocalDate) =>
+    "⚠️ Il controllo orario non è girato " +
+    (sameDay(from, today) && sameDay(to, today)
+      ? `dalle ${clock(from)} alle ${clock(to)} di oggi`
+      : `dalle ${clock(from)} del ${ddmm(from)} alle ${clock(to)} del ${ddmm(to)}`) +
+    ":\nalcuni promemoria potrebbero essere andati persi. Controlla /oggi e /scaduti.",
+
+  // /stato (RF-31, AFU §5.10, contracts/stato.md)
+  statoTitle: "🩺 Stato del bot",
+  neverRecorded: "mai registrato",
+  // "oggi alle 15:00" se è la data di oggi, altrimenti "28/10 alle 23:00".
+  statoWhen: (c: LocalClock, today: LocalDate) => (sameDay(c, today) ? `oggi alle ${clock(c)}` : `${ddmm(c)} alle ${clock(c)}`),
+  statoAt: (c: LocalClock) => `${ddmm(c)} alle ${clock(c)}`,
+  statoCron: (when: string) => `⏱ Ultimo controllo orario: ${when}`,
+  statoToday: (c: DeliveryCounts) => `📨 Oggi: ${deliveryCounts(c)}`,
+  statoWeek: (c: DeliveryCounts) => `📨 Ultimi ${STATUS_WINDOW_DAYS} giorni: ${deliveryCounts(c)}`,
+  // Tipo e riferimento dell'invio, coerenti con i promemoria di 002.
+  statoKind: (kind: Kind, ref: number) =>
+    kind === "pre"
+      ? `pre-reminder a ${ref === 1 ? "1 giorno" : `${ref} giorni`}`
+      : kind === "giorno"
+        ? `reminder delle ${ref}:00`
+        : "recupero",
+  statoAbandoned: (name: string, what: string, date: LocalDate) => `   – ${name}, ${what} del ${ddmm(date)}`,
+  statoBackup: (when: string) => `💾 Ultimo backup mensile: ${when}`,
+  statoBackupEsito: { riuscito: "✅", non_riuscito: "❌ non riuscito", in_invio: "⚠️ esito sconosciuto" },
+  statoWebhookOk: (pending: number) => `🔗 Webhook: nessun errore, ${pending} update in coda`,
+  statoWebhookError: (when: string, message: string, pending: number) =>
+    `🔗 Webhook: ultimo errore ${when}: "${message}", ${pending} update in coda`,
+  statoWebhookUnavailable: "🔗 Webhook: non disponibile",
+
   // /messaggio (contracts/messaggio.md)
   greetingAsk: (current: string) =>
     `Messaggio attuale: «${current}»\nScrivi il nuovo messaggio di auguri. Usa {nome} per il nome.`,
@@ -354,6 +425,9 @@ export const T = {
     "/mese [mese] — compleanni del mese",
     `/scaduti — ultimi ${OUTCOME_CORRECTION_DAYS} giorni non fatti`,
     "/anno [anno] — riepilogo dell'anno",
+    // RF-32, RF-31 (§5.1, FR-016 di 007)
+    "/statistiche — statistiche della rubrica e andamento",
+    "/stato — salute di cron, invii, backup e webhook",
     "/modello — modello CSV per l'import",
     "/export — esporta le persone in CSV",
     "/backup — backup completo in JSON",
@@ -380,6 +454,8 @@ export const BOT_COMMANDS: readonly BotCommand[] = [
   { command: "mese", description: "Compleanni del mese" },
   { command: "scaduti", description: `Ultimi ${OUTCOME_CORRECTION_DAYS} giorni non fatti` },
   { command: "anno", description: "Riepilogo dell'anno" },
+  { command: "statistiche", description: "Statistiche della rubrica e andamento" },
+  { command: "stato", description: "Salute di cron, invii, backup e webhook" },
   { command: "modello", description: "Modello CSV per l'import" },
   { command: "export", description: "Esporta le persone in CSV" },
   { command: "backup", description: "Backup completo in JSON" },

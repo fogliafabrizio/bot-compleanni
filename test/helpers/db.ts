@@ -70,12 +70,14 @@ export async function insertDelivery(d: {
   attempts?: number;
   localDate: string;
   telegramMessageId?: number | null;
+  // Istante di invio, o del reclamo per le righe in_invio (research R-04 di 007).
+  sentAt?: string | null;
 }): Promise<number> {
   const res = await env.DB.prepare(
-    `INSERT INTO deliveries (occurrence_id, kind, ref, status, attempts, local_date, telegram_message_id)
-     VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING id`,
+    `INSERT INTO deliveries (occurrence_id, kind, ref, status, attempts, local_date, telegram_message_id, sent_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`,
   )
-    .bind(d.occurrenceId, d.kind, d.ref, d.status, d.attempts ?? 1, d.localDate, d.telegramMessageId ?? null)
+    .bind(d.occurrenceId, d.kind, d.ref, d.status, d.attempts ?? 1, d.localDate, d.telegramMessageId ?? null, d.sentAt ?? null)
     .first<{ id: number }>();
   return res!.id;
 }

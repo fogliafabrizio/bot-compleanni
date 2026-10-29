@@ -1,5 +1,7 @@
+import { env } from "cloudflare:test";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { insertPerson } from "../helpers/db";
+import { TelegramError } from "../../src/telegram/client";
+import { insertDelivery, insertOccurrence, insertPerson } from "../helpers/db";
 import { runAt, runScheduledAt } from "../helpers/cron";
 import { csvOf } from "../helpers/csv-fixtures";
 import { makeCronDeps, makeDeps } from "../helpers/deps";
@@ -75,5 +77,33 @@ describe("principio V, RNF-08: nessun dato personale nei log", () => {
     await runScheduledAt(deps, 2026, 11, 1, 10);
     expect(lines.some((l) => l.includes("auto_backup"))).toBe(true);
     for (const l of lines) for (const s of [...SECRETS, "test-token", "documents/"]) expect(l).not.toContain(s);
+  });
+
+  it("principio V, RNF-08, FR-018 (007): avviso di buco, backup con errore interno, /stato e /statistiche loggano solo codici e numeri", async () => {
+    await insertPerson({ id: 1, fullName: "Marco Rossi", nickname: "Marchino", day: 14, month: 3, year: 1995, priority: "alta" });
+    const occ = await insertOccurrence({ personId: 1, year: 2027, effectiveDate: "2027-03-13" });
+    await insertDelivery({ occurrenceId: occ, kind: "giorno", ref: 9, status: "abbandonato", localDate: "2027-03-13" });
+    await env.DB.prepare("INSERT INTO settings (key, value, updated_at) VALUES ('cron_last_run', '2027-03-01T05:00:00.000Z', '2027-03-01T05:00:00.000Z')").run();
+    const deps = makeCronDeps();
+    deps.tg.failWhen((t) => t.startsWith("⚠️"), 429);
+    deps.tg.sendDocument = async () => {
+      throw new Error("guasto interno con Marco Rossi");
+    };
+    await runScheduledAt(deps, 2027, 3, 1, 9, { regular: false });
+    await runAt(deps, 2027, 3, 14, 9, { regular: false });
+    deps.tg.failWebhookInfo(new TelegramError(502));
+    await say(deps, "/stato");
+    deps.tg.failWebhookInfo(new Error("Connection timed out: Marco Rossi"));
+    await say(deps, "/stato");
+    await say(deps, "/statistiche");
+    const events = lines.map((l) => JSON.parse(l) as Record<string, unknown>);
+    expect(events).toContainEqual({ code: "gap_alert", sent: false, error_code: 429 });
+    expect(events).toContainEqual({ code: "auto_backup", sent: false, error_code: 0 });
+    expect(events).toContainEqual({ code: "webhook_info_error", error_code: 502 });
+    expect(events).toContainEqual({ code: "webhook_info_error", error_code: 0 });
+    for (const e of events) for (const v of Object.values(e)) expect(["string", "number", "boolean"]).toContain(typeof v);
+    for (const l of lines) {
+      for (const s of [...SECRETS, "timed out", "guasto", "2027-03-01T05", "in_invio", "riuscito"]) expect(l).not.toContain(s);
+    }
   });
 });

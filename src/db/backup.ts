@@ -9,7 +9,9 @@ import { DEFAULT_MESSAGE_KEY, defaultMessageStatement } from "./settings";
 const PERSON_COLUMNS = `id, full_name, nickname, birth_day, birth_month, birth_year, phone, instagram, telegram, priority,
   custom_message, created_at, updated_at`;
 
-// Batch di lettura: [persone, gruppi, appartenenze, occorrenze, messaggio di default].
+// Batch di lettura: [persone, gruppi, appartenenze, occorrenze, messaggio di default]. Delle
+// impostazioni si legge solo DEFAULT_MESSAGE_KEY: le TECHNICAL_KEYS (bot_commands, auto_backup,
+// cron_last_run, auto_backup_last) non entrano nel file (§8, FR-002 e research R-06 di 007).
 export function backupReadStatements(db: D1Database): D1PreparedStatement[] {
   return [
     db.prepare(`SELECT ${PERSON_COLUMNS} FROM persons ORDER BY id`),
@@ -47,7 +49,9 @@ const fields = (names: readonly string[]) => names.map(field).join(", ");
 
 // FR-020, FR-020a: una D1.batch (transazione) con la guardia del flusso su ogni statement. La
 // cascata svuota appartenenze, occorrenze e invii; gli id del backup sono mantenuti (RNF-11) e
-// sqlite_sequence non si azzera; la chiave auto_backup non è toccata.
+// sqlite_sequence non si azzera. Delle impostazioni si cancella e reinserisce solo
+// DEFAULT_MESSAGE_KEY: le TECHNICAL_KEYS (bot_commands, auto_backup, cron_last_run,
+// auto_backup_last) non sono toccate, anche se il file le contiene (§8, FR-003, R-06 di 007).
 export function restoreGuardedStatements(
   db: D1Database,
   chatId: number,

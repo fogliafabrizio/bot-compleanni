@@ -70,6 +70,7 @@ compaiono anche nelle liste: le attese valgono per i soli dati di prova.
 | 01 Sicurezza | 401, 401, 405, 404, 400; estraneo, gruppo, callback di un estraneo, /id da estraneo: nessun messaggio |
 | 02 Comandi base | /start, /aiuto, /id, testo libero, comando inesistente, /annulla a vuoto, foto |
 | 03–09 Viste | /oggi e Fatto, /prossimi (anche con scelta del gruppo `g2:p`), /cerca, /gruppi <nome> e /gruppo, /mese, /anno, /scaduti e Segna fatto |
+| 08b Stato e statistiche | /stato prima e dopo "Cron ora" (controllo su D1 di `cron_last_run`), /statistiche con i totali del seed e 12 righe di istogramma |
 | 10 Esiti | `o:f`/`o:s` su recupero e pre-reminder, correzione entro D+7, cron dell'ora attuale |
 | 11 Scheda | /p_<id>, pulsanti `s:h`, `s:n`, `p:x`, `p:m` su persona inesistente |
 | 12 /nuovo | Tutti gli step con errori, Correggi, gruppi esistenti e nuovi, priorità, salvataggio |
@@ -104,11 +105,21 @@ compaiono anche nelle liste: le attese valgono per i soli dati di prova.
   (`setMyCommands`) sul bot di `.dev.vars`, la prima volta e a ogni cambio del menu.
 - La richiesta "Cron ora" della cartella 10 usa l'ora attuale: invia promemoria solo alle 9, 13, 18
   e 21 (ora di Roma). Serve `wrangler dev --test-scheduled`.
+- L'**avviso di buco del cron** (N-06) non si prova da Postman: servirebbe scrivere in D1 un
+  `cron_last_run` vecchio, ma l'helper accetta solo `SELECT`. È coperto da
+  `test/integration/v11-buco-cron.test.ts`.
+- Ogni "Cron ora" (cartelle 08b e 10) scrive `cron_last_run` nel D1 locale: se tra due esecuzioni
+  passano più di 2 ore, la seconda manda in chat l'avviso di buco. È il comportamento atteso.
 - Nei primi giorni di gennaio le occorrenze "passate" del seed cadono nell'anno precedente: `/anno`
   senza argomento mostrerà zeri.
 
 ## Changelog
 
+- **2.3.0** (2026-10-29): feature 007 (stato e statistiche), 243 richieste. Nuova cartella
+  "08b · /stato e /statistiche (RF-31, RF-32, N-06)" tra la 08 e la 09 (senza rinumerare le altre):
+  /stato, "Cron ora → cron_last_run" con controllo su D1, /stato dopo il cron, /statistiche. Attese
+  aggiornate: 02 (`/aiuto` con `/statistiche` e `/stato` dopo `/anno`), 18 (`/backup` con il solo
+  `default_message` in `settings`). Seed invariato.
 - **2.2.0** (2026-10-29): feature 006 (scheda e contatti), 239 richieste. Update con
   `message.contact`: 02 (contatto fuori flusso → "Non ho capito", nessuna persona), 12 (contatto
   senza numero, numero non valido, conferma `📱 <numero>, giusto?`, Correggi, Sì → Instagram; il

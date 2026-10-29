@@ -12,12 +12,16 @@ import {
 } from "../db/reminders";
 import type { CronDeps } from "../deps";
 import { planTargets, selectNew, splitByCap, type Kind } from "../domain/schedule";
+import { detectGap } from "../domain/stato";
 import { log } from "../log";
 import { TelegramError } from "../telegram/client";
-import { addDays, floorToHour, localDayStartUtc, toDateString, toIso, toLocal, type LocalDate } from "../time";
+// Alias: T è la data locale dell'esecuzione.
+import { T as TEXTS } from "../texts";
+import { addDays, floorToHour, localDayStartUtc, toDateString, toIso, toLocal, toLocalClock, type LocalDate } from "../time";
 
 // Ciclo orario (contracts/ciclo-orario.md): lettura → selezione → reclamo → invio → esito.
-// Tre chiamate D1 fisse più al massimo MAX_SENDS_PER_RUN invii (principio II, research R-07).
+// Tre chiamate D1 fisse più al massimo MAX_SENDS_PER_RUN invii (principio II, research R-07), più
+// l'eventuale avviso di buco del cron, fuori dal tetto (N-06, contracts/ciclo-orario-v11.md di 007).
 
 export interface RunReport {
   hour: number;
@@ -27,6 +31,8 @@ export interface RunReport {
   failed: number;
   closed: number;
   abandoned: number;
+  // N-06: esito dell'avviso di buco (solo per log e test).
+  gapAlert: "none" | "sent" | "failed";
 }
 
 const KIND_ORDER: Record<Kind, number> = { giorno: 0, recupero: 1, pre: 2 };
@@ -37,7 +43,16 @@ export async function runHourly(deps: CronDeps, scheduledAt: Date): Promise<RunR
   // R-02: l'ora dell'esecuzione viene da scheduledTime, i timestamp scritti da now().
   const local = toLocal(scheduledAt);
   const T: LocalDate = { year: local.year, month: local.month, day: local.day };
-  const report: RunReport = { hour: local.hour, claimed: 0, queued: 0, sent: 0, failed: 0, closed: 0, abandoned: 0 };
+  const report: RunReport = {
+    hour: local.hour,
+    claimed: 0,
+    queued: 0,
+    sent: 0,
+    failed: 0,
+    closed: 0,
+    abandoned: 0,
+    gapAlert: "none",
+  };
   const { db } = deps;
 
   try {
@@ -45,14 +60,31 @@ export async function runHourly(deps: CronDeps, scheduledAt: Date): Promise<RunR
     const targets = planTargets(T, local.hour);
     const pairs = targets.flatMap((t) => t.pairs);
 
-    // 1. Lettura.
-    const [defRes, candRes, occRes, retryRes] = await db.batch(
-      readStatements(db, { pairs, years: [T.year - 1, T.year + 1], today }),
+    // 1. Lettura, con la registrazione dell'ora piena prevista (N-06, research R-02 di 007).
+    const currentRunIso = toIso(floorToHour(scheduledAt));
+    const [lastRunRes, , defRes, candRes, occRes, retryRes] = await db.batch(
+      readStatements(db, { pairs, years: [T.year - 1, T.year + 1], today, currentRunIso, nowIso: toIso(deps.now()) }),
     );
+    const previousRunIso = (lastRunRes?.results[0] as { value: string } | undefined)?.value ?? null;
     const defaultMessage = (defRes?.results[0] as { value: string } | undefined)?.value ?? null;
     const candidates = (candRes?.results ?? []) as CandidateRow[];
     const occurrences = (occRes?.results ?? []) as OccurrenceRow[];
     const retries = ((retryRes?.results ?? []) as RetryRow[]).filter((r) => r.occ_status === "aperta");
+
+    // 1b. Buco del cron (N-06, FR-005…FR-007): un solo avviso prima dei promemoria, un solo
+    // tentativo, fuori da MAX_SENDS_PER_RUN. L'ora corrente è già registrata dalla batch di lettura,
+    // quindi la riesecuzione della stessa ora non ripete l'avviso (research R-02, R-03 di 007).
+    const gap = detectGap(previousRunIso, currentRunIso);
+    if (gap) {
+      try {
+        await deps.tg.sendMessage(Number(deps.ownerId), TEXTS.gapAlert(toLocalClock(gap.from), toLocalClock(gap.to), T));
+        report.gapAlert = "sent";
+        log("gap_alert", { sent: true, hours: Math.round((gap.to.getTime() - gap.from.getTime()) / 3_600_000) });
+      } catch (err) {
+        report.gapAlert = "failed";
+        log("gap_alert", { sent: false, error_code: err instanceof TelegramError ? err.errorCode : 0 });
+      }
+    }
 
     // 2. Selezione (pura).
     const fresh = selectNew(
@@ -60,7 +92,7 @@ export async function runHourly(deps: CronDeps, scheduledAt: Date): Promise<RunR
       occurrences.map((o) => ({ personId: o.person_id, year: o.year, status: o.status, hasDaySend: o.has_day_send === 1 })),
       targets,
       {
-        slotInstantIso: toIso(floorToHour(scheduledAt)),
+        slotInstantIso: currentRunIso,
         dayStartPrevIso: toIso(localDayStartUtc(addDays(T, -1))),
         dayStartTodayIso: toIso(localDayStartUtc(T)),
       },
@@ -127,6 +159,8 @@ export async function runHourly(deps: CronDeps, scheduledAt: Date): Promise<RunR
     return report;
   }
 
-  log("cron_run", { ...report });
+  // L'avviso ha il suo evento gap_alert: in cron_run restano solo i conteggi (principio V).
+  const { gapAlert: _gapAlert, ...counts } = report;
+  log("cron_run", counts);
   return report;
 }

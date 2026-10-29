@@ -142,3 +142,21 @@ describe("principio II, RNF-14, RNF-16, SC-002, SC-005: budget delle viste", () 
     expect(id).toBeGreaterThan(0);
   });
 });
+
+describe("principio II, RNF-17: budget di /stato e /statistiche (007)", () => {
+  it("RNF-17, R-07: /stato ≤ 5 subrequest (router + 1 batch D1 + getWebhookInfo + sendMessage)", async () => {
+    await seed(200);
+    const deps = makeDeps();
+    const m = await measure(deps, () => say(deps, "/stato"));
+    expect(m).toEqual({ d1: 2, tg: 2 });
+    expect(m.d1 + m.tg).toBeLessThanOrEqual(5);
+  });
+
+  it("RNF-17, R-08: /statistiche ≤ 4 subrequest (router + 1 batch D1 + sendMessage)", async () => {
+    await seed(200);
+    const deps = makeDeps();
+    const m = await measure(deps, () => say(deps, "/statistiche"));
+    expect(m).toEqual({ d1: 2, tg: 1 });
+    expect(m.d1 + m.tg).toBeLessThanOrEqual(4);
+  });
+});

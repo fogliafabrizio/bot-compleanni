@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { addDays, daysBetween, floorToHour, isLeapYear, localDayStartUtc, toDateString, toLocal } from "../../src/time";
+import { addDays, daysBetween, floorToHour, isLeapYear, localDayStartUtc, toDateString, toLocal, toLocalClock } from "../../src/time";
 
 describe("BR-24: conversione Europe/Rome", () => {
   it("BR-24: 2026-10-28T10:00Z è il 28/10/2026 alle 11", () => {
@@ -72,5 +72,24 @@ describe("BR-24: date di calendario e inizio della giornata locale", () => {
   it("BR-24: 13:00 locali nei due giorni del cambio d'ora", () => {
     expect(toLocal(new Date("2027-03-28T11:00:00.000Z"))).toEqual({ year: 2027, month: 3, day: 28, hour: 13 });
     expect(toLocal(new Date("2027-10-31T12:00:00.000Z"))).toEqual({ year: 2027, month: 10, day: 31, hour: 13 });
+  });
+});
+
+describe("N-06, RF-31, principio VI: toLocalClock", () => {
+  it("RF-31: 2026-10-29T14:05Z è il 29/10/2026 alle 15:05", () => {
+    expect(toLocalClock(new Date("2026-10-29T14:05:00Z"))).toEqual({ year: 2026, month: 10, day: 29, hour: 15, minute: 5 });
+  });
+
+  it("principio VI: ora legale, 2026-07-01T07:00Z è alle 9:00", () => {
+    expect(toLocalClock(new Date("2026-07-01T07:00:00Z"))).toMatchObject({ day: 1, hour: 9, minute: 0 });
+  });
+
+  it("principio VI: le due 2:00 del 25/10/2026 (00:00Z e 01:00Z)", () => {
+    expect(toLocalClock(new Date("2026-10-25T00:00:00Z"))).toMatchObject({ day: 25, hour: 2, minute: 0 });
+    expect(toLocalClock(new Date("2026-10-25T01:00:00Z"))).toMatchObject({ day: 25, hour: 2, minute: 0 });
+  });
+
+  it("principio VI: toLocal resta invariata (senza minuti)", () => {
+    expect(toLocal(new Date("2026-10-29T14:05:00Z"))).toEqual({ year: 2026, month: 10, day: 29, hour: 15 });
   });
 });

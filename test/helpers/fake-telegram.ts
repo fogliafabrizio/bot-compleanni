@@ -1,4 +1,4 @@
-import { TelegramError, type TelegramApi } from "../../src/telegram/client";
+import { TelegramError, type TelegramApi, type WebhookStatus } from "../../src/telegram/client";
 import type { BotCommand, InlineKeyboardButton, InlineKeyboardMarkup, MessageEntity } from "../../src/telegram/types";
 
 export type SendCall = {
@@ -23,7 +23,18 @@ export type GetFileCall = { method: "getFile"; fileId: string };
 export type DownloadCall = { method: "downloadFile"; filePath: string };
 // Menu dei comandi (FR-014 di 005).
 export type CommandsCall = { method: "setMyCommands"; commands: BotCommand[] };
-export type TgCall = SendCall | EditCall | TextEditCall | AnswerCall | DocumentCall | GetFileCall | DownloadCall | CommandsCall;
+// Stato del webhook (RF-31 di 007).
+export type WebhookInfoCall = { method: "getWebhookInfo" };
+export type TgCall =
+  | SendCall
+  | EditCall
+  | TextEditCall
+  | AnswerCall
+  | DocumentCall
+  | GetFileCall
+  | DownloadCall
+  | CommandsCall
+  | WebhookInfoCall;
 
 type FileMethod = "sendDocument" | "getFile" | "downloadFile" | "setMyCommands";
 
@@ -35,6 +46,19 @@ export class FakeTelegram implements TelegramApi {
   private failRules: { predicate: (text: string) => boolean; code: number }[] = [];
   private fileFailures: Record<FileMethod, number[]> = { sendDocument: [], getFile: [], downloadFile: [], setMyCommands: [] };
   private files = new Map<string, { filePath: string; content: Uint8Array }>();
+  private webhookInfo: WebhookStatus = { pendingUpdateCount: 0 };
+  private webhookError: Error | null = null;
+
+  // Risposta di getWebhookInfo (default: nessun errore, 0 update in coda).
+  setWebhookInfo(info: WebhookStatus): void {
+    this.webhookInfo = info;
+    this.webhookError = null;
+  }
+
+  // getWebhookInfo lancia l'errore indicato (TelegramError o altro).
+  failWebhookInfo(err: Error): void {
+    this.webhookError = err;
+  }
 
   // Le prossime `times` chiamate del metodo indicato lanciano TelegramError(code).
   failNextOn(method: FileMethod, code: number, times = 1): void {
@@ -116,6 +140,12 @@ export class FakeTelegram implements TelegramApi {
   async setMyCommands(commands: readonly BotCommand[]) {
     this.maybeFail("setMyCommands");
     this.calls.push({ method: "setMyCommands", commands: [...commands] });
+  }
+
+  async getWebhookInfo(): Promise<WebhookStatus> {
+    this.calls.push({ method: "getWebhookInfo" });
+    if (this.webhookError) throw this.webhookError;
+    return { ...this.webhookInfo };
   }
 
   commandsSet(): CommandsCall[] {

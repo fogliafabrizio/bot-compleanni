@@ -11,6 +11,9 @@ const errorCode = (err: unknown) =>
 // mensile e menu dei comandi (FR-014 di 005), ciascuno isolato così il guasto dell'uno non blocca
 // gli altri (RNF-12, principio VII). Il menu si salta se il ciclo ha reclamato invii o il backup ha
 // inviato (o se uno dei due è fallito): non si somma mai al caso peggiore di subrequest (principio II).
+// Caso peggiore (research R-11 di 007): 3 D1 + 40 promemoria + 1 avviso di buco + 3 D1 + 1 backup = 48.
+// Un errore non Telegram del backup mensile restituisce { sent: false } invece di propagarsi, quindi
+// il menu può partire nella stessa esecuzione: solo senza invii reclamati, sempre entro il budget.
 export async function runScheduled(deps: CronDeps, scheduledAt: Date): Promise<void> {
   let report: RunReport | null = null;
   try {

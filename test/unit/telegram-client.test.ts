@@ -175,3 +175,29 @@ describe("contracts/telegram-file.md (004): file in uscita e in ingresso", () =>
     expect((err2 as TelegramError).message).not.toContain("segretissimo");
   });
 });
+
+describe("RF-31: getWebhookInfo", () => {
+  it("RF-31: risposta con errore → pendingUpdateCount, lastErrorDate da secondi Unix, lastErrorMessage", async () => {
+    const { fn, captured } = fakeFetch({
+      ok: true,
+      result: { url: "https://x", pending_update_count: 2, last_error_date: 1761746400, last_error_message: "Connection timed out" },
+    });
+    const api = createTelegramApi("tok", fn);
+    expect(await api.getWebhookInfo()).toEqual({
+      pendingUpdateCount: 2,
+      lastErrorDate: new Date(1761746400 * 1000),
+      lastErrorMessage: "Connection timed out",
+    });
+    expect(captured[0]!.url).toBe("https://api.telegram.org/bottok/getWebhookInfo");
+  });
+
+  it("RF-31: senza campi di errore → solo pendingUpdateCount", async () => {
+    const { fn } = fakeFetch({ ok: true, result: { url: "https://x", pending_update_count: 0 } });
+    expect(await createTelegramApi("tok", fn).getWebhookInfo()).toEqual({ pendingUpdateCount: 0 });
+  });
+
+  it("RF-31: ok false → TelegramError", async () => {
+    const { fn } = fakeFetch({ ok: false, error_code: 401, description: "Unauthorized" }, 401);
+    await expect(createTelegramApi("tok", fn).getWebhookInfo()).rejects.toThrow(TelegramError);
+  });
+});

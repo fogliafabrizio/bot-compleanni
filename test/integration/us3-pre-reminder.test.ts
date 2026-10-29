@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { runHourly } from "../../src/cron/hourly";
 import { localDayStartUtc } from "../../src/time";
 import { insertOccurrence, insertPerson, rows } from "../helpers/db";
-import { runAt } from "../helpers/cron";
+import { runAt, simulateRegularCron } from "../helpers/cron";
 import { makeCronDeps, type TestCronDeps } from "../helpers/deps";
 import { buttons, cbOf } from "../helpers/fake-telegram";
 import { press } from "../helpers/send";
@@ -14,6 +14,7 @@ async function runDay(deps: TestCronDeps, y: number, m: number, d: number): Prom
   const end = localDayStartUtc({ year: y, month: m, day: d + 1 }).getTime();
   for (let t = start; t < end; t += 3_600_000) {
     deps.setNow(new Date(t));
+    await simulateRegularCron(new Date(t));
     await runHourly(deps, new Date(t));
   }
 }

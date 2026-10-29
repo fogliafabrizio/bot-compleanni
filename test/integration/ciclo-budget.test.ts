@@ -1,7 +1,7 @@
 import { env } from "cloudflare:test";
 import { describe, expect, it } from "vitest";
 import { count, insertOccurrence, insertPerson } from "../helpers/db";
-import { runAt, runScheduledAt } from "../helpers/cron";
+import { runAt, runScheduledAt, type RunOptions } from "../helpers/cron";
 import { makeCronDeps, type TestCronDeps } from "../helpers/deps";
 import { nameHash } from "../../src/domain/text";
 import { BOT_COMMANDS } from "../../src/texts";
@@ -79,11 +79,11 @@ describe("principio II, RNF-17: subrequest del ciclo orario", () => {
 });
 
 // Research R-12 di 004: handler scheduled completo (ciclo orario + backup mensile) il 1/03/2027.
-async function measureScheduled(deps: TestCronDeps, day: number, hour: number): Promise<number> {
+async function measureScheduled(deps: TestCronDeps, day: number, hour: number, opts: RunOptions = {}): Promise<number> {
   deps.counter.count = 0;
   deps.counter.batches = [];
   deps.tg.reset();
-  await runScheduledAt(deps, 2027, 3, day, hour);
+  await runScheduledAt(deps, 2027, 3, day, hour, opts);
   return deps.counter.count + deps.tg.calls.length;
 }
 
@@ -142,5 +142,43 @@ describe("principio II, FR-014 (005): subrequest del passo del menu dei comandi"
     await saveMenu();
     expect(await measureScheduled(deps, 14, 10)).toBe(4);
     expect(deps.tg.commandsSet()).toEqual([]);
+  });
+});
+
+describe("principio II, RNF-17: subrequest con l'avviso di buco (007)", () => {
+  // Ultima esecuzione registrata il giorno prima: la prossima esecuzione trova un buco (N-06).
+  async function gapBefore(): Promise<void> {
+    await env.DB.prepare("INSERT INTO settings (key, value, updated_at) VALUES ('cron_last_run', '2027-02-27T10:00:00.000Z', '2027-02-27T10:00:00.000Z')").run();
+  }
+
+  it("RNF-17, R-11: caso peggiore 48 subrequest (buco + 40 invii + backup mensile dovuto)", async () => {
+    for (let i = 1; i <= PEOPLE; i++) await insertPerson({ id: i, fullName: `Persona ${i}`, day: 1, month: 3, priority: "alta" });
+    await gapBefore();
+    const deps = makeCronDeps();
+    const total = await measureScheduled(deps, 1, 9, { regular: false });
+    // 3 D1 del ciclo + 40 promemoria + 1 avviso + 3 D1 del backup + 1 documento.
+    expect(total).toBe(48);
+    expect(total).toBeLessThanOrEqual(50);
+    expect(deps.tg.messages()).toHaveLength(41);
+    expect(deps.tg.documents()).toHaveLength(1);
+    // La regola che salta il menu quando il ciclo ha reclamato invii resta invariata.
+    expect(deps.tg.commandsSet()).toEqual([]);
+    expectParamsWithinLimit(deps);
+  });
+
+  it("RNF-17, FR-008: errore non Telegram del backup senza invii → menu sincronizzato entro il budget", async () => {
+    await fill(0);
+    await gapBefore();
+    const deps = makeCronDeps();
+    deps.tg.sendDocument = async () => {
+      throw new Error("guasto interno");
+    };
+    const total = await measureScheduled(deps, 1, 10, { regular: false });
+    expect(await count("settings", "key = 'auto_backup' AND value = '2027-03:errore'")).toBe(1);
+    expect(deps.tg.messages()).toHaveLength(1);
+    expect(deps.tg.commandsSet()).toHaveLength(1);
+    // Ciclo 2 + avviso 1 + backup 3 D1 + menu 2 D1 e setMyCommands (il documento fallito non è registrato dal fake).
+    expect(total).toBe(9);
+    expect(total).toBeLessThanOrEqual(50);
   });
 });

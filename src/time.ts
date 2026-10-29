@@ -34,6 +34,36 @@ export function toLocal(now: Date): LocalDateTime {
   };
 }
 
+// Ora locale con i minuti, per gli orari mostrati da /stato e dall'avviso di buco (RF-31, N-06,
+// research R-09 di 007). toLocal resta senza minuti.
+export interface LocalClock extends LocalDateTime {
+  minute: number;
+}
+
+const CLOCK_FORMATTER = new Intl.DateTimeFormat("en-GB", {
+  timeZone: TIMEZONE,
+  hourCycle: "h23",
+  year: "numeric",
+  month: "numeric",
+  day: "numeric",
+  hour: "numeric",
+  minute: "numeric",
+});
+
+export function toLocalClock(d: Date): LocalClock {
+  const parts: Record<string, number> = {};
+  for (const p of CLOCK_FORMATTER.formatToParts(d)) {
+    if (p.type !== "literal") parts[p.type] = Number(p.value);
+  }
+  return {
+    year: parts.year ?? 0,
+    month: parts.month ?? 0,
+    day: parts.day ?? 0,
+    hour: parts.hour ?? 0,
+    minute: parts.minute ?? 0,
+  };
+}
+
 const DAY_MS = 86_400_000;
 
 // Differenza su date di calendario: il cambio d'ora non sposta il conteggio.

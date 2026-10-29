@@ -1,6 +1,7 @@
 import { env } from "cloudflare:test";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { runMonthlyBackup } from "../../src/cron/backup-mensile";
+import { claimAutoBackup } from "../../src/db/settings";
 import { T } from "../../src/texts";
 import { OWNER_ID } from "../helpers/constants";
 import { localInstant, runScheduledAt } from "../helpers/cron";
@@ -142,5 +143,88 @@ describe("US3: backup automatico mensile (RF-27, contracts/backup-mensile.md)", 
       { code: "auto_backup", sent: false, error_code: 429 },
     ]);
     for (const l of lines) expect(l).not.toContain("Marco");
+  });
+});
+
+describe("RF-31, FR-008: esito del backup mensile", () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  async function lastAttempt(): Promise<unknown> {
+    const v = (await rows<{ value: string }>("SELECT value FROM settings WHERE key = 'auto_backup_last'"))[0]?.value;
+    return v === undefined ? undefined : JSON.parse(v);
+  }
+
+  it("FR-008: successo → AAAA-MM:inviato e auto_backup_last con l'istante del reclamo ed esito riuscito", async () => {
+    const deps = makeCronDeps();
+    const at = localInstant(2026, 12, 1, 9);
+    const original = deps.tg.sendDocument.bind(deps.tg);
+    deps.tg.sendDocument = async (...args: Parameters<typeof original>) => {
+      deps.setNow(new Date(at.getTime() + 3_000));
+      return original(...args);
+    };
+    deps.setNow(at);
+    expect(await runMonthlyBackup(deps, at)).toEqual({ sent: true });
+    expect(await autoBackup()).toBe("2026-12:inviato");
+    expect(await lastAttempt()).toEqual({ at: at.toISOString(), esito: "riuscito" });
+  });
+
+  it("FR-008, 004 FR-023a: TelegramError → fallito e non_riuscito; ritentato all'ora dopo con un at nuovo", async () => {
+    const deps = makeCronDeps();
+    deps.tg.failNextOn("sendDocument", 502);
+    expect(await monthlyAt(deps, 2026, 12, 1, 9)).toEqual({ sent: false });
+    expect(await autoBackup()).toBe("2026-12:fallito");
+    expect(await lastAttempt()).toEqual({ at: localInstant(2026, 12, 1, 9).toISOString(), esito: "non_riuscito" });
+    expect(await monthlyAt(deps, 2026, 12, 1, 10)).toEqual({ sent: true });
+    expect(await lastAttempt()).toEqual({ at: localInstant(2026, 12, 1, 10).toISOString(), esito: "riuscito" });
+  });
+
+  it("FR-008: errore non Telegram → errore e non_riuscito, eccezione non propagata, log error_code 0, nessun nuovo tentativo nel mese", async () => {
+    const lines: string[] = [];
+    vi.spyOn(console, "log").mockImplementation((...args: unknown[]) => {
+      lines.push(args.map(String).join(" "));
+    });
+    const deps = makeCronDeps();
+    deps.tg.sendDocument = async () => {
+      throw new Error("guasto interno");
+    };
+    expect(await monthlyAt(deps, 2026, 12, 1, 9)).toEqual({ sent: false });
+    expect(await autoBackup()).toBe("2026-12:errore");
+    expect(await lastAttempt()).toEqual({ at: localInstant(2026, 12, 1, 9).toISOString(), esito: "non_riuscito" });
+    expect(lines.map((l) => JSON.parse(l) as unknown)).toEqual([{ code: "auto_backup", sent: false, error_code: 0 }]);
+    expect(await monthlyAt(deps, 2026, 12, 1, 10)).toBeNull();
+    expect(await monthlyAt(deps, 2026, 12, 15, 18)).toBeNull();
+    expect(await autoBackup()).toBe("2026-12:errore");
+  });
+
+  it("FR-008: solo il reclamo, senza esito (interruzione) → esito in_invio", async () => {
+    const nowIso = localInstant(2026, 12, 1, 9).toISOString();
+    expect(await claimAutoBackup(env.DB, "2026-12", nowIso)).toEqual({ attemptIso: nowIso });
+    expect(await autoBackup()).toBe("2026-12:in_invio");
+    expect(await lastAttempt()).toEqual({ at: nowIso, esito: "in_invio" });
+  });
+
+  it("FR-008: reclamo a vuoto (mese già inviato) → auto_backup_last invariato", async () => {
+    await setAutoBackup("2026-12:inviato");
+    expect(await claimAutoBackup(env.DB, "2026-12", localInstant(2026, 12, 2, 9).toISOString())).toBeNull();
+    expect(await lastAttempt()).toBeUndefined();
+  });
+
+  it("FR-008: /backup su richiesta non crea né modifica auto_backup_last", async () => {
+    const deps = makeCronDeps();
+    await say(deps, "/backup");
+    expect(deps.tg.documents()).toHaveLength(1);
+    expect(await lastAttempt()).toBeUndefined();
+    await monthlyAt(deps, 2026, 12, 1, 9);
+    const after = await lastAttempt();
+    await say(deps, "/backup");
+    expect(await lastAttempt()).toEqual(after);
+  });
+
+  it("FR-020: auto_backup = 2026-09:inviato e auto_backup_last assente → il primo tentativo di ottobre la crea", async () => {
+    await setAutoBackup("2026-09:inviato");
+    const deps = makeCronDeps();
+    expect(await lastAttempt()).toBeUndefined();
+    expect(await monthlyAt(deps, 2026, 10, 1, 9)).toEqual({ sent: true });
+    expect(await lastAttempt()).toEqual({ at: localInstant(2026, 10, 1, 9).toISOString(), esito: "riuscito" });
   });
 });

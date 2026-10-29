@@ -1,7 +1,11 @@
+import { env } from "cloudflare:test";
 import { describe, expect, it } from "vitest";
-import { OWNER_ID } from "../helpers/constants";
+import { runMonthlyBackup } from "../../src/cron/backup-mensile";
+import { TECHNICAL_KEYS } from "../../src/db/settings";
+import { NOW, OWNER_ID } from "../helpers/constants";
+import { localInstant } from "../helpers/cron";
 import { SEED_ISO, seedFullData } from "../helpers/seed";
-import { makeDeps } from "../helpers/deps";
+import { makeCronDeps, makeDeps } from "../helpers/deps";
 import { say } from "../helpers/send";
 
 const ISO = SEED_ISO;
@@ -99,5 +103,35 @@ describe("US2: /backup (RF-26, FR-017)", () => {
     const [doc] = deps.tg.documents();
     expect(doc!.caption).toBe("Backup: 0 persone, 0 gruppi, 0 occorrenze. Per ripristinarlo usa /ripristina.");
     expect(JSON.parse(doc!.text)).toMatchObject({ persons: [], groups: [], person_groups: [], occurrences: [], settings: { default_message: null } });
+  });
+});
+
+describe("§8, FR-002, SC-005: backup senza dati tecnici", () => {
+  async function seedTechnical(): Promise<void> {
+    await env.DB.batch([
+      env.DB.prepare("INSERT INTO settings (key, value, updated_at) VALUES ('default_message', 'Ciao {nome}', ?)").bind(NOW.toISOString()),
+      ...TECHNICAL_KEYS.map((k) =>
+        env.DB.prepare("INSERT INTO settings (key, value, updated_at) VALUES (?, ?, ?)").bind(k, `valore-${k}`, NOW.toISOString()),
+      ),
+    ]);
+  }
+
+  it("§8, FR-002: /backup contiene in settings solo default_message", async () => {
+    await seedTechnical();
+    const deps = makeDeps();
+    await say(deps, "/backup");
+    const b = JSON.parse(deps.tg.documents()[0]!.text) as { settings: Record<string, unknown> };
+    expect(b.settings).toEqual({ default_message: "Ciao {nome}" });
+  });
+
+  it("§8, FR-002: il backup mensile contiene in settings solo default_message", async () => {
+    await seedTechnical();
+    // auto_backup del mese precedente: il mese corrente è dovuto.
+    await env.DB.prepare("UPDATE settings SET value = '2026-10:inviato' WHERE key = 'auto_backup'").run();
+    const at = localInstant(2026, 11, 1, 9);
+    const deps = makeCronDeps({ now: at });
+    expect(await runMonthlyBackup(deps, at)).toEqual({ sent: true });
+    const b = JSON.parse(deps.tg.documents()[0]!.text) as { settings: Record<string, unknown> };
+    expect(Object.keys(b.settings)).toEqual(["default_message"]);
   });
 });

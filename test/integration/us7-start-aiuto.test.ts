@@ -58,4 +58,16 @@ describe("US7: benvenuto e aiuto", () => {
     await say(deps, text);
     expect(deps.tg.lastText()).toBe("Non ho capito. Scrivi /aiuto per l'elenco dei comandi");
   });
+
+  it("§5.1, FR-016: /aiuto elenca /statistiche e /stato subito dopo /anno", async () => {
+    const deps = makeDeps();
+    await say(deps, "/aiuto");
+    const lines = deps.tg.lastText()!.split("\n");
+    const i = lines.indexOf("/anno [anno] — riepilogo dell'anno");
+    expect(i).toBeGreaterThan(0);
+    expect(lines.slice(i + 1, i + 3)).toEqual([
+      "/statistiche — statistiche della rubrica e andamento",
+      "/stato — salute di cron, invii, backup e webhook",
+    ]);
+  });
 });

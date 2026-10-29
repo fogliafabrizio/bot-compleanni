@@ -66,6 +66,14 @@ export interface InlineKeyboardMarkup {
   inline_keyboard: InlineKeyboardButton[][];
 }
 
+// Risposta grezza di getWebhookInfo (RF-31 di 007): solo i campi usati da /stato.
+export interface WebhookInfo {
+  pending_update_count: number;
+  // Secondi Unix.
+  last_error_date?: number;
+  last_error_message?: string;
+}
+
 // Entità di formattazione passate con `entities`, senza parse_mode (contracts/liste.md). Offset e
 // lunghezze in unità UTF-16, cioè String.length.
 // Voce del menu dei comandi (setMyCommands, FR-014 di 005).
@@ -75,7 +83,8 @@ export interface BotCommand {
 }
 
 export interface MessageEntity {
-  type: "code" | "bot_command";
+  // pre: blocco monospazio dell'istogramma di /statistiche (RF-32 di 007).
+  type: "code" | "bot_command" | "pre";
   offset: number;
   length: number;
 }

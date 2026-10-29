@@ -1,3 +1,4 @@
+import type { AutoBackupLast } from "../domain/stato";
 import { flowGuardSql } from "./conversation";
 
 // Tabella settings (data-model.md). Riga assente → il default resta in config.ts (principio VIII).
@@ -48,26 +49,86 @@ export async function saveBotCommandsHash(db: D1Database, hash: string, nowIso: 
     .run();
 }
 
-// Backup mensile (RF-27, contracts/backup-mensile.md): valore "AAAA-MM:<stato>".
+// Backup mensile (RF-27, contracts/backup-mensile.md): valore "AAAA-MM:<stato>", stato ∈ in_invio,
+// inviato, fallito, errore (errore = guasto non Telegram, non ritentato nel mese; 007 FR-008).
 export const AUTO_BACKUP_KEY = "auto_backup";
 
-// FR-023: un solo statement reclama il mese; solo chi ottiene la riga invia (principio VII).
-export async function claimAutoBackup(db: D1Database, month: string, nowIso: string): Promise<boolean> {
-  const row = await db
-    .prepare(
-      `INSERT INTO settings (key, value, updated_at) VALUES (?, ? || ':in_invio', ?)
-       ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at
-         WHERE settings.value NOT IN (? || ':in_invio', ? || ':inviato')
-       RETURNING value`,
-    )
-    .bind(AUTO_BACKUP_KEY, month, nowIso, month, month)
-    .first();
-  return row !== null;
+// Dati tecnici v1.1 (AFU §8, research R-01 di 007): riga assente = "mai registrato".
+// cron_last_run = ISO UTC dell'ora piena prevista dell'ultima esecuzione oraria (N-06, RF-31).
+export const CRON_LAST_RUN_KEY = "cron_last_run";
+// auto_backup_last = JSON { at: ISO del reclamo, esito } dell'ultimo tentativo di backup mensile (RF-31).
+export const AUTO_BACKUP_LAST_KEY = "auto_backup_last";
+
+// Tipi definiti nel dominio (puro), che /stato usa senza importare src/db.
+export type { AutoBackupEsito, AutoBackupLast } from "../domain/stato";
+
+// Chiavi tecniche: non entrano nel backup e il ripristino non le modifica (FR-001…FR-003 di 007).
+export const TECHNICAL_KEYS = [BOT_COMMANDS_KEY, AUTO_BACKUP_KEY, CRON_LAST_RUN_KEY, AUTO_BACKUP_LAST_KEY] as const;
+
+// N-06, FR-004, research R-02 di 007: in testa alla batch di lettura del ciclo orario, così lettura
+// del valore precedente e scrittura del nuovo sono atomiche. Il valore non torna mai indietro.
+export function cronLastRunStatements(
+  db: D1Database,
+  currentIso: string,
+  nowIso: string,
+): [D1PreparedStatement, D1PreparedStatement] {
+  return [
+    db.prepare("SELECT value FROM settings WHERE key = ?").bind(CRON_LAST_RUN_KEY),
+    db
+      .prepare(
+        `INSERT INTO settings (key, value, updated_at) VALUES (?, ?, ?)
+         ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at
+           WHERE excluded.value > settings.value`,
+      )
+      .bind(CRON_LAST_RUN_KEY, currentIso, nowIso),
+  ];
 }
 
-export async function setAutoBackupResult(db: D1Database, month: string, result: "inviato" | "fallito", nowIso: string): Promise<void> {
-  await db
-    .prepare("UPDATE settings SET value = ?, updated_at = ? WHERE key = ?")
-    .bind(`${month}:${result}`, nowIso, AUTO_BACKUP_KEY)
-    .run();
+const autoBackupLastStatement = (db: D1Database, last: AutoBackupLast, nowIso: string, condition = "true", ...params: unknown[]) =>
+  db
+    .prepare(
+      `INSERT INTO settings (key, value, updated_at) SELECT ?, ?, ? WHERE ${condition}
+       ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at`,
+    )
+    .bind(AUTO_BACKUP_LAST_KEY, JSON.stringify(last), nowIso, ...params);
+
+// FR-023: il primo statement reclama il mese; solo chi ottiene la riga invia (principio VII). Il
+// secondo registra il tentativo (esito in_invio) solo se il reclamo è riuscito in questa batch
+// (007 FR-008, research R-05). Restituisce l'istante del reclamo, o null se non c'è da inviare.
+export async function claimAutoBackup(db: D1Database, month: string, nowIso: string): Promise<{ attemptIso: string } | null> {
+  const [claim] = await db.batch([
+    db
+      .prepare(
+        `INSERT INTO settings (key, value, updated_at) VALUES (?, ? || ':in_invio', ?)
+         ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at
+           WHERE settings.value NOT IN (? || ':in_invio', ? || ':inviato', ? || ':errore')
+         RETURNING value`,
+      )
+      .bind(AUTO_BACKUP_KEY, month, nowIso, month, month, month),
+    autoBackupLastStatement(
+      db,
+      { at: nowIso, esito: "in_invio" },
+      nowIso,
+      "EXISTS (SELECT 1 FROM settings WHERE key = ? AND value = ? || ':in_invio' AND updated_at = ?)",
+      AUTO_BACKUP_KEY,
+      month,
+      nowIso,
+    ),
+  ]);
+  return (claim?.results.length ?? 0) > 0 ? { attemptIso: nowIso } : null;
+}
+
+// Esito del tentativo: stato del mese e auto_backup_last con l'istante del reclamo (FR-008).
+export async function setAutoBackupResult(
+  db: D1Database,
+  month: string,
+  stato: "inviato" | "fallito" | "errore",
+  attemptIso: string,
+  esito: "riuscito" | "non_riuscito",
+  nowIso: string,
+): Promise<void> {
+  await db.batch([
+    db.prepare("UPDATE settings SET value = ?, updated_at = ? WHERE key = ?").bind(`${month}:${stato}`, nowIso, AUTO_BACKUP_KEY),
+    autoBackupLastStatement(db, { at: attemptIso, esito }, nowIso),
+  ]);
 }

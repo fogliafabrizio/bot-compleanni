@@ -100,4 +100,25 @@ describe("RF-19, FR-014: menu dei comandi", () => {
     expect(deps.tg.commandsSet()).toHaveLength(1);
     expect(await savedHash()).toBe(MENU_HASH);
   });
+
+  it("§5.1, FR-016: menu con statistiche e stato dopo anno", () => {
+    const names = BOT_COMMANDS.map((c) => c.command);
+    const i = names.indexOf("anno");
+    expect(BOT_COMMANDS.slice(i + 1, i + 3)).toEqual([
+      { command: "statistiche", description: "Statistiche della rubrica e andamento" },
+      { command: "stato", description: "Salute di cron, invii, backup e webhook" },
+    ]);
+  });
+
+  it("§5.1, FR-016, 005 FR-014: hash del menu di 005 salvato → un ciclo senza invii registra il menu nuovo", async () => {
+    await backupDone();
+    const old = BOT_COMMANDS.filter((c) => c.command !== "statistiche" && c.command !== "stato");
+    await env.DB.prepare("INSERT INTO settings (key, value, updated_at) VALUES ('bot_commands', ?, '2026-10-01T00:00:00.000Z')")
+      .bind(nameHash(JSON.stringify(old)))
+      .run();
+    const deps = makeCronDeps();
+    await runScheduledAt(deps, 2026, 10, 28, 11);
+    expect(deps.tg.commandsSet()).toEqual([{ method: "setMyCommands", commands: [...BOT_COMMANDS] }]);
+    expect(await savedHash()).toBe(MENU_HASH);
+  });
 });

@@ -2,7 +2,9 @@ import { bench, describe } from "vitest";
 import { buildReminderData, renderByKind, type PersonRowLike } from "../src/bot/promemoria";
 import { MAX_SENDS_PER_RUN, type Priority } from "../src/config";
 import { planTargets, selectNew, splitByCap, type Candidate } from "../src/domain/schedule";
-import type { LocalDate } from "../src/time";
+import { detectGap } from "../src/domain/stato";
+import { T as TEXTS } from "../src/texts";
+import { toLocalClock, type LocalDate } from "../src/time";
 
 // Parti pure dell'esecuzione delle 13 con 200 persone e 40 invii (research R-09).
 // Soglia: < 3 ms per iterazione. Solo dati sintetici, nessun dato reale.
@@ -42,30 +44,46 @@ const window = {
   dayStartTodayIso: "2027-03-13T23:00:00.000Z",
 };
 
+function cycle(): void {
+  const targets = planTargets(T, 13);
+  const candidates: Candidate[] = rows.map((r) => ({
+    id: r.id,
+    priority: r.priority,
+    birthDay: r.birth_day,
+    birthMonth: r.birth_month,
+    createdAt: r.created_at,
+  }));
+  const fresh = selectNew(candidates, [], targets, window);
+  const { claim } = splitByCap(fresh, MAX_SENDS_PER_RUN, []);
+  const byId = new Map(rows.map((r) => [r.id, r]));
+  let bytes = 0;
+  for (const [i, s] of claim.entries()) {
+    const data = buildReminderData(byId.get(s.personId)!, {
+      actionTarget: { scope: "o", id: 1000 + i },
+      year: s.year,
+      lastYear: null,
+      defaultMessage: null,
+    });
+    const { text, keyboard } = renderByKind(s.kind, s.ref, data);
+    bytes += JSON.stringify({ chat_id: 1001, text, reply_markup: keyboard }).length;
+  }
+  if (claim.length !== 40 || bytes === 0) throw new Error("scenario non valido");
+}
+
 describe("research R-09: ciclo 13:00, 200 persone, 40 invii", () => {
-  bench("pianificazione + composizione + serializzazione", () => {
-    const targets = planTargets(T, 13);
-    const candidates: Candidate[] = rows.map((r) => ({
-      id: r.id,
-      priority: r.priority,
-      birthDay: r.birth_day,
-      birthMonth: r.birth_month,
-      createdAt: r.created_at,
-    }));
-    const fresh = selectNew(candidates, [], targets, window);
-    const { claim } = splitByCap(fresh, MAX_SENDS_PER_RUN, []);
-    const byId = new Map(rows.map((r) => [r.id, r]));
-    let bytes = 0;
-    for (const [i, s] of claim.entries()) {
-      const data = buildReminderData(byId.get(s.personId)!, {
-        actionTarget: { scope: "o", id: 1000 + i },
-        year: s.year,
-        lastYear: null,
-        defaultMessage: null,
-      });
-      const { text, keyboard } = renderByKind(s.kind, s.ref, data);
-      bytes += JSON.stringify({ chat_id: 1001, text, reply_markup: keyboard }).length;
-    }
-    if (claim.length !== 40 || bytes === 0) throw new Error("scenario non valido");
+  bench("pianificazione + composizione + serializzazione", cycle);
+
+  // FR-017, research R-11 di 007: atteso < 0,05 ms in più rispetto allo scenario precedente.
+  bench("con cron_last_run presente (nessun buco)", () => {
+    if (detectGap("2027-03-14T11:00:00.000Z", window.slotInstantIso) !== null) throw new Error("scenario non valido");
+    cycle();
+  });
+
+  bench("buco + avviso (detectGap, toLocalClock, T.gapAlert)", () => {
+    const gap = detectGap("2027-03-14T05:00:00.000Z", window.slotInstantIso);
+    if (!gap) throw new Error("scenario non valido");
+    const text = TEXTS.gapAlert(toLocalClock(gap.from), toLocalClock(gap.to), T);
+    if (JSON.stringify({ chat_id: 1001, text }).length === 0) throw new Error("scenario non valido");
+    cycle();
   });
 });

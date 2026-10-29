@@ -10,6 +10,8 @@ import { startNuovo } from "./flows/nuovo";
 import { handleGruppiCommand } from "./gruppi";
 import { showOggi } from "./oggi";
 import { showScheda } from "./scheda";
+import { showStatistiche } from "./statistiche";
+import { showStato } from "./stato";
 import { showAnno, showCerca, showMese, showProssimi, showScaduti } from "./viste";
 
 // Comandi (contracts/comandi.md).
@@ -76,6 +78,10 @@ export const COMMANDS: Record<string, CommandHandler> = {
   scaduti: (ctx) => showScaduti(ctx),
   // RF-22
   anno: (ctx, cmd) => showAnno(ctx, cmd.args),
+  // RF-32
+  statistiche: (ctx) => showStatistiche(ctx),
+  // RF-31
+  stato: (ctx) => showStato(ctx),
   // RF-23
   modello: (ctx) => handleTemplate(ctx),
   // RF-25

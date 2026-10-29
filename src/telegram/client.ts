@@ -1,4 +1,4 @@
-import type { BotCommand, InlineKeyboardMarkup, MessageEntity } from "./types";
+import type { BotCommand, InlineKeyboardMarkup, MessageEntity, WebhookInfo } from "./types";
 
 // Client minimale della Bot API su fetch (research R-05). Testo semplice: nessun parse_mode; il
 // monospazio delle liste passa solo per `entities` (contracts/liste.md di 003).
@@ -25,6 +25,16 @@ export interface TelegramApi {
   getFile(fileId: string): Promise<{ file_path: string; file_size?: number }>;
   // Il token compare solo nell'URL interno, mai negli errori (principi IV, V).
   downloadFile(filePath: string): Promise<Uint8Array>;
+  // Stato del webhook per /stato (RF-31 di 007, contracts/stato.md).
+  getWebhookInfo(): Promise<WebhookStatus>;
+}
+
+// Stato del webhook ridotto ai campi mostrati da /stato; il testo dell'errore va solo nella
+// risposta al proprietario, mai nei log (principio V).
+export interface WebhookStatus {
+  pendingUpdateCount: number;
+  lastErrorDate?: Date;
+  lastErrorMessage?: string;
 }
 
 // Espone solo il codice di errore di Telegram, mai il contenuto del messaggio (principio V).
@@ -95,6 +105,13 @@ export function createTelegramApi(token: string, fetchFn: typeof fetch = fetch):
       const f = await call<{ file_path?: string; file_size?: number }>("getFile", { file_id: fileId });
       if (f.file_path === undefined) throw new TelegramError(0);
       return f.file_size !== undefined ? { file_path: f.file_path, file_size: f.file_size } : { file_path: f.file_path };
+    },
+    async getWebhookInfo() {
+      const info = await call<WebhookInfo>("getWebhookInfo", {});
+      const out: WebhookStatus = { pendingUpdateCount: info.pending_update_count };
+      if (info.last_error_date !== undefined) out.lastErrorDate = new Date(info.last_error_date * 1000);
+      if (info.last_error_message !== undefined) out.lastErrorMessage = info.last_error_message;
+      return out;
     },
     async downloadFile(filePath) {
       const res = await fetchFn(`https://api.telegram.org/file/bot${token}/${filePath}`, { method: "GET" });

@@ -1,6 +1,6 @@
 import type { Priority } from "../config";
 import type { Kind, OccurrenceStatus } from "../domain/schedule";
-import { defaultMessageStatement } from "./settings";
+import { cronLastRunStatements, defaultMessageStatement } from "./settings";
 
 // Statement del ciclo orario: una batch di lettura, una di reclamo, una di esito
 // (contracts/ciclo-orario.md, research R-07, R-08). Gli statement multi-riga restano entro
@@ -82,13 +82,21 @@ function candidateCondition(pairs: readonly [number, number][], today: string): 
   return { sql, params: [today, ...pairs.flat()] };
 }
 
-// Batch di lettura: [messaggio di default, candidati, occorrenze dei candidati, retry di oggi].
+// Batch di lettura: [cron_last_run precedente, registrazione dell'ora corrente (N-06, research R-02
+// di 007), messaggio di default, candidati, occorrenze dei candidati, retry di oggi].
 export function readStatements(
   db: D1Database,
-  q: { pairs: readonly [number, number][]; years: readonly [number, number]; today: string },
+  q: {
+    pairs: readonly [number, number][];
+    years: readonly [number, number];
+    today: string;
+    currentRunIso: string;
+    nowIso: string;
+  },
 ): D1PreparedStatement[] {
   const cond = candidateCondition(q.pairs, q.today);
   return [
+    ...cronLastRunStatements(db, q.currentRunIso, q.nowIso),
     defaultMessageStatement(db),
     db
       .prepare(
@@ -122,25 +130,27 @@ const RETURNING_SQL = `RETURNING id, occurrence_id, kind, ref, status,
   (SELECT o.year FROM occurrences o WHERE o.id = deliveries.occurrence_id) AS year`;
 
 // Nuovi invii per (persona, anno) solo se l'occorrenza è aperta; l'indice unico scarta i doppi (N-02).
+// Le righe in_invio hanno sent_at = istante del reclamo (research R-04 di 007), quelle in coda NULL.
 function insertDeliveries(
   db: D1Database,
   items: readonly SendRef[],
   status: "in_invio" | "fallito",
   attempts: number,
   today: string,
+  nowIso: string,
 ): D1PreparedStatement[] {
   // VALUES multi-riga: D1 limita i termini di un UNION ALL, non le righe di VALUES.
-  return chunk(items, Math.floor((MAX_PARAMS - 1) / 4)).map((part) =>
+  return chunk(items, Math.floor((MAX_PARAMS - 2) / 4)).map((part) =>
     db
       .prepare(
-        `INSERT OR IGNORE INTO deliveries (occurrence_id, kind, ref, status, attempts, local_date)
-         SELECT o.id, v.column1, v.column2, '${status}', ${attempts}, ?
+        `INSERT OR IGNORE INTO deliveries (occurrence_id, kind, ref, status, attempts, local_date, sent_at)
+         SELECT o.id, v.column1, v.column2, '${status}', ${attempts}, ?, ?
          FROM (VALUES ${part.map(() => "(?, ?, ?, ?)").join(", ")}) v
          JOIN occurrences o ON o.person_id = v.column3 AND o.year = v.column4 AND o.status = 'aperta'
          WHERE true
          ${status === "in_invio" ? RETURNING_SQL : ""}`,
       )
-      .bind(today, ...part.flatMap((s) => [s.kind, s.ref, s.personId, s.year])),
+      .bind(today, status === "in_invio" ? nowIso : null, ...part.flatMap((s) => [s.kind, s.ref, s.personId, s.year])),
   );
 }
 
@@ -195,21 +205,21 @@ export function claimStatements(db: D1Database, c: ClaimInput): { statements: D1
     );
   }
 
-  for (const s of insertDeliveries(db, c.claims, "in_invio", 1, c.today)) index.claimed.push(statements.push(s) - 1);
+  for (const s of insertDeliveries(db, c.claims, "in_invio", 1, c.today, c.nowIso)) index.claimed.push(statements.push(s) - 1);
   // R-05: oltre il tetto, registrati in coda come fallito con attempts = 0.
-  for (const s of insertDeliveries(db, c.queued, "fallito", 0, c.today)) index.queued.push(statements.push(s) - 1);
+  for (const s of insertDeliveries(db, c.queued, "fallito", 0, c.today, c.nowIso)) index.queued.push(statements.push(s) - 1);
 
-  for (const part of chunk(c.retryIds, MAX_PARAMS - 1)) {
+  for (const part of chunk(c.retryIds, MAX_PARAMS - 2)) {
     index.retried.push(
       statements.push(
         db
           .prepare(
-            `UPDATE deliveries SET status = 'in_invio', attempts = attempts + 1
+            `UPDATE deliveries SET status = 'in_invio', attempts = attempts + 1, sent_at = ?
              WHERE id IN (${part.map(() => "?").join(", ")}) AND status = 'fallito' AND local_date = ?
                AND EXISTS (SELECT 1 FROM occurrences o WHERE o.id = deliveries.occurrence_id AND o.status = 'aperta')
              ${RETURNING_SQL}`,
           )
-          .bind(...part, c.today),
+          .bind(c.nowIso, ...part, c.today),
       ) - 1,
     );
   }
@@ -221,12 +231,13 @@ export type SendResult =
   // Codice di Telegram, 0 per errori interni (principio V: mai il contenuto).
   | { id: number; ok: false; code: number };
 
+// Errore → sent_at azzerato: finché la riga era in_invio valeva come istante del reclamo (R-04 di 007).
 export function resultStatements(db: D1Database, results: readonly SendResult[]): D1PreparedStatement[] {
   return results.map((r) =>
     r.ok
       ? db
           .prepare("UPDATE deliveries SET status = 'inviato', sent_at = ?, telegram_message_id = ? WHERE id = ?")
           .bind(r.sentAt, r.messageId, r.id)
-      : db.prepare("UPDATE deliveries SET status = 'fallito', last_error_code = ? WHERE id = ?").bind(r.code, r.id),
+      : db.prepare("UPDATE deliveries SET status = 'fallito', last_error_code = ?, sent_at = NULL WHERE id = ?").bind(r.code, r.id),
   );
 }
