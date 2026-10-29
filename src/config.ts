@@ -66,6 +66,14 @@ export const TODAY_MAX_MESSAGES = 10;
 export const UPCOMING_DEFAULT_DAYS = 30;
 export const UPCOMING_MAX_DAYS = 366;
 
+// --- Gruppi v1.1 (feature 005) ---
+
+// V-09, FR-013: pulsanti di gruppo per tastiera; con ➕ Nuovo gruppo sono 61 ≤ 100. Oltre, elenco testuale.
+export const GROUP_BUTTONS_MAX = 60;
+
+// BR-26, FR-006a: lunghezza minima della chiave di ricerca del nome di un gruppo nuovo o rinominato.
+export const GROUP_KEY_MIN_LENGTH = 2;
+
 // --- Import, export e backup (feature 004) ---
 
 // FR-008a: righe di dati non vuote ammesse in un CSV di import.

@@ -30,6 +30,24 @@ export function saveDefaultMessageGuardedStatement(
     .bind(DEFAULT_MESSAGE_KEY, value, nowIso, chatId, flowId);
 }
 
+// Menu dei comandi (FR-014, research R-10): hash del BOT_COMMANDS registrato con setMyCommands.
+export const BOT_COMMANDS_KEY = "bot_commands";
+
+export async function getBotCommandsHash(db: D1Database): Promise<string | null> {
+  const row = await db.prepare("SELECT value FROM settings WHERE key = ?").bind(BOT_COMMANDS_KEY).first<{ value: string }>();
+  return row?.value ?? null;
+}
+
+export async function saveBotCommandsHash(db: D1Database, hash: string, nowIso: string): Promise<void> {
+  await db
+    .prepare(
+      `INSERT INTO settings (key, value, updated_at) VALUES (?, ?, ?)
+       ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at`,
+    )
+    .bind(BOT_COMMANDS_KEY, hash, nowIso)
+    .run();
+}
+
 // Backup mensile (RF-27, contracts/backup-mensile.md): valore "AAAA-MM:<stato>".
 export const AUTO_BACKUP_KEY = "auto_backup";
 

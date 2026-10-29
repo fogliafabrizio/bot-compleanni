@@ -56,6 +56,12 @@ export interface InlineKeyboardMarkup {
 
 // Entità di formattazione passate con `entities`, senza parse_mode (contracts/liste.md). Offset e
 // lunghezze in unità UTF-16, cioè String.length.
+// Voce del menu dei comandi (setMyCommands, FR-014 di 005).
+export interface BotCommand {
+  command: string;
+  description: string;
+}
+
 export interface MessageEntity {
   type: "code" | "bot_command";
   offset: number;

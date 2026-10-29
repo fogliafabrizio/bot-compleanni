@@ -1,3 +1,5 @@
+import { GROUP_KEY_MIN_LENGTH } from "../config";
+
 // Pulizia e limiti dei testi inseriti (FR-010a) e chiave di confronto (BR-14, BR-17).
 
 export type CleanResult = { ok: true; value: string } | { ok: false; reason: "empty" | "too_long"; max: number };
@@ -35,4 +37,27 @@ export function searchKey(s: string): string {
 // (research R-12 di 004).
 export function normKey(s: string): string {
   return s.trim().toLowerCase();
+}
+
+// BR-26: chiave di ricerca dei gruppi, costruita sopra searchKey (che resta quella di /cerca,
+// RF-18): emoji, simboli, punteggiatura e trattini diventano spazi, restano lettere e cifre. Le
+// sequenze keycap ("1️⃣") si tolgono prima: U+20E3 è un segno e sparirebbe con gli accenti,
+// lasciando la cifra (research R-02). Calcolata al momento, mai salvata (FR-015).
+export function groupKey(s: string): string {
+  return searchKey(s.replace(/[0-9#*]\u{FE0F}?\u{20E3}/gu, " "))
+    .replace(/[^\p{L}\p{Nd}]+/gu, " ")
+    .trim();
+}
+
+// FR-006a: un gruppo nuovo o rinominato deve avere almeno GROUP_KEY_MIN_LENGTH lettere o cifre.
+export function hasValidGroupKey(name: string): boolean {
+  return groupKey(name).length >= GROUP_KEY_MIN_LENGTH;
+}
+
+// FR-005: FNV-1a a 32 bit sulle unità UTF-16, in base 36 (1–7 caratteri). Lega i pulsanti g2 al
+// nome esatto mostrato: una rinomina, anche solo nelle maiuscole, li rende inerti.
+export function nameHash(s: string): string {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 0x01000193) >>> 0;
+  return h.toString(36);
 }

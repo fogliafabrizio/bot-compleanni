@@ -515,3 +515,22 @@ describe("US2: inserimento guidato", () => {
     });
   });
 });
+
+describe("FR-006a: creazione al volo di un gruppo nello step Gruppi di /nuovo", () => {
+  it.each(["🏖", "🏖 X"])("FR-006a: %j rifiutato con la stessa domanda", async (name) => {
+    const deps = makeDeps();
+    await toGroups(deps);
+    await tap(deps, "➕ Nuovo gruppo");
+    await say(deps, name);
+    expect(deps.tg.lastText()).toBe("Il nome del gruppo deve contenere almeno 2 lettere o cifre\n\nNome del nuovo gruppo?");
+    expect((await stateRow())?.step).toBe("gruppo_nuovo");
+  });
+
+  it("FR-006a: ★ Bar accettato e selezionato", async () => {
+    const deps = makeDeps();
+    await toGroups(deps);
+    await tap(deps, "➕ Nuovo gruppo");
+    await say(deps, "★ Bar");
+    expect(labels(kb(deps))).toEqual(["☑ ★ Bar", "➕ Nuovo gruppo", "Fine"]);
+  });
+});

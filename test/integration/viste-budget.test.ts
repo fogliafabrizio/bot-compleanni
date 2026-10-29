@@ -1,6 +1,7 @@
 import { env } from "cloudflare:test";
 import { describe, expect, it } from "vitest";
 import { LIST_MAX_LINES_PER_MESSAGE, MESSAGE_MAX_LENGTH } from "../../src/config";
+import { nameHash } from "../../src/domain/text";
 import { insertOccurrence, insertPerson, rows } from "../helpers/db";
 import { makeDeps, type TestDeps } from "../helpers/deps";
 import { commandParts } from "../helpers/fake-telegram";
@@ -39,14 +40,16 @@ async function measure(deps: TestDeps, run: () => Promise<unknown>): Promise<{ d
   return { d1: deps.counter.count, tg: deps.tg.calls.length };
 }
 
-function expectCompleteList(deps: TestDeps, n: number, messages: number): void {
+// `keyboardOnLast`: la scheda gruppo (FR-008 di 005) ha Rinomina ed Elimina sull'ultimo messaggio.
+function expectCompleteList(deps: TestDeps, n: number, messages: number, keyboardOnLast = false): void {
   const msgs = deps.tg.messages();
   expect(msgs).toHaveLength(messages);
-  for (const m of msgs) {
+  for (const [i, m] of msgs.entries()) {
     expect(m.text.length).toBeLessThanOrEqual(MESSAGE_MAX_LENGTH);
     expect(commandParts(m).length).toBeLessThanOrEqual(LIST_MAX_LINES_PER_MESSAGE);
     // RNF-14, SC-005: nessuna tastiera sulle liste.
-    expect(m.keyboard).toBeUndefined();
+    if (keyboardOnLast && i === msgs.length - 1) expect(m.keyboard).toBeDefined();
+    else expect(m.keyboard).toBeUndefined();
   }
   const ids = msgs.flatMap(commandParts);
   expect(ids).toHaveLength(n);
@@ -62,13 +65,35 @@ describe("principio II, RNF-14, RNF-16, SC-002, SC-005: budget delle viste", () 
     expect(m).toEqual({ d1: 2, tg: 5 });
   });
 
-  it("RNF-16: /gruppo con tutte le 200 persone → 5 messaggi, 2 D1 + 5 Telegram", async () => {
+  it("RNF-16, RF-19: /gruppo (scheda gruppo) con tutte le 200 persone → 5 messaggi, 2 D1 + 5 Telegram", async () => {
     const g = (await env.DB.prepare("INSERT INTO groups (name, name_norm) VALUES ('Tutti', 'tutti') RETURNING id").first<{ id: number }>())!.id;
     await seed(200, { group: g });
     const deps = makeDeps();
     const m = await measure(deps, () => say(deps, "/gruppo tutti"));
-    expectCompleteList(deps, 200, 5);
+    expectCompleteList(deps, 200, 5, true);
     expect(m).toEqual({ d1: 2, tg: 5 });
+  });
+
+  it("principio II, RF-17 (005): /prossimi 366 <testo> con esito one su 200 persone → una batch, 2 D1 + 5 Telegram ≤ 8", async () => {
+    const g = (await env.DB.prepare("INSERT INTO groups (name, name_norm) VALUES ('👨‍👩‍👧 Tutti', '👨‍👩‍👧 tutti') RETURNING id").first<{ id: number }>())!.id;
+    await env.DB.prepare("INSERT INTO groups (name, name_norm) VALUES ('Lavoro', 'lavoro')").run();
+    await seed(200, { group: g });
+    const deps = makeDeps();
+    deps.counter.batches = [];
+    const m = await measure(deps, () => say(deps, "/prossimi 366 tutti"));
+    expectCompleteList(deps, 200, 5);
+    expect(deps.tg.messages()[0]!.text.split("\n")[0]).toBe("Prossimi 366 giorni (👨‍👩‍👧 Tutti)");
+    expect(deps.counter.batches).toHaveLength(1);
+    expect(m).toEqual({ d1: 2, tg: 5 });
+  });
+
+  it("principio II, FR-011 (005): tocco g2:p con 200 persone → 2 D1 (clear, batch) + 5 messaggi + 1 answer = 8 ≤ 9", async () => {
+    const g = (await env.DB.prepare("INSERT INTO groups (name, name_norm) VALUES ('Tutti', 'tutti') RETURNING id").first<{ id: number }>())!.id;
+    await seed(200, { group: g });
+    const deps = makeDeps();
+    const m = await measure(deps, () => press(deps, `g2:p:${g}:${nameHash("Tutti")}:366`));
+    expectCompleteList(deps, 200, 5);
+    expect(m).toEqual({ d1: 2, tg: 6 });
   });
 
   it("principio II: con un flusso guidato attivo /prossimi 366 costa una chiamata D1 in più (clear)", async () => {

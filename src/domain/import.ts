@@ -15,7 +15,7 @@ import type { CsvRecord } from "./csv";
 import { formatShort, parseBirthDate } from "./date";
 import { validateGreeting } from "./greeting";
 import { normalizePhone } from "./phone";
-import { cleanText, normKey, searchKey, sortNames } from "./text";
+import { cleanText, hasValidGroupKey, normKey, searchKey, sortNames } from "./text";
 import { normalizeUsername } from "./username";
 
 // Validazione delle righe, duplicati, gruppi e anteprima dell'import CSV (contracts/csv.md,
@@ -124,10 +124,13 @@ function parseGroups(cell: string): { groups: ImportGroup[]; tooLong: string | n
 }
 
 // FR-006, FR-010: stesse funzioni del guidato; tutti i campi non validi, al massimo un motivo per campo.
+// `knownGroups` (name_norm dei gruppi esistenti): i gruppi da creare seguono FR-006a, quelli
+// esistenti si associano anche se fuori regola (FR-016).
 export function validateRecord(
   record: CsvRecord,
   map: HeaderMap,
   today: LocalDate,
+  knownGroups: ReadonlySet<string> = new Set(),
 ): { ok: true; row: ImportRow } | { ok: false; reasons: string[] } {
   const get = (c: CsvColumn) => {
     const i = map.columns[c];
@@ -165,6 +168,10 @@ export function validateRecord(
 
   const { groups, tooLong } = parseGroups(get("gruppi"));
   if (tooLong !== null) reasons.push(R.groupTooLong(truncateValue(tooLong)));
+  else {
+    const short = groups.find((g) => !knownGroups.has(g.nameNorm) && !hasValidGroupKey(g.name));
+    if (short) reasons.push(R.groupKeyTooShort(truncateValue(short.name)));
+  }
 
   // BR-21: senza maiuscole; vuota = media.
   const priorityText = get("priorita").trim();
@@ -243,10 +250,11 @@ export function buildPreview(
   today: LocalDate,
 ): Preview {
   const example = exampleKey(today);
+  const knownGroups = new Set(existingGroups.map((g) => g.nameNorm));
   const preview: Preview = { rows: [], duplicates: [], errors: [], exampleSkipped: false, groupsToCreate: [] };
   for (const record of records) {
     if (record.empty) continue;
-    const v = validateRecord(record, map, today);
+    const v = validateRecord(record, map, today, knownGroups);
     if (!v.ok) {
       preview.errors.push({ line: record.line, reasons: v.reasons });
       continue;

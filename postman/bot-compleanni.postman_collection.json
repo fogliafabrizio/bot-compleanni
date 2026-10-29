@@ -1,8 +1,8 @@
 {
   "info": {
     "name": "Bot compleanni — test locale completo",
-    "description": "Versione 2.0.0. Test del webhook in locale (`wrangler dev`), feature 001–004: sicurezza, comandi, viste, esiti dei promemoria, flussi guidati (/nuovo, modifica, elimina, gruppi, /messaggio), import CSV, export, backup e ripristino.\n\nIl Worker risponde sempre 200 vuoto: la risposta del bot arriva **nella chat Telegram del proprietario** (il Worker locale usa la Bot API reale con il token di `.dev.vars`). I test controllano anche il D1 locale tramite `postman/helper.mjs` (porta 8788): stato del flusso e campi salvati.\n\nAvvio: `scripts/smoke-postman.ps1`, poi Runner sull'intera collection (o cartella per cartella, **in ordine**). Istruzioni e limiti in `postman/README.md`.",
-    "version": "2.0.0",
+    "description": "Versione 2.1.0. Test del webhook in locale (`wrangler dev`), feature 001–005: sicurezza, comandi, viste, esiti dei promemoria, flussi guidati (/nuovo, modifica, elimina, gruppi, /messaggio), import CSV, export, backup e ripristino.\n\nIl Worker risponde sempre 200 vuoto: la risposta del bot arriva **nella chat Telegram del proprietario** (il Worker locale usa la Bot API reale con il token di `.dev.vars`). I test controllano anche il D1 locale tramite `postman/helper.mjs` (porta 8788): stato del flusso e campi salvati.\n\nAvvio: `scripts/smoke-postman.ps1`, poi Runner sull'intera collection (o cartella per cartella, **in ordine**). Istruzioni e limiti in `postman/README.md`.",
+    "version": "2.1.0",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "event": [
@@ -19,6 +19,19 @@
           "    const rows = !err && res.code === 200 ? res.json().rows : [];",
           "    pm.collectionVariables.set(\"flowId\", rows.length > 0 ? rows[0].flow_id : \"zzzzzz\");",
           "  });",
+          "}",
+          "",
+          "// Pulsanti dei gruppi (feature 005, FR-005): {{hash:<nome>}} diventa nameHash(<nome>), lo stesso",
+          "// algoritmo di src/domain/text.ts (FNV-1a 32 bit sulle unità UTF-16, base 36). Gli id dei gruppi",
+          "// creati dalla collection sono letti dal D1 locale nei test (es. {{amiciId}}).",
+          "function nameHash(s) {",
+          "  let h = 0x811c9dc5;",
+          "  for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 0x01000193) >>> 0;",
+          "  return h.toString(36);",
+          "}",
+          "if (raw.includes(\"{{hash:\")) {",
+          "  pm.test(\"nameHash allineata a src/domain/text.ts\", () => pm.expect(nameHash(\"Famiglia\")).to.equal(\"esn6mr\"));",
+          "  for (const m of raw.matchAll(/\\{\\{hash:([^}]+)\\}\\}/g)) pm.variables.set(\"hash:\" + m[1], nameHash(m[1]));",
           "}"
         ]
       }
@@ -645,7 +658,7 @@
                 "webhook"
               ]
             },
-            "description": "Atteso: elenco comandi con le righe nuove `/oggi`, `/prossimi [giorni] [gruppo]`, `/cerca <testo>`, `/gruppo <nome>`, `/mese [mese]`, `/scaduti — ultimi 7 giorni non fatti`, `/anno [anno]`, tutte **prima** di `/annulla`."
+            "description": "Atteso: elenco comandi con `/gruppi [nome] — elenco gruppi a pulsanti; con un nome cerca il gruppo e apre la scheda` e **nessuna** riga `/gruppo` (RF-19, AFU §5.1). Le righe `/oggi`, `/prossimi [giorni] [gruppo]`, `/cerca <testo>`, `/mese [mese]`, `/scaduti — ultimi 7 giorni non fatti`, `/anno [anno]` stanno **prima** di `/annulla`."
           }
         },
         {
@@ -1071,7 +1084,7 @@
       ]
     },
     {
-      "name": "04 · /prossimi (RF-17)",
+      "name": "04 · /prossimi (RF-17, BR-26)",
       "item": [
         {
           "name": "/prossimi",
@@ -1304,6 +1317,108 @@
           }
         },
         {
+          "name": "/prossimi 7 casa → scelta tra due gruppi",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "const q = (sql, cb) => pm.sendRequest({ url: pm.variables.get(\"helperUrl\") + \"/query\", method: \"POST\", header: { \"Content-Type\": \"application/json\" }, body: { mode: \"raw\", raw: JSON.stringify({ sql: sql.replace(/:(\\w+)/g, (_, k) => pm.variables.get(k)) }) } }, (err, res) => {",
+                  "  pm.test(\"Helper: query riuscita\", () => { pm.expect(err).to.equal(null); pm.expect(res.code).to.equal(200); });",
+                  "  if (!err && res.code === 200) cb(res.json().rows);",
+                  "});",
+                  "q(\"SELECT flow, step FROM conversation_state WHERE chat_id = :ownerId\", (rows) => pm.test(\"Nessun flusso guidato attivo\", () => pm.expect(rows.length).to.equal(0)));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Telegram-Bot-Api-Secret-Token",
+                "value": "{{webhookSecret}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"update_id\": {{$randomInt}},\n  \"message\": {\n    \"message_id\": {{$randomInt}},\n    \"from\": { \"id\": {{ownerId}} },\n    \"chat\": { \"id\": {{ownerId}}, \"type\": \"private\" },\n    \"text\": \"/prossimi 7 casa\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/webhook",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "webhook"
+              ]
+            },
+            "description": "Atteso (RF-17, BR-26): `🔍 Più gruppi corrispondono a «casa»:` con i pulsanti **👨‍👩‍👧 Smoke Casa (1)** e **Smoke Casa Rossi (1)**, senza ➕ Nuovo gruppo. I pulsanti sono `g2:p:<id>:<hash>:7`: conservano i 7 giorni. (Con `/prossimi 7 smoke casa` la corrispondenza esatta con «👨‍👩‍👧 Smoke Casa» vincerebbe e la lista arriverebbe subito.)"
+          }
+        },
+        {
+          "name": "Tocco 👨‍👩‍👧 Smoke Casa (g2:p:9203:1ol49qr:7)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "const q = (sql, cb) => pm.sendRequest({ url: pm.variables.get(\"helperUrl\") + \"/query\", method: \"POST\", header: { \"Content-Type\": \"application/json\" }, body: { mode: \"raw\", raw: JSON.stringify({ sql: sql.replace(/:(\\w+)/g, (_, k) => pm.variables.get(k)) }) } }, (err, res) => {",
+                  "  pm.test(\"Helper: query riuscita\", () => { pm.expect(err).to.equal(null); pm.expect(res.code).to.equal(200); });",
+                  "  if (!err && res.code === 200) cb(res.json().rows);",
+                  "});",
+                  "q(\"SELECT flow, step FROM conversation_state WHERE chat_id = :ownerId\", (rows) => pm.test(\"Nessun flusso guidato attivo\", () => pm.expect(rows.length).to.equal(0)));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Telegram-Bot-Api-Secret-Token",
+                "value": "{{webhookSecret}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"update_id\": {{$randomInt}},\n  \"callback_query\": {\n    \"id\": \"smoke-{{$randomInt}}\",\n    \"from\": { \"id\": {{ownerId}} },\n    \"data\": \"g2:p:9203:1ol49qr:7\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/webhook",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "webhook"
+              ]
+            },
+            "description": "Atteso (FR-011): `Prossimi 7 giorni (👨‍👩‍👧 Smoke Casa)` con la sola Anna (oggi+5). L'hash `1ol49qr` è `nameHash(\"👨‍👩‍👧 Smoke Casa\")`, verificato anche dai test unitari.\n\n_Pulsante da Postman: dopo la risposta arriva anche \"Si è verificato un errore, riprova\" (answerCallbackQuery con id finto). È atteso, vedi README._"
+          }
+        },
+        {
           "name": "/prossimi 7 inesistente",
           "event": [
             {
@@ -1311,7 +1426,12 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));"
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "const q = (sql, cb) => pm.sendRequest({ url: pm.variables.get(\"helperUrl\") + \"/query\", method: \"POST\", header: { \"Content-Type\": \"application/json\" }, body: { mode: \"raw\", raw: JSON.stringify({ sql: sql.replace(/:(\\w+)/g, (_, k) => pm.variables.get(k)) }) } }, (err, res) => {",
+                  "  pm.test(\"Helper: query riuscita\", () => { pm.expect(err).to.equal(null); pm.expect(res.code).to.equal(200); });",
+                  "  if (!err && res.code === 200) cb(res.json().rows);",
+                  "});",
+                  "q(\"SELECT flow, step FROM conversation_state WHERE chat_id = :ownerId\", (rows) => pm.test(\"Nessun flusso guidato attivo\", () => pm.expect(rows.length).to.equal(0)));"
                 ]
               }
             }
@@ -1346,7 +1466,7 @@
                 "webhook"
               ]
             },
-            "description": "Atteso: `Il gruppo «inesistente» non esiste.` + `Gruppi esistenti: …` (include Smoke Famiglia, Smoke Lavoro)."
+            "description": "Atteso (RF-17 v1.1): `Nessun gruppo corrisponde a «inesistente».`, riga vuota, `👥 I tuoi gruppi` e i gruppi come **pulsanti** (`g2:o`, aprono la scheda) più **➕ Nuovo gruppo**."
           }
         },
         {
@@ -1725,17 +1845,73 @@
       ]
     },
     {
-      "name": "06 · /gruppo (RF-19)",
+      "name": "06 · /gruppi <nome> (RF-19, BR-26)",
       "item": [
         {
-          "name": "/gruppo smoke lavoro",
+          "name": "/gruppi smoke lavoro → scheda",
           "event": [
             {
               "listen": "test",
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));"
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "const q = (sql, cb) => pm.sendRequest({ url: pm.variables.get(\"helperUrl\") + \"/query\", method: \"POST\", header: { \"Content-Type\": \"application/json\" }, body: { mode: \"raw\", raw: JSON.stringify({ sql: sql.replace(/:(\\w+)/g, (_, k) => pm.variables.get(k)) }) } }, (err, res) => {",
+                  "  pm.test(\"Helper: query riuscita\", () => { pm.expect(err).to.equal(null); pm.expect(res.code).to.equal(200); });",
+                  "  if (!err && res.code === 200) cb(res.json().rows);",
+                  "});",
+                  "q(\"SELECT flow, step FROM conversation_state WHERE chat_id = :ownerId\", (rows) => pm.test(\"Nessun flusso guidato attivo\", () => pm.expect(rows.length).to.equal(0)));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Telegram-Bot-Api-Secret-Token",
+                "value": "{{webhookSecret}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"update_id\": {{$randomInt}},\n  \"message\": {\n    \"message_id\": {{$randomInt}},\n    \"from\": { \"id\": {{ownerId}} },\n    \"chat\": { \"id\": {{ownerId}}, \"type\": \"private\" },\n    \"text\": \"/gruppi smoke lavoro\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/webhook",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "webhook"
+              ]
+            },
+            "description": "Atteso (RF-19): scheda gruppo `👥 Smoke Lavoro · 2 persone`, riga vuota, Marco (oggi) e poi Luca (anno prossimo) con `/p_<id>`; sull'ultimo messaggio i pulsanti **✏️ Rinomina** e **🗑 Elimina**."
+          }
+        },
+        {
+          "name": "/gruppo smoke lavoro → identica",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "const q = (sql, cb) => pm.sendRequest({ url: pm.variables.get(\"helperUrl\") + \"/query\", method: \"POST\", header: { \"Content-Type\": \"application/json\" }, body: { mode: \"raw\", raw: JSON.stringify({ sql: sql.replace(/:(\\w+)/g, (_, k) => pm.variables.get(k)) }) } }, (err, res) => {",
+                  "  pm.test(\"Helper: query riuscita\", () => { pm.expect(err).to.equal(null); pm.expect(res.code).to.equal(200); });",
+                  "  if (!err && res.code === 200) cb(res.json().rows);",
+                  "});",
+                  "q(\"SELECT flow, step FROM conversation_state WHERE chat_id = :ownerId\", (rows) => pm.test(\"Nessun flusso guidato attivo\", () => pm.expect(rows.length).to.equal(0)));"
                 ]
               }
             }
@@ -1770,18 +1946,23 @@
                 "webhook"
               ]
             },
-            "description": "Atteso: `Gruppo Smoke Lavoro` con Marco (oggi) e poi Luca (compleanno 3 giorni fa → anno prossimo). Nessun limite di giorni."
+            "description": "Atteso (FR-014): lo stesso messaggio della richiesta precedente (alias)."
           }
         },
         {
-          "name": "/gruppo (vuoto) → sintassi + elenco",
+          "name": "/gruppi casa → scelta",
           "event": [
             {
               "listen": "test",
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));"
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "const q = (sql, cb) => pm.sendRequest({ url: pm.variables.get(\"helperUrl\") + \"/query\", method: \"POST\", header: { \"Content-Type\": \"application/json\" }, body: { mode: \"raw\", raw: JSON.stringify({ sql: sql.replace(/:(\\w+)/g, (_, k) => pm.variables.get(k)) }) } }, (err, res) => {",
+                  "  pm.test(\"Helper: query riuscita\", () => { pm.expect(err).to.equal(null); pm.expect(res.code).to.equal(200); });",
+                  "  if (!err && res.code === 200) cb(res.json().rows);",
+                  "});",
+                  "q(\"SELECT flow, step FROM conversation_state WHERE chat_id = :ownerId\", (rows) => pm.test(\"Nessun flusso guidato attivo\", () => pm.expect(rows.length).to.equal(0)));"
                 ]
               }
             }
@@ -1800,7 +1981,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"update_id\": {{$randomInt}},\n  \"message\": {\n    \"message_id\": {{$randomInt}},\n    \"from\": { \"id\": {{ownerId}} },\n    \"chat\": { \"id\": {{ownerId}}, \"type\": \"private\" },\n    \"text\": \"/gruppo\"\n  }\n}",
+              "raw": "{\n  \"update_id\": {{$randomInt}},\n  \"message\": {\n    \"message_id\": {{$randomInt}},\n    \"from\": { \"id\": {{ownerId}} },\n    \"chat\": { \"id\": {{ownerId}}, \"type\": \"private\" },\n    \"text\": \"/gruppi casa\"\n  }\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -1816,18 +1997,23 @@
                 "webhook"
               ]
             },
-            "description": "Atteso: `Scrivi /gruppo seguito dal nome del gruppo, es. /gruppo Famiglia` + `Gruppi esistenti: …`."
+            "description": "Atteso (FR-007): `🔍 Più gruppi corrispondono a «casa»:` con **👨‍👩‍👧 Smoke Casa (1)** e **Smoke Casa Rossi (1)** (pulsanti `g2:o`), senza ➕ Nuovo gruppo."
           }
         },
         {
-          "name": "/gruppo pippo → inesistente",
+          "name": "/gruppi pippo → avviso + elenco",
           "event": [
             {
               "listen": "test",
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));"
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "const q = (sql, cb) => pm.sendRequest({ url: pm.variables.get(\"helperUrl\") + \"/query\", method: \"POST\", header: { \"Content-Type\": \"application/json\" }, body: { mode: \"raw\", raw: JSON.stringify({ sql: sql.replace(/:(\\w+)/g, (_, k) => pm.variables.get(k)) }) } }, (err, res) => {",
+                  "  pm.test(\"Helper: query riuscita\", () => { pm.expect(err).to.equal(null); pm.expect(res.code).to.equal(200); });",
+                  "  if (!err && res.code === 200) cb(res.json().rows);",
+                  "});",
+                  "q(\"SELECT flow, step FROM conversation_state WHERE chat_id = :ownerId\", (rows) => pm.test(\"Nessun flusso guidato attivo\", () => pm.expect(rows.length).to.equal(0)));"
                 ]
               }
             }
@@ -1846,7 +2032,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"update_id\": {{$randomInt}},\n  \"message\": {\n    \"message_id\": {{$randomInt}},\n    \"from\": { \"id\": {{ownerId}} },\n    \"chat\": { \"id\": {{ownerId}}, \"type\": \"private\" },\n    \"text\": \"/gruppo pippo\"\n  }\n}",
+              "raw": "{\n  \"update_id\": {{$randomInt}},\n  \"message\": {\n    \"message_id\": {{$randomInt}},\n    \"from\": { \"id\": {{ownerId}} },\n    \"chat\": { \"id\": {{ownerId}}, \"type\": \"private\" },\n    \"text\": \"/gruppi pippo\"\n  }\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -1862,10 +2048,62 @@
                 "webhook"
               ]
             },
-            "description": "Atteso: `Il gruppo «pippo» non esiste.` + elenco dei gruppi."
+            "description": "Atteso: `Nessun gruppo corrisponde a «pippo».`, riga vuota, `👥 I tuoi gruppi` e i gruppi come pulsanti più **➕ Nuovo gruppo**."
+          }
+        },
+        {
+          "name": "/gruppi → elenco a pulsanti",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "const q = (sql, cb) => pm.sendRequest({ url: pm.variables.get(\"helperUrl\") + \"/query\", method: \"POST\", header: { \"Content-Type\": \"application/json\" }, body: { mode: \"raw\", raw: JSON.stringify({ sql: sql.replace(/:(\\w+)/g, (_, k) => pm.variables.get(k)) }) } }, (err, res) => {",
+                  "  pm.test(\"Helper: query riuscita\", () => { pm.expect(err).to.equal(null); pm.expect(res.code).to.equal(200); });",
+                  "  if (!err && res.code === 200) cb(res.json().rows);",
+                  "});",
+                  "q(\"SELECT flow, step FROM conversation_state WHERE chat_id = :ownerId\", (rows) => pm.test(\"Nessun flusso guidato attivo\", () => pm.expect(rows.length).to.equal(0)));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Telegram-Bot-Api-Secret-Token",
+                "value": "{{webhookSecret}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"update_id\": {{$randomInt}},\n  \"message\": {\n    \"message_id\": {{$randomInt}},\n    \"from\": { \"id\": {{ownerId}} },\n    \"chat\": { \"id\": {{ownerId}}, \"type\": \"private\" },\n    \"text\": \"/gruppi\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/webhook",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "webhook"
+              ]
+            },
+            "description": "Atteso (RF-07): `👥 I tuoi gruppi` e un pulsante `<nome> (<n>)` per gruppo su due colonne, «👨‍👩‍👧 Smoke Casa» accanto agli altri «Smoke …», poi **➕ Nuovo gruppo**."
           }
         }
-      ]
+      ],
+      "description": "Ricerca morbida dei gruppi (feature 005): maiuscole, accenti ed emoji ignorati; `/gruppo` è un alias."
     },
     {
       "name": "07 · /mese (RF-20)",
@@ -8504,8 +8742,8 @@
       ]
     },
     {
-      "name": "16 · Gruppi (/gruppi, g:n, g:r, g:x)",
-      "description": "RF-07, FR-019…FR-022, BR-17.\n\n_Pulsante da Postman: dopo la risposta arriva anche \"Si è verificato un errore, riprova\" (answerCallbackQuery con id finto). È atteso, vedi README._",
+      "name": "16 · Gruppi (/gruppi, g2:*)",
+      "description": "RF-07, RF-19, FR-005, FR-006a, FR-017, BR-17 (feature 005): Nuovo dall'elenco, Rinomina ed Elimina dalla scheda.\n\n_Pulsante da Postman: dopo la risposta arriva anche \"Si è verificato un errore, riprova\" (answerCallbackQuery con id finto). È atteso, vedi README._",
       "item": [
         {
           "name": "/gruppi",
@@ -8515,7 +8753,12 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));"
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "const q = (sql, cb) => pm.sendRequest({ url: pm.variables.get(\"helperUrl\") + \"/query\", method: \"POST\", header: { \"Content-Type\": \"application/json\" }, body: { mode: \"raw\", raw: JSON.stringify({ sql: sql.replace(/:(\\w+)/g, (_, k) => pm.variables.get(k)) }) } }, (err, res) => {",
+                  "  pm.test(\"Helper: query riuscita\", () => { pm.expect(err).to.equal(null); pm.expect(res.code).to.equal(200); });",
+                  "  if (!err && res.code === 200) cb(res.json().rows);",
+                  "});",
+                  "q(\"SELECT flow, step FROM conversation_state WHERE chat_id = :ownerId\", (rows) => pm.test(\"Nessun flusso guidato attivo\", () => pm.expect(rows.length).to.equal(0)));"
                 ]
               }
             }
@@ -8550,11 +8793,11 @@
                 "webhook"
               ]
             },
-            "description": "Atteso: `Gruppi:` con `• Postman Gruppo (1)`, `• Smoke Famiglia (1)`, `• Smoke Lavoro (3)` (più i tuoi) e i pulsanti **➕ Nuovo gruppo**, **✏️ Rinomina**, **🗑 Elimina**."
+            "description": "Atteso: `👥 I tuoi gruppi` con i pulsanti **Postman Gruppo (1)**, **Smoke Famiglia (1)**, **Smoke Lavoro (3)**, … (più i tuoi) e **➕ Nuovo gruppo**."
           }
         },
         {
-          "name": "Nuovo gruppo (g:n)",
+          "name": "Nuovo gruppo (g2:n)",
           "event": [
             {
               "listen": "test",
@@ -8566,7 +8809,7 @@
                   "  pm.test(\"Helper: query riuscita\", () => { pm.expect(err).to.equal(null); pm.expect(res.code).to.equal(200); });",
                   "  if (!err && res.code === 200) cb(res.json().rows);",
                   "});",
-                  "q(\"SELECT flow, step FROM conversation_state WHERE chat_id = :ownerId\", (rows) => pm.test(\"Flusso gruppi/nome\", () => { pm.expect(rows.length).to.equal(1); pm.expect(rows[0].flow + \"/\" + rows[0].step).to.equal(\"gruppi/nome\"); }));"
+                  "q(\"SELECT flow, step FROM conversation_state WHERE chat_id = :ownerId\", (rows) => pm.test(\"Flusso gruppi/crea\", () => { pm.expect(rows.length).to.equal(1); pm.expect(rows[0].flow + \"/\" + rows[0].step).to.equal(\"gruppi/crea\"); }));"
                 ]
               }
             }
@@ -8585,7 +8828,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"update_id\": {{$randomInt}},\n  \"callback_query\": {\n    \"id\": \"smoke-{{$randomInt}}\",\n    \"from\": { \"id\": {{ownerId}} },\n    \"data\": \"g:n\"\n  }\n}",
+              "raw": "{\n  \"update_id\": {{$randomInt}},\n  \"callback_query\": {\n    \"id\": \"smoke-{{$randomInt}}\",\n    \"from\": { \"id\": {{ownerId}} },\n    \"data\": \"g2:n\"\n  }\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -8601,7 +8844,7 @@
                 "webhook"
               ]
             },
-            "description": "Atteso: `Nome del nuovo gruppo?`."
+            "description": "Atteso: `Nome del nuovo gruppo?` + [Annulla]."
           }
         },
         {
@@ -8617,7 +8860,7 @@
                   "  pm.test(\"Helper: query riuscita\", () => { pm.expect(err).to.equal(null); pm.expect(res.code).to.equal(200); });",
                   "  if (!err && res.code === 200) cb(res.json().rows);",
                   "});",
-                  "q(\"SELECT flow, step FROM conversation_state WHERE chat_id = :ownerId\", (rows) => pm.test(\"Flusso gruppi/nome\", () => { pm.expect(rows.length).to.equal(1); pm.expect(rows[0].flow + \"/\" + rows[0].step).to.equal(\"gruppi/nome\"); }));"
+                  "q(\"SELECT flow, step FROM conversation_state WHERE chat_id = :ownerId\", (rows) => pm.test(\"Flusso gruppi/crea\", () => { pm.expect(rows.length).to.equal(1); pm.expect(rows[0].flow + \"/\" + rows[0].step).to.equal(\"gruppi/crea\"); }));"
                 ]
               }
             }
@@ -8668,7 +8911,7 @@
                   "  pm.test(\"Helper: query riuscita\", () => { pm.expect(err).to.equal(null); pm.expect(res.code).to.equal(200); });",
                   "  if (!err && res.code === 200) cb(res.json().rows);",
                   "});",
-                  "q(\"SELECT flow, step FROM conversation_state WHERE chat_id = :ownerId\", (rows) => pm.test(\"Flusso gruppi/nome\", () => { pm.expect(rows.length).to.equal(1); pm.expect(rows[0].flow + \"/\" + rows[0].step).to.equal(\"gruppi/nome\"); }));"
+                  "q(\"SELECT flow, step FROM conversation_state WHERE chat_id = :ownerId\", (rows) => pm.test(\"Flusso gruppi/crea\", () => { pm.expect(rows.length).to.equal(1); pm.expect(rows[0].flow + \"/\" + rows[0].step).to.equal(\"gruppi/crea\"); }));"
                 ]
               }
             }
@@ -8703,7 +8946,59 @@
                 "webhook"
               ]
             },
-            "description": "Atteso: `Testo troppo lungo: massimo 30 caratteri`."
+            "description": "Atteso: `Testo troppo lungo: massimo 30 caratteri` + domanda."
+          }
+        },
+        {
+          "name": "Nome 🏖 → rifiutato (FR-006a)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "const q = (sql, cb) => pm.sendRequest({ url: pm.variables.get(\"helperUrl\") + \"/query\", method: \"POST\", header: { \"Content-Type\": \"application/json\" }, body: { mode: \"raw\", raw: JSON.stringify({ sql: sql.replace(/:(\\w+)/g, (_, k) => pm.variables.get(k)) }) } }, (err, res) => {",
+                  "  pm.test(\"Helper: query riuscita\", () => { pm.expect(err).to.equal(null); pm.expect(res.code).to.equal(200); });",
+                  "  if (!err && res.code === 200) cb(res.json().rows);",
+                  "});",
+                  "q(\"SELECT flow, step FROM conversation_state WHERE chat_id = :ownerId\", (rows) => pm.test(\"Flusso gruppi/crea\", () => { pm.expect(rows.length).to.equal(1); pm.expect(rows[0].flow + \"/\" + rows[0].step).to.equal(\"gruppi/crea\"); }));",
+                  "q(\"SELECT COUNT(*) AS n FROM groups WHERE name = '🏖'\", (rows) => pm.test(\"Nessun gruppo 🏖\", () => pm.expect(rows[0].n).to.equal(0)));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Telegram-Bot-Api-Secret-Token",
+                "value": "{{webhookSecret}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"update_id\": {{$randomInt}},\n  \"message\": {\n    \"message_id\": {{$randomInt}},\n    \"from\": { \"id\": {{ownerId}} },\n    \"chat\": { \"id\": {{ownerId}}, \"type\": \"private\" },\n    \"text\": \"🏖\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/webhook",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "webhook"
+              ]
+            },
+            "description": "Atteso: `Il nome del gruppo deve contenere almeno 2 lettere o cifre` + domanda."
           }
         },
         {
@@ -8758,62 +9053,11 @@
                 "webhook"
               ]
             },
-            "description": "Atteso: `Gruppo Postman Amici creato` + elenco."
+            "description": "Atteso: `Gruppo Postman Amici creato`, riga vuota, elenco a pulsanti."
           }
         },
         {
-          "name": "Rinomina (g:r)",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
-                  "const q = (sql, cb) => pm.sendRequest({ url: pm.variables.get(\"helperUrl\") + \"/query\", method: \"POST\", header: { \"Content-Type\": \"application/json\" }, body: { mode: \"raw\", raw: JSON.stringify({ sql: sql.replace(/:(\\w+)/g, (_, k) => pm.variables.get(k)) }) } }, (err, res) => {",
-                  "  pm.test(\"Helper: query riuscita\", () => { pm.expect(err).to.equal(null); pm.expect(res.code).to.equal(200); });",
-                  "  if (!err && res.code === 200) cb(res.json().rows);",
-                  "});",
-                  "q(\"SELECT flow, step FROM conversation_state WHERE chat_id = :ownerId\", (rows) => pm.test(\"Flusso gruppi/scelta\", () => { pm.expect(rows.length).to.equal(1); pm.expect(rows[0].flow + \"/\" + rows[0].step).to.equal(\"gruppi/scelta\"); }));"
-                ]
-              }
-            }
-          ],
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              },
-              {
-                "key": "X-Telegram-Bot-Api-Secret-Token",
-                "value": "{{webhookSecret}}"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"update_id\": {{$randomInt}},\n  \"callback_query\": {\n    \"id\": \"smoke-{{$randomInt}}\",\n    \"from\": { \"id\": {{ownerId}} },\n    \"data\": \"g:r\"\n  }\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
-            "url": {
-              "raw": "{{baseUrl}}/webhook",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "webhook"
-              ]
-            },
-            "description": "Atteso: `Quale gruppo vuoi rinominare?` con un pulsante per gruppo."
-          }
-        },
-        {
-          "name": "Gruppo inesistente (sg:999999)",
+          "name": "Apri Postman Amici (g2:o)",
           "event": [
             {
               "listen": "test",
@@ -8844,7 +9088,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"update_id\": {{$randomInt}},\n  \"callback_query\": {\n    \"id\": \"smoke-{{$randomInt}}\",\n    \"from\": { \"id\": {{ownerId}} },\n    \"data\": \"f:{{flowId}}:sg:999999\"\n  }\n}",
+              "raw": "{\n  \"update_id\": {{$randomInt}},\n  \"callback_query\": {\n    \"id\": \"smoke-{{$randomInt}}\",\n    \"from\": { \"id\": {{ownerId}} },\n    \"data\": \"g2:o:{{amiciId}}:{{hash:Postman Amici}}\"\n  }\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -8860,11 +9104,11 @@
                 "webhook"
               ]
             },
-            "description": "Il flusso si chiude."
+            "description": "Atteso (FR-002): nuovo messaggio `👥 Postman Amici · 0 persone`, riga vuota, `Nel gruppo non ci sono persone.` e i pulsanti **✏️ Rinomina** **🗑 Elimina**."
           }
         },
         {
-          "name": "Rinomina (g:r) di nuovo",
+          "name": "Rinomina dalla scheda (g2:r)",
           "event": [
             {
               "listen": "test",
@@ -8876,7 +9120,7 @@
                   "  pm.test(\"Helper: query riuscita\", () => { pm.expect(err).to.equal(null); pm.expect(res.code).to.equal(200); });",
                   "  if (!err && res.code === 200) cb(res.json().rows);",
                   "});",
-                  "q(\"SELECT flow, step FROM conversation_state WHERE chat_id = :ownerId\", (rows) => pm.test(\"Flusso gruppi/scelta\", () => { pm.expect(rows.length).to.equal(1); pm.expect(rows[0].flow + \"/\" + rows[0].step).to.equal(\"gruppi/scelta\"); }));"
+                  "q(\"SELECT flow, step FROM conversation_state WHERE chat_id = :ownerId\", (rows) => pm.test(\"Flusso gruppi/rinomina\", () => { pm.expect(rows.length).to.equal(1); pm.expect(rows[0].flow + \"/\" + rows[0].step).to.equal(\"gruppi/rinomina\"); }));"
                 ]
               }
             }
@@ -8895,7 +9139,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"update_id\": {{$randomInt}},\n  \"callback_query\": {\n    \"id\": \"smoke-{{$randomInt}}\",\n    \"from\": { \"id\": {{ownerId}} },\n    \"data\": \"g:r\"\n  }\n}",
+              "raw": "{\n  \"update_id\": {{$randomInt}},\n  \"callback_query\": {\n    \"id\": \"smoke-{{$randomInt}}\",\n    \"from\": { \"id\": {{ownerId}} },\n    \"data\": \"g2:r:{{amiciId}}:{{hash:Postman Amici}}\"\n  }\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -8911,58 +9155,7 @@
                 "webhook"
               ]
             },
-            "description": ""
-          }
-        },
-        {
-          "name": "Scegli Postman Amici",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
-                  "const q = (sql, cb) => pm.sendRequest({ url: pm.variables.get(\"helperUrl\") + \"/query\", method: \"POST\", header: { \"Content-Type\": \"application/json\" }, body: { mode: \"raw\", raw: JSON.stringify({ sql: sql.replace(/:(\\w+)/g, (_, k) => pm.variables.get(k)) }) } }, (err, res) => {",
-                  "  pm.test(\"Helper: query riuscita\", () => { pm.expect(err).to.equal(null); pm.expect(res.code).to.equal(200); });",
-                  "  if (!err && res.code === 200) cb(res.json().rows);",
-                  "});",
-                  "q(\"SELECT flow, step FROM conversation_state WHERE chat_id = :ownerId\", (rows) => pm.test(\"Flusso gruppi/nome\", () => { pm.expect(rows.length).to.equal(1); pm.expect(rows[0].flow + \"/\" + rows[0].step).to.equal(\"gruppi/nome\"); }));"
-                ]
-              }
-            }
-          ],
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              },
-              {
-                "key": "X-Telegram-Bot-Api-Secret-Token",
-                "value": "{{webhookSecret}}"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"update_id\": {{$randomInt}},\n  \"callback_query\": {\n    \"id\": \"smoke-{{$randomInt}}\",\n    \"from\": { \"id\": {{ownerId}} },\n    \"data\": \"f:{{flowId}}:sg:{{amiciId}}\"\n  }\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
-            "url": {
-              "raw": "{{baseUrl}}/webhook",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "webhook"
-              ]
-            },
-            "description": "Atteso: `Nuovo nome per il gruppo Postman Amici?`."
+            "description": "Atteso (FR-009): `Nuovo nome per il gruppo Postman Amici?` + [Annulla], senza «Quale gruppo?»."
           }
         },
         {
@@ -8980,7 +9173,7 @@
                   "});",
                   "q(\"SELECT flow, step FROM conversation_state WHERE chat_id = :ownerId\", (rows) => pm.test(\"Nessun flusso guidato attivo\", () => pm.expect(rows.length).to.equal(0)));",
                   "q(\"SELECT name FROM groups WHERE id = :amiciId\", (rows) => {",
-                  "  pm.test(\"Rinominato\", () => { pm.expect(rows[0].name).to.eql(\"POSTMAN AMICI\"); });",
+                  "  pm.test(\"Nome salvato: POSTMAN AMICI\", () => { pm.expect(rows[0].name).to.eql(\"POSTMAN AMICI\"); });",
                   "});"
                 ]
               }
@@ -9016,11 +9209,11 @@
                 "webhook"
               ]
             },
-            "description": "BR-17: il solo cambio di maiuscole è ammesso."
+            "description": "BR-17: il solo cambio di maiuscole è ammesso. Atteso: `Gruppo rinominato in POSTMAN AMICI`, riga vuota e la scheda aggiornata in un **nuovo** messaggio."
           }
         },
         {
-          "name": "Rinomina (g:r) → Postman Amici Cari",
+          "name": "Rinomina con l'hash vecchio → non esiste più (FR-005)",
           "event": [
             {
               "listen": "test",
@@ -9032,7 +9225,10 @@
                   "  pm.test(\"Helper: query riuscita\", () => { pm.expect(err).to.equal(null); pm.expect(res.code).to.equal(200); });",
                   "  if (!err && res.code === 200) cb(res.json().rows);",
                   "});",
-                  "q(\"SELECT flow, step FROM conversation_state WHERE chat_id = :ownerId\", (rows) => pm.test(\"Flusso gruppi/scelta\", () => { pm.expect(rows.length).to.equal(1); pm.expect(rows[0].flow + \"/\" + rows[0].step).to.equal(\"gruppi/scelta\"); }));"
+                  "q(\"SELECT flow, step FROM conversation_state WHERE chat_id = :ownerId\", (rows) => pm.test(\"Nessun flusso guidato attivo\", () => pm.expect(rows.length).to.equal(0)));",
+                  "q(\"SELECT name FROM groups WHERE id = :amiciId\", (rows) => {",
+                  "  pm.test(\"Nome salvato: POSTMAN AMICI\", () => { pm.expect(rows[0].name).to.eql(\"POSTMAN AMICI\"); });",
+                  "});"
                 ]
               }
             }
@@ -9051,7 +9247,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"update_id\": {{$randomInt}},\n  \"callback_query\": {\n    \"id\": \"smoke-{{$randomInt}}\",\n    \"from\": { \"id\": {{ownerId}} },\n    \"data\": \"g:r\"\n  }\n}",
+              "raw": "{\n  \"update_id\": {{$randomInt}},\n  \"callback_query\": {\n    \"id\": \"smoke-{{$randomInt}}\",\n    \"from\": { \"id\": {{ownerId}} },\n    \"data\": \"g2:r:{{amiciId}}:{{hash:Postman Amici}}\"\n  }\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -9067,11 +9263,11 @@
                 "webhook"
               ]
             },
-            "description": ""
+            "description": "Il pulsante della scheda di prima porta l'hash di «Postman Amici»: il nome ora è «POSTMAN AMICI». Atteso: `Il gruppo non esiste più.`, riga vuota, elenco a pulsanti. Nessuna modifica."
           }
         },
         {
-          "name": "Scegli POSTMAN AMICI",
+          "name": "Rinomina (g2:r) con l'hash attuale",
           "event": [
             {
               "listen": "test",
@@ -9083,7 +9279,7 @@
                   "  pm.test(\"Helper: query riuscita\", () => { pm.expect(err).to.equal(null); pm.expect(res.code).to.equal(200); });",
                   "  if (!err && res.code === 200) cb(res.json().rows);",
                   "});",
-                  "q(\"SELECT flow, step FROM conversation_state WHERE chat_id = :ownerId\", (rows) => pm.test(\"Flusso gruppi/nome\", () => { pm.expect(rows.length).to.equal(1); pm.expect(rows[0].flow + \"/\" + rows[0].step).to.equal(\"gruppi/nome\"); }));"
+                  "q(\"SELECT flow, step FROM conversation_state WHERE chat_id = :ownerId\", (rows) => pm.test(\"Flusso gruppi/rinomina\", () => { pm.expect(rows.length).to.equal(1); pm.expect(rows[0].flow + \"/\" + rows[0].step).to.equal(\"gruppi/rinomina\"); }));"
                 ]
               }
             }
@@ -9102,7 +9298,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"update_id\": {{$randomInt}},\n  \"callback_query\": {\n    \"id\": \"smoke-{{$randomInt}}\",\n    \"from\": { \"id\": {{ownerId}} },\n    \"data\": \"f:{{flowId}}:sg:{{amiciId}}\"\n  }\n}",
+              "raw": "{\n  \"update_id\": {{$randomInt}},\n  \"callback_query\": {\n    \"id\": \"smoke-{{$randomInt}}\",\n    \"from\": { \"id\": {{ownerId}} },\n    \"data\": \"g2:r:{{amiciId}}:{{hash:POSTMAN AMICI}}\"\n  }\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -9118,7 +9314,7 @@
                 "webhook"
               ]
             },
-            "description": ""
+            "description": "Atteso: `Nuovo nome per il gruppo POSTMAN AMICI?`."
           }
         },
         {
@@ -9136,7 +9332,7 @@
                   "});",
                   "q(\"SELECT flow, step FROM conversation_state WHERE chat_id = :ownerId\", (rows) => pm.test(\"Nessun flusso guidato attivo\", () => pm.expect(rows.length).to.equal(0)));",
                   "q(\"SELECT name FROM groups WHERE id = :amiciId\", (rows) => {",
-                  "  pm.test(\"Rinominato\", () => { pm.expect(rows[0].name).to.eql(\"Postman Amici Cari\"); });",
+                  "  pm.test(\"Nome salvato: Postman Amici Cari\", () => { pm.expect(rows[0].name).to.eql(\"Postman Amici Cari\"); });",
                   "});"
                 ]
               }
@@ -9172,11 +9368,11 @@
                 "webhook"
               ]
             },
-            "description": "Atteso: `Gruppo rinominato in Postman Amici Cari` + elenco."
+            "description": "Atteso: `Gruppo rinominato in Postman Amici Cari` + scheda aggiornata."
           }
         },
         {
-          "name": "Elimina gruppo (g:x)",
+          "name": "Elimina Postman Gruppo (g2:x)",
           "event": [
             {
               "listen": "test",
@@ -9188,7 +9384,7 @@
                   "  pm.test(\"Helper: query riuscita\", () => { pm.expect(err).to.equal(null); pm.expect(res.code).to.equal(200); });",
                   "  if (!err && res.code === 200) cb(res.json().rows);",
                   "});",
-                  "q(\"SELECT flow, step FROM conversation_state WHERE chat_id = :ownerId\", (rows) => pm.test(\"Flusso gruppi/scelta\", () => { pm.expect(rows.length).to.equal(1); pm.expect(rows[0].flow + \"/\" + rows[0].step).to.equal(\"gruppi/scelta\"); }));"
+                  "q(\"SELECT flow, step FROM conversation_state WHERE chat_id = :ownerId\", (rows) => pm.test(\"Flusso gruppi/elimina\", () => { pm.expect(rows.length).to.equal(1); pm.expect(rows[0].flow + \"/\" + rows[0].step).to.equal(\"gruppi/elimina\"); }));"
                 ]
               }
             }
@@ -9207,7 +9403,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"update_id\": {{$randomInt}},\n  \"callback_query\": {\n    \"id\": \"smoke-{{$randomInt}}\",\n    \"from\": { \"id\": {{ownerId}} },\n    \"data\": \"g:x\"\n  }\n}",
+              "raw": "{\n  \"update_id\": {{$randomInt}},\n  \"callback_query\": {\n    \"id\": \"smoke-{{$randomInt}}\",\n    \"from\": { \"id\": {{ownerId}} },\n    \"data\": \"g2:x:{{gruppoNuovoId}}:{{hash:Postman Gruppo}}\"\n  }\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -9223,58 +9419,7 @@
                 "webhook"
               ]
             },
-            "description": "Atteso: `Quale gruppo vuoi eliminare?`."
-          }
-        },
-        {
-          "name": "Scegli Postman Gruppo",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
-                  "const q = (sql, cb) => pm.sendRequest({ url: pm.variables.get(\"helperUrl\") + \"/query\", method: \"POST\", header: { \"Content-Type\": \"application/json\" }, body: { mode: \"raw\", raw: JSON.stringify({ sql: sql.replace(/:(\\w+)/g, (_, k) => pm.variables.get(k)) }) } }, (err, res) => {",
-                  "  pm.test(\"Helper: query riuscita\", () => { pm.expect(err).to.equal(null); pm.expect(res.code).to.equal(200); });",
-                  "  if (!err && res.code === 200) cb(res.json().rows);",
-                  "});",
-                  "q(\"SELECT flow, step FROM conversation_state WHERE chat_id = :ownerId\", (rows) => pm.test(\"Flusso gruppi/conferma\", () => { pm.expect(rows.length).to.equal(1); pm.expect(rows[0].flow + \"/\" + rows[0].step).to.equal(\"gruppi/conferma\"); }));"
-                ]
-              }
-            }
-          ],
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              },
-              {
-                "key": "X-Telegram-Bot-Api-Secret-Token",
-                "value": "{{webhookSecret}}"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"update_id\": {{$randomInt}},\n  \"callback_query\": {\n    \"id\": \"smoke-{{$randomInt}}\",\n    \"from\": { \"id\": {{ownerId}} },\n    \"data\": \"f:{{flowId}}:sg:{{gruppoNuovoId}}\"\n  }\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
-            "url": {
-              "raw": "{{baseUrl}}/webhook",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "webhook"
-              ]
-            },
-            "description": "Atteso: `Eliminare il gruppo Postman Gruppo? 1 persona perderà questa etichetta`."
+            "description": "Atteso (FR-010): `Eliminare il gruppo Postman Gruppo? 1 persona perderà questa etichetta` + [Sì] [Annulla]."
           }
         },
         {
@@ -9331,11 +9476,11 @@
                 "webhook"
               ]
             },
-            "description": "Atteso: `Gruppo Postman Gruppo eliminato` + elenco."
+            "description": "Atteso: `Gruppo Postman Gruppo eliminato`, riga vuota, elenco a pulsanti. Giulia resta."
           }
         },
         {
-          "name": "Elimina gruppo (g:x)",
+          "name": "Elimina Postman Amici Cari (g2:x)",
           "event": [
             {
               "listen": "test",
@@ -9347,7 +9492,7 @@
                   "  pm.test(\"Helper: query riuscita\", () => { pm.expect(err).to.equal(null); pm.expect(res.code).to.equal(200); });",
                   "  if (!err && res.code === 200) cb(res.json().rows);",
                   "});",
-                  "q(\"SELECT flow, step FROM conversation_state WHERE chat_id = :ownerId\", (rows) => pm.test(\"Flusso gruppi/scelta\", () => { pm.expect(rows.length).to.equal(1); pm.expect(rows[0].flow + \"/\" + rows[0].step).to.equal(\"gruppi/scelta\"); }));"
+                  "q(\"SELECT flow, step FROM conversation_state WHERE chat_id = :ownerId\", (rows) => pm.test(\"Flusso gruppi/elimina\", () => { pm.expect(rows.length).to.equal(1); pm.expect(rows[0].flow + \"/\" + rows[0].step).to.equal(\"gruppi/elimina\"); }));"
                 ]
               }
             }
@@ -9366,7 +9511,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"update_id\": {{$randomInt}},\n  \"callback_query\": {\n    \"id\": \"smoke-{{$randomInt}}\",\n    \"from\": { \"id\": {{ownerId}} },\n    \"data\": \"g:x\"\n  }\n}",
+              "raw": "{\n  \"update_id\": {{$randomInt}},\n  \"callback_query\": {\n    \"id\": \"smoke-{{$randomInt}}\",\n    \"from\": { \"id\": {{ownerId}} },\n    \"data\": \"g2:x:{{amiciId}}:{{hash:Postman Amici Cari}}\"\n  }\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -9382,58 +9527,7 @@
                 "webhook"
               ]
             },
-            "description": ""
-          }
-        },
-        {
-          "name": "Scegli Postman Amici Cari",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
-                  "const q = (sql, cb) => pm.sendRequest({ url: pm.variables.get(\"helperUrl\") + \"/query\", method: \"POST\", header: { \"Content-Type\": \"application/json\" }, body: { mode: \"raw\", raw: JSON.stringify({ sql: sql.replace(/:(\\w+)/g, (_, k) => pm.variables.get(k)) }) } }, (err, res) => {",
-                  "  pm.test(\"Helper: query riuscita\", () => { pm.expect(err).to.equal(null); pm.expect(res.code).to.equal(200); });",
-                  "  if (!err && res.code === 200) cb(res.json().rows);",
-                  "});",
-                  "q(\"SELECT flow, step FROM conversation_state WHERE chat_id = :ownerId\", (rows) => pm.test(\"Flusso gruppi/conferma\", () => { pm.expect(rows.length).to.equal(1); pm.expect(rows[0].flow + \"/\" + rows[0].step).to.equal(\"gruppi/conferma\"); }));"
-                ]
-              }
-            }
-          ],
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              },
-              {
-                "key": "X-Telegram-Bot-Api-Secret-Token",
-                "value": "{{webhookSecret}}"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"update_id\": {{$randomInt}},\n  \"callback_query\": {\n    \"id\": \"smoke-{{$randomInt}}\",\n    \"from\": { \"id\": {{ownerId}} },\n    \"data\": \"f:{{flowId}}:sg:{{amiciId}}\"\n  }\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
-            "url": {
-              "raw": "{{baseUrl}}/webhook",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "webhook"
-              ]
-            },
-            "description": "Atteso: `… Nessuna persona ha questa etichetta`."
+            "description": "Atteso: `Eliminare il gruppo Postman Amici Cari? Nessuna persona ha questa etichetta`."
           }
         },
         {
@@ -9487,7 +9581,110 @@
                 "webhook"
               ]
             },
-            "description": ""
+            "description": "Atteso: `Gruppo Postman Amici Cari eliminato` + elenco."
+          }
+        },
+        {
+          "name": "Pulsante vecchio g:r → non più disponibile (FR-017)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "const q = (sql, cb) => pm.sendRequest({ url: pm.variables.get(\"helperUrl\") + \"/query\", method: \"POST\", header: { \"Content-Type\": \"application/json\" }, body: { mode: \"raw\", raw: JSON.stringify({ sql: sql.replace(/:(\\w+)/g, (_, k) => pm.variables.get(k)) }) } }, (err, res) => {",
+                  "  pm.test(\"Helper: query riuscita\", () => { pm.expect(err).to.equal(null); pm.expect(res.code).to.equal(200); });",
+                  "  if (!err && res.code === 200) cb(res.json().rows);",
+                  "});",
+                  "q(\"SELECT flow, step FROM conversation_state WHERE chat_id = :ownerId\", (rows) => pm.test(\"Nessun flusso guidato attivo\", () => pm.expect(rows.length).to.equal(0)));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Telegram-Bot-Api-Secret-Token",
+                "value": "{{webhookSecret}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"update_id\": {{$randomInt}},\n  \"callback_query\": {\n    \"id\": \"smoke-{{$randomInt}}\",\n    \"from\": { \"id\": {{ownerId}} },\n    \"data\": \"g:r\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/webhook",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "webhook"
+              ]
+            },
+            "description": "Pulsante di `/gruppi` di prima del rilascio. Atteso: popup \"Questa azione non è più disponibile\" (non visibile da Postman, vedi README), nessun messaggio, nessuna modifica."
+          }
+        },
+        {
+          "name": "Pulsante vecchio f:…:sg → non più disponibile (FR-017)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "const q = (sql, cb) => pm.sendRequest({ url: pm.variables.get(\"helperUrl\") + \"/query\", method: \"POST\", header: { \"Content-Type\": \"application/json\" }, body: { mode: \"raw\", raw: JSON.stringify({ sql: sql.replace(/:(\\w+)/g, (_, k) => pm.variables.get(k)) }) } }, (err, res) => {",
+                  "  pm.test(\"Helper: query riuscita\", () => { pm.expect(err).to.equal(null); pm.expect(res.code).to.equal(200); });",
+                  "  if (!err && res.code === 200) cb(res.json().rows);",
+                  "});",
+                  "q(\"SELECT flow, step FROM conversation_state WHERE chat_id = :ownerId\", (rows) => pm.test(\"Nessun flusso guidato attivo\", () => pm.expect(rows.length).to.equal(0)));",
+                  "q(\"SELECT COUNT(*) AS n FROM groups WHERE id = 9201\", (rows) => pm.test(\"Smoke Famiglia intatto\", () => pm.expect(rows[0].n).to.equal(1)));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Telegram-Bot-Api-Secret-Token",
+                "value": "{{webhookSecret}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"update_id\": {{$randomInt}},\n  \"callback_query\": {\n    \"id\": \"smoke-{{$randomInt}}\",\n    \"from\": { \"id\": {{ownerId}} },\n    \"data\": \"f:{{flowId}}:sg:9201\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/webhook",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "webhook"
+              ]
+            },
+            "description": "«Quale gruppo?» di prima del rilascio: lo step `scelta` non esiste più. Atteso: \"Questa azione non è più disponibile\", nessuna modifica."
           }
         }
       ]

@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { addToGroup, insertGroup, insertPerson } from "../helpers/db";
 import { makeDeps, type TestDeps } from "../helpers/deps";
-import { commandParts, monoParts } from "../helpers/fake-telegram";
-import { say } from "../helpers/send";
+import { env } from "cloudflare:test";
+import { nameHash } from "../../src/domain/text";
+import { buttons, cbOf, commandParts, labels, monoParts } from "../helpers/fake-telegram";
+import { press, say } from "../helpers/send";
 
 // Oggi = mercoledì 28/10/2026.
 
@@ -38,14 +40,16 @@ describe("US2: /prossimi", () => {
     expect(lines(deps)).toHaveLength(4);
   });
 
-  it("FR-010: gruppo inesistente → messaggio ed elenco dei gruppi; senza gruppi testo dedicato", async () => {
+  it("FR-010, RF-17 v1.1: gruppo inesistente → avviso ed elenco a pulsanti; senza gruppi testo dedicato", async () => {
     const deps = makeDeps();
     await say(deps, "/prossimi 7 inesistente");
-    expect(deps.tg.lastText()).toBe("Il gruppo «inesistente» non esiste.\nNon hai ancora nessun gruppo.");
+    expect(deps.tg.lastText()).toBe("Nessun gruppo corrisponde a «inesistente».\n\nNon hai ancora nessun gruppo.");
+    expect(labels(deps.tg.lastKeyboard())).toEqual(["➕ Nuovo gruppo"]);
     await insertGroup("Lavoro");
     await insertGroup("famiglia");
     await say(deps, "/prossimi 7 inesistente");
-    expect(deps.tg.lastText()).toBe("Il gruppo «inesistente» non esiste.\nGruppi esistenti: famiglia, Lavoro");
+    expect(deps.tg.lastText()).toBe("Nessun gruppo corrisponde a «inesistente».\n\n👥 I tuoi gruppi");
+    expect(labels(deps.tg.lastKeyboard())).toEqual(["famiglia (0)", "Lavoro (0)", "➕ Nuovo gruppo"]);
   });
 
   it.each(["0", "-3", "400"])("FR-011: /prossimi %s → intervallo ammesso e nessuna lista", async (n) => {
@@ -103,5 +107,89 @@ describe("US2: /prossimi", () => {
     const deps = makeDeps({ now: new Date("2026-12-20T10:00:00.000Z") });
     await say(deps, "/prossimi 30");
     expect(lines(deps)).toEqual(["Prossimi 30 giorni", "", `Mar 05/01  Gino (27)  /p_${id}`]);
+  });
+});
+
+describe("v1.1 RF-17, BR-26 — filtro gruppo", () => {
+  // Anna (30/10) in "👨‍👩‍👧 Famiglia", Bruno (31/10) in "Famiglia Rossi", Carla (20/11) in entrambi.
+  async function seedFamiglie(withRossi = true) {
+    const casa = await insertGroup("👨‍👩‍👧 Famiglia");
+    const rossi = withRossi ? await insertGroup("Famiglia Rossi") : null;
+    const a = await insertPerson({ fullName: "Anna", day: 30, month: 10 });
+    const b = await insertPerson({ fullName: "Bruno", day: 31, month: 10 });
+    const c = await insertPerson({ fullName: "Carla", day: 20, month: 11 });
+    await addToGroup(a, casa);
+    await addToGroup(c, casa);
+    if (rossi !== null) {
+      await addToGroup(b, rossi);
+      await addToGroup(c, rossi);
+    }
+    return { casa, rossi, a, b, c };
+  }
+
+  it("RF-17, BR-26 (#16): /prossimi 7 fam con un solo gruppo → lista filtrata con il nome salvato", async () => {
+    const { a } = await seedFamiglie(false);
+    const deps = makeDeps();
+    await say(deps, "/prossimi 7 fam");
+    expect(lines(deps)).toEqual(["Prossimi 7 giorni (👨‍👩‍👧 Famiglia)", "", `Ven 30/10  Anna  /p_${a}`]);
+  });
+
+  it("RF-17, RNF-14 (#17): più gruppi → scelta g2:p che conserva i giorni; il tocco dà la lista filtrata", async () => {
+    const { casa, rossi, b } = await seedFamiglie();
+    const deps = makeDeps();
+    await say(deps, "/prossimi 7 fam");
+    expect(deps.tg.lastText()).toBe("🔍 Più gruppi corrispondono a «fam»:");
+    expect(buttons(deps.tg.lastKeyboard())).toEqual([
+      ["👨‍👩‍👧 Famiglia (2)", `g2:p:${casa}:${nameHash("👨‍👩‍👧 Famiglia")}:7`],
+      ["Famiglia Rossi (2)", `g2:p:${rossi}:${nameHash("Famiglia Rossi")}:7`],
+    ]);
+    await press(deps, cbOf(deps.tg.lastKeyboard(), "Famiglia Rossi (2)"));
+    expect(lines(deps)).toEqual(["Prossimi 7 giorni (Famiglia Rossi)", "", `Sab 31/10  Bruno  /p_${b}`]);
+    expect(deps.tg.lastKeyboard()).toBeUndefined();
+  });
+
+  it("RF-17 (#18): /prossimi 7 xyz → avviso + elenco a pulsanti g2:o", async () => {
+    const { casa } = await seedFamiglie(false);
+    const deps = makeDeps();
+    await say(deps, "/prossimi 7 xyz");
+    expect(deps.tg.lastText()).toBe("Nessun gruppo corrisponde a «xyz».\n\n👥 I tuoi gruppi");
+    expect(cbOf(deps.tg.lastKeyboard(), "👨‍👩‍👧 Famiglia (2)")).toBe(`g2:o:${casa}:${nameHash("👨‍👩‍👧 Famiglia")}`);
+  });
+
+  it("FR-011 (#19): /prossimi fam → 30 giorni filtrati", async () => {
+    const { a, c } = await seedFamiglie(false);
+    const deps = makeDeps();
+    await say(deps, "/prossimi fam");
+    expect(lines(deps)[0]).toBe("Prossimi 30 giorni (👨‍👩‍👧 Famiglia)");
+    expect(commandParts(deps.tg.messages().at(-1)!)).toEqual([`/p_${a}`, `/p_${c}`]);
+  });
+
+  it("FR-011a (#20): /prossimi 2024 calcetto → errore dei giorni; /prossimi 30 2024 calcetto → lista filtrata", async () => {
+    const g = await insertGroup("2024 Calcetto");
+    const p = await insertPerson({ fullName: "Dario", day: 2, month: 11 });
+    await addToGroup(p, g);
+    const deps = makeDeps();
+    await say(deps, "/prossimi 2024 calcetto");
+    expect(deps.tg.lastText()).toBe("Il numero di giorni deve essere tra 1 e 366");
+    await say(deps, "/prossimi 30 2024 calcetto");
+    expect(lines(deps)).toEqual(["Prossimi 30 giorni (2024 Calcetto)", "", `Lun 02/11  Dario  /p_${p}`]);
+  });
+
+  it("FR-006: /prossimi 7 🏖 (chiave vuota) → lista senza filtro", async () => {
+    await seedFamiglie();
+    const deps = makeDeps();
+    await say(deps, "/prossimi 7 🏖");
+    expect(lines(deps)[0]).toBe("Prossimi 7 giorni");
+    expect(lines(deps)).toHaveLength(4);
+  });
+
+  it("FR-005: tocco g2:p su un gruppo rinominato → non esiste più + elenco", async () => {
+    const { rossi } = await seedFamiglie();
+    const deps = makeDeps();
+    await say(deps, "/prossimi 7 fam");
+    const data = cbOf(deps.tg.lastKeyboard(), "Famiglia Rossi (2)");
+    await env.DB.prepare("UPDATE groups SET name = 'Rossi', name_norm = 'rossi' WHERE id = ?").bind(rossi).run();
+    await press(deps, data);
+    expect(deps.tg.lastText()).toBe("Il gruppo non esiste più.\n\n👥 I tuoi gruppi");
   });
 });

@@ -32,7 +32,7 @@ describe("US7: benvenuto e aiuto", () => {
       expect(line!.length).toBeGreaterThan(c.length + 5);
     }
     // AFU §5.1: comandi delle viste (feature 003), prima di /annulla.
-    const viste = ["/oggi", "/prossimi", "/cerca", "/gruppo", "/mese", "/scaduti", "/anno"];
+    const viste = ["/oggi", "/prossimi", "/cerca", "/mese", "/scaduti", "/anno"];
     for (const c of viste) expect(lines.find((l) => l.startsWith(`${c} `)), c).toBeDefined();
     const annulla = lines.findIndex((l) => l.startsWith("/annulla "));
     for (const c of viste) expect(lines.findIndex((l) => l.startsWith(`${c} `))).toBeLessThan(annulla);
@@ -43,6 +43,14 @@ describe("US7: benvenuto e aiuto", () => {
       expect(i).toBeLessThan(annulla);
     }
     expect(lines).toContain("Per importare persone inviami un file CSV.");
+  });
+
+  it("RF-19, AFU §5.1 (#7): /aiuto mostra /gruppi [nome] e non /gruppo", async () => {
+    const deps = makeDeps();
+    await say(deps, "/aiuto");
+    const lines = deps.tg.lastText()!.split("\n");
+    expect(lines).toContain("/gruppi [nome] — elenco gruppi a pulsanti; con un nome cerca il gruppo e apre la scheda");
+    expect(lines.some((l) => l.startsWith("/gruppo "))).toBe(false);
   });
 
   it.each(["ciao", "/pippo"])("RF-28, RNF-13, FR-025a: %s fuori flusso → Non ho capito", async (text) => {

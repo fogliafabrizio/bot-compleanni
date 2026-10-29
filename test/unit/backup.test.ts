@@ -159,3 +159,11 @@ describe("FR-018, SC-006: validazione", () => {
     }
   });
 });
+
+describe("FR-016, research R-11: il ripristino non applica FR-006a", () => {
+  it("FR-016: un backup con il gruppo 🏖 resta valido", () => {
+    const r = parseBackup(bytes(buildBackup({ ...DATA, groups: [{ id: 5, name: "🏖" }] }, ISO)), TODAY);
+    expect(r.ok).toBe(true);
+    if (r.ok) expect(r.backup.groups).toEqual([{ id: 5, name: "🏖", name_norm: "🏖" }]);
+  });
+});

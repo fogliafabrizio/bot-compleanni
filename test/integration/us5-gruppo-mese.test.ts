@@ -1,13 +1,14 @@
 import { describe, expect, it } from "vitest";
+import { nameHash } from "../../src/domain/text";
 import { addToGroup, insertGroup, insertPerson } from "../helpers/db";
 import { makeDeps } from "../helpers/deps";
-import { commandParts, monoParts } from "../helpers/fake-telegram";
+import { buttons, commandParts, labels, monoParts } from "../helpers/fake-telegram";
 import { say } from "../helpers/send";
 
 // Oggi = mercoledì 28/10/2026.
 
-describe("US5: /gruppo", () => {
-  it("RF-19: tutte le persone del gruppo, senza limite di giorni, per prossimo compleanno", async () => {
+describe("US5: /gruppo (alias di /gruppi, v1.1 RF-19, BR-26)", () => {
+  it("RF-19: /gruppo lavoro apre la scheda gruppo, per prossimo compleanno, con Rinomina ed Elimina", async () => {
     const lavoro = await insertGroup("Lavoro");
     const a = await insertPerson({ fullName: "Anna", day: 1, month: 9, year: 1990 });
     const b = await insertPerson({ fullName: "Bruno", day: 30, month: 10 });
@@ -17,37 +18,40 @@ describe("US5: /gruppo", () => {
     const deps = makeDeps();
     await say(deps, "/gruppo lavoro");
     const msg = deps.tg.messages()[0]!;
-    expect(msg.text.split("\n").slice(0, 2)).toEqual(["Gruppo Lavoro", ""]);
+    expect(msg.text.split("\n").slice(0, 2)).toEqual(["👥 Lavoro · 2 persone", ""]);
     expect(commandParts(msg)).toEqual([`/p_${b}`, `/p_${a}`]);
     expect(monoParts(msg).map((s) => s.trimEnd())).toEqual(["Ven 30/10  Bruno", "Mer 01/09  Anna (37)"]);
-    expect(msg.keyboard).toBeUndefined();
+    expect(buttons(msg.keyboard)).toEqual([
+      ["✏️ Rinomina", `g2:r:${lavoro}:${nameHash("Lavoro")}`],
+      ["🗑 Elimina", `g2:x:${lavoro}:${nameHash("Lavoro")}`],
+    ]);
     await say(deps, "/gruppo LAVORO");
     expect(deps.tg.lastText()).toBe(msg.text);
   });
 
-  it("FR-014: gruppo inesistente → messaggio + elenco; senza nome → sintassi + elenco", async () => {
+  it("FR-007: gruppo inesistente → avviso + elenco a pulsanti; senza nome → elenco", async () => {
     await insertGroup("Lavoro");
     await insertGroup("Famiglia");
     const deps = makeDeps();
     await say(deps, "/gruppo calcetto");
-    expect(deps.tg.lastText()).toBe("Il gruppo «calcetto» non esiste.\nGruppi esistenti: Famiglia, Lavoro");
+    expect(deps.tg.lastText()).toBe("Nessun gruppo corrisponde a «calcetto».\n\n👥 I tuoi gruppi");
+    expect(labels(deps.tg.lastKeyboard())).toEqual(["Famiglia (0)", "Lavoro (0)", "➕ Nuovo gruppo"]);
     await say(deps, "/gruppo");
-    expect(deps.tg.lastText()).toBe(
-      "Scrivi /gruppo seguito dal nome del gruppo, es. /gruppo Famiglia\nGruppi esistenti: Famiglia, Lavoro",
-    );
+    expect(deps.tg.lastText()).toBe("👥 I tuoi gruppi");
   });
 
-  it("FR-014: senza gruppi la sintassi indica che non ce ne sono", async () => {
+  it("FR-003: senza gruppi /gruppo indica che non ce ne sono", async () => {
     const deps = makeDeps();
     await say(deps, "/gruppo");
-    expect(deps.tg.lastText()).toBe("Scrivi /gruppo seguito dal nome del gruppo, es. /gruppo Famiglia\nNon hai ancora nessun gruppo.");
+    expect(deps.tg.lastText()).toBe("Non hai ancora nessun gruppo.");
+    expect(labels(deps.tg.lastKeyboard())).toEqual(["➕ Nuovo gruppo"]);
   });
 
-  it("RF-19: gruppo vuoto", async () => {
+  it("FR-008: gruppo vuoto → scheda con 0 persone", async () => {
     await insertGroup("Lavoro");
     const deps = makeDeps();
     await say(deps, "/gruppo lavoro");
-    expect(deps.tg.lastText()).toBe("Nessuna persona nel gruppo Lavoro");
+    expect(deps.tg.lastText()).toBe("👥 Lavoro · 0 persone\n\nNel gruppo non ci sono persone.");
   });
 });
 

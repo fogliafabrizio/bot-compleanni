@@ -1,4 +1,4 @@
-import type { InlineKeyboardMarkup, MessageEntity } from "./types";
+import type { BotCommand, InlineKeyboardMarkup, MessageEntity } from "./types";
 
 // Client minimale della Bot API su fetch (research R-05). Testo semplice: nessun parse_mode; il
 // monospazio delle liste passa solo per `entities` (contracts/liste.md di 003).
@@ -14,6 +14,8 @@ export interface TelegramApi {
   // Una tastiera vuota ({ inline_keyboard: [] }) rimuove i pulsanti.
   editMessageText(chatId: number, messageId: number, text: string, keyboard?: InlineKeyboardMarkup): Promise<void>;
   answerCallbackQuery(id: string, text?: string): Promise<void>;
+  // Menu dei comandi (FR-014 di 005).
+  setMyCommands(commands: readonly BotCommand[]): Promise<void>;
   // File in uscita e in ingresso (contracts/telegram-file.md di 004).
   sendDocument(
     chatId: number,
@@ -77,6 +79,9 @@ export function createTelegramApi(token: string, fetchFn: typeof fetch = fetch):
       const body: Record<string, unknown> = { callback_query_id: id };
       if (text !== undefined) body.text = text;
       await call("answerCallbackQuery", body);
+    },
+    async setMyCommands(commands) {
+      await call("setMyCommands", { commands });
     },
     async sendDocument(chatId, file, caption) {
       const form = new FormData();

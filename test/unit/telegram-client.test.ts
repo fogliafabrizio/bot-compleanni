@@ -47,6 +47,14 @@ describe("R-05: client della Bot API", () => {
     expect((err as TelegramError).message).not.toContain("dati");
   });
 
+  it("FR-014 (005): setMyCommands invia l'elenco dei comandi", async () => {
+    const { fn, captured } = fakeFetch({ ok: true, result: true });
+    const api = createTelegramApi("tok", fn);
+    await api.setMyCommands([{ command: "gruppi", description: "Elenco gruppi" }]);
+    expect(captured[0]!.url).toBe("https://api.telegram.org/bottok/setMyCommands");
+    expect(captured[0]!.body).toEqual({ commands: [{ command: "gruppi", description: "Elenco gruppi" }] });
+  });
+
   it("R-05: editMessageReplyMarkup", async () => {
     const { fn, captured } = fakeFetch({ ok: true, result: true });
     const api = createTelegramApi("tok", fn);

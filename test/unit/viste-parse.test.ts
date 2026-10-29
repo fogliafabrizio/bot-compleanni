@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { searchKey } from "../../src/domain/text";
 import {
+  findGroups,
   matchSearch,
   monthRows,
   nextBirthdayRow,
@@ -9,6 +10,7 @@ import {
   parseYear,
   pendingWindow,
   sortByNextBirthday,
+  sortGroups,
   upcoming,
   type ListPerson,
 } from "../../src/domain/viste";
@@ -150,5 +152,69 @@ describe("RF-21, BR-08: finestra di /scaduti e Segna fatto", () => {
   it("BR-08: da oggi − 7 a ieri", () => {
     expect(pendingWindow(today)).toEqual({ from: "2026-10-21", to: "2026-10-27" });
     expect(pendingWindow({ year: 2027, month: 1, day: 3 })).toEqual({ from: "2026-12-27", to: "2027-01-02" });
+  });
+});
+
+describe("BR-26, FR-007: ricerca dei gruppi (research R-03)", () => {
+  let gid = 1;
+  const g = (name: string) => ({ id: gid++, name });
+  const namesOf = (gs: readonly { name: string }[]) => gs.map((x) => x.name);
+
+  it("FR-007: la corrispondenza esatta vince sulle parziali", () => {
+    const fam = g("👨‍👩‍👧 Famiglia");
+    expect(findGroups([fam, g("Famiglia Rossi"), g("Lavoro")], "famiglia")).toEqual({ kind: "one", group: fam });
+  });
+
+  it("FR-007: un solo gruppo che contiene il testo → one", () => {
+    const fam = g("Famiglia");
+    expect(findGroups([fam, g("Lavoro")], "fam")).toEqual({ kind: "one", group: fam });
+  });
+
+  it("FR-007: più parziali → many ordinati", () => {
+    const r = findGroups([g("Famiglia Rossi"), g("Lavoro"), g("Famiglia")], "fam");
+    expect(r.kind).toBe("many");
+    expect(r.kind === "many" && namesOf(r.groups)).toEqual(["Famiglia", "Famiglia Rossi"]);
+  });
+
+  it("FR-007: due esatte (stessa chiave, name_norm diversi) → many con solo quelle", () => {
+    const r = findGroups([g("Famiglia Rossi"), g("👨‍👩‍👧 Famiglia"), g("Famiglia")], "famiglia");
+    expect(r.kind === "many" && namesOf(r.groups).sort()).toEqual(["Famiglia", "👨‍👩‍👧 Famiglia"].sort());
+    expect(r.kind === "many" && r.groups.length).toBe(2);
+  });
+
+  it("FR-007: nessuna corrispondenza → none", () => {
+    expect(findGroups([g("Famiglia")], "xyz")).toEqual({ kind: "none" });
+  });
+
+  it.each(["🏖", "  ", ""])("FR-006: testo con chiave vuota %j → empty", (q) => {
+    expect(findGroups([g("Famiglia"), g("🏖")], q)).toEqual({ kind: "empty" });
+  });
+
+  it("FR-016: un gruppo con chiave vuota non è mai trovato", () => {
+    const groups = [g("🏖"), g("★★")];
+    for (const q of ["🏖", "a", "x", "★"]) expect(["empty", "none"]).toContain(findGroups(groups, q).kind);
+  });
+
+  it("FR-001: sortGroups per chiave, poi nome, poi id", () => {
+    const a = g("Lavoro");
+    const b = g("👨‍👩‍👧 Famiglia");
+    const c = g("Famiglia");
+    const d = g("Amici");
+    const e = g("Famiglia");
+    const sorted = sortGroups([a, b, c, d, e]);
+    // A parità di chiave decide il Collator: i simboli vengono prima delle lettere.
+    expect(namesOf(sorted)).toEqual(["Amici", "👨‍👩‍👧 Famiglia", "Famiglia", "Famiglia", "Lavoro"]);
+    expect(sorted.slice(2, 4).map((x) => x.id)).toEqual([c.id, e.id]);
+  });
+});
+
+describe("FR-011a: argomenti di /prossimi con un gruppo che inizia con cifre", () => {
+  it.each([
+    ["fam", { ok: true, days: 30, group: "fam" }],
+    ["2024 calcetto", { ok: false }],
+    ["30 2024 calcetto", { ok: true, days: 30, group: "2024 calcetto" }],
+    ["7 fam", { ok: true, days: 7, group: "fam" }],
+  ])("FR-011a: %j", (args, expected) => {
+    expect(parseUpcomingArgs(args)).toEqual(expected);
   });
 });

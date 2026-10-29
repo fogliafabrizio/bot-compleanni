@@ -5,12 +5,12 @@ import { button, keyboard } from "../telegram/keyboard";
 import { handleBackup } from "./backup";
 import { handleExport, handleTemplate } from "./export";
 import { startRestore } from "./flows/ripristina";
-import { showGroups } from "./flows/gruppi";
 import { startMessaggio } from "./flows/messaggio";
 import { startNuovo } from "./flows/nuovo";
+import { handleGruppiCommand } from "./gruppi";
 import { showOggi } from "./oggi";
 import { showScheda } from "./scheda";
-import { showAnno, showCerca, showGruppo, showMese, showProssimi, showScaduti } from "./viste";
+import { showAnno, showCerca, showMese, showProssimi, showScaduti } from "./viste";
 
 // Comandi (contracts/comandi.md).
 
@@ -50,13 +50,16 @@ export async function sendWelcome(ctx: Ctx): Promise<void> {
   );
 }
 
+// RF-19: /gruppi [nome] e l'alias /gruppo sono lo stesso handler.
+const gruppi: CommandHandler = (ctx, cmd) => handleGruppiCommand(ctx, cmd.args);
+
 export const COMMANDS: Record<string, CommandHandler> = {
   start: (ctx) => sendWelcome(ctx),
   aiuto: (ctx) => reply(ctx, T.help),
   nuovo: (ctx) => startNuovo(ctx),
   // RF-03
   p: (ctx, cmd) => showScheda(ctx, cmd.personId ?? 0),
-  gruppi: (ctx) => showGroups(ctx),
+  gruppi,
   // RF-15
   messaggio: (ctx) => startMessaggio(ctx),
   // RF-16
@@ -66,7 +69,7 @@ export const COMMANDS: Record<string, CommandHandler> = {
   // RF-18
   cerca: (ctx, cmd) => showCerca(ctx, cmd.args),
   // RF-19
-  gruppo: (ctx, cmd) => showGruppo(ctx, cmd.args),
+  gruppo: gruppi,
   // RF-20
   mese: (ctx, cmd) => showMese(ctx, cmd.args),
   // RF-21

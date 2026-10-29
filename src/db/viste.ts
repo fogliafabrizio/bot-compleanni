@@ -53,23 +53,46 @@ export function listPersonsStatement(db: D1Database, month?: number): D1Prepared
     : db.prepare(`SELECT ${LIST_PERSON_COLUMNS} FROM persons p WHERE p.birth_month = ?`).bind(month);
 }
 
-export function groupNamesStatement(db: D1Database): D1PreparedStatement {
-  return db.prepare("SELECT name FROM groups ORDER BY name COLLATE NOCASE, id");
+// --- Gruppi v1.1 (RF-17, RF-19, research R-07) ---
+
+// Gruppo con il numero di persone: stessa forma di GroupWithCount.
+export interface GroupCountRow {
+  id: number;
+  name: string;
+  members: number;
 }
 
-// Una batch: [gruppo per name_norm, persone del gruppo, elenco dei gruppi] (FR-010, FR-014).
-export function groupLookupStatements(db: D1Database, nameNorm: string): D1PreparedStatement[] {
+// Appartenenza con le colonne di lista della persona.
+export interface MembershipRow extends ListPersonRow {
+  group_id: number;
+}
+
+const GROUP_COUNT_SQL = `SELECT g.id, g.name, COUNT(pg.person_id) AS members
+  FROM groups g LEFT JOIN person_groups pg ON pg.group_id = g.id`;
+
+// Ricerca in una sola andata: [gruppi con conteggi, tutte le appartenenze]. La chiave BR-26 non si
+// calcola in SQL; il filtro sul gruppo trovato è in TypeScript.
+export function groupSearchStatements(db: D1Database): D1PreparedStatement[] {
   return [
-    db.prepare("SELECT id, name FROM groups WHERE name_norm = ?").bind(nameNorm),
-    db
-      .prepare(
-        `SELECT ${LIST_PERSON_COLUMNS} FROM persons p WHERE p.id IN (
-           SELECT pg.person_id FROM person_groups pg JOIN groups g ON g.id = pg.group_id WHERE g.name_norm = ?)`,
-      )
-      .bind(nameNorm),
-    groupNamesStatement(db),
+    db.prepare(`${GROUP_COUNT_SQL} GROUP BY g.id`),
+    db.prepare(`SELECT pg.group_id, ${LIST_PERSON_COLUMNS} FROM person_groups pg JOIN persons p ON p.id = pg.person_id`),
   ];
 }
+
+// Scheda gruppo e filtro di /prossimi al tocco: [gruppo per id con conteggio, persone del gruppo].
+export function groupCardStatements(db: D1Database, groupId: number): D1PreparedStatement[] {
+  return [
+    db.prepare(`${GROUP_COUNT_SQL} WHERE g.id = ? GROUP BY g.id`).bind(groupId),
+    db
+      .prepare(`SELECT ${LIST_PERSON_COLUMNS} FROM person_groups pg JOIN persons p ON p.id = pg.person_id WHERE pg.group_id = ?`)
+      .bind(groupId),
+  ];
+}
+
+export function membersOf(rows: readonly MembershipRow[], groupId: number): ListPerson[] {
+  return rows.filter((r) => r.group_id === groupId).map(rowToListPerson);
+}
+
 
 // Colonne di TodayRow, con alias p (persona) e o (occorrenza); il primo parametro è la chiave del default.
 export const TODAY_COLUMNS = `p.id, p.full_name, p.nickname, p.birth_day, p.birth_month, p.birth_year, p.phone, p.instagram,

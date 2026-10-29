@@ -3,12 +3,14 @@
 import {
   CSV_COLUMNS,
   CSV_GROUP_SEPARATOR,
+  GROUP_KEY_MIN_LENGTH,
   IMPORT_MAX_ROWS,
   OUTCOME_CORRECTION_DAYS,
   RECEIVED_FILE_MAX_BYTES,
   TELEGRAM_DOWNLOAD_MAX_BYTES,
   TEXT_LIMITS,
 } from "./config";
+import type { BotCommand } from "./telegram/types";
 
 export const MONTHS_IT = [
   "gennaio",
@@ -150,14 +152,23 @@ export const T = {
   confirmDeletePerson: (name: string) => `Eliminare ${name}? Perderai anche lo storico`,
   personDeleted: "Persona eliminata",
 
-  // US6 — gruppi
-  groupsTitle: "Gruppi:",
-  groupLine: (name: string, n: number) => `• ${name} (${n})`,
+  // US6 — gruppi (v1.1: RF-07, RF-19, contracts/gruppi.md di 005)
+  groupsTitle: "👥 I tuoi gruppi",
+  groupButton: (name: string, n: number) => `${name} (${n})`,
+  // Righe dell'elenco testuale oltre GROUP_BUTTONS_MAX gruppi (FR-013).
+  groupLine: (name: string, n: number) => `${name} (${n})`,
+  groupsTypeName: "Scrivi /gruppi seguito da una parte del nome per aprire un gruppo, es. /gruppi fam",
+  groupCardTitle: (name: string, n: number) => `👥 ${name} · ${n === 1 ? "1 persona" : `${n} persone`}`,
+  groupCardEmpty: "Nel gruppo non ci sono persone.",
+  groupGone: "Il gruppo non esiste più.",
+  // Ricerca (FR-007): `q` è il testo come scritto dall'utente.
+  groupsMany: (q: string) => `🔍 Più gruppi corrispondono a «${q}»:`,
+  groupNoMatch: (q: string) => `Nessun gruppo corrisponde a «${q}».`,
+  // FR-006a
+  groupKeyTooShort: `Il nome del gruppo deve contenere almeno ${GROUP_KEY_MIN_LENGTH} lettere o cifre`,
   noGroups: "Non hai ancora nessun gruppo.",
   btnRename: "✏️ Rinomina",
   btnDeleteGroup: "🗑 Elimina",
-  askGroupToRename: "Quale gruppo vuoi rinominare?",
-  askGroupToDelete: "Quale gruppo vuoi eliminare?",
   askRenameTo: (name: string) => `Nuovo nome per il gruppo ${name}?`,
   confirmDeleteGroup: (name: string, n: number) =>
     `Eliminare il gruppo ${name}? ` +
@@ -194,8 +205,6 @@ export const T = {
 
   // Viste e ricerche (feature 003, contracts/comandi.md)
   listOutcome: { aperta: "in attesa", saltato: "saltato", non_confermato: "non confermato" },
-  groupNotFound: (q: string) => `Il gruppo «${q}» non esiste.`,
-  existingGroups: (names: string) => `Gruppi esistenti: ${names}`,
   // RF-16
   todayNone: "Oggi non ci sono compleanni. Il prossimo:",
   todayNoPersons: "Oggi non ci sono compleanni e non hai ancora inserito nessuna persona.",
@@ -210,10 +219,6 @@ export const T = {
   searchUsage: "Scrivi /cerca seguito da una parte del nome o del nickname, es. /cerca marco",
   searchHeader: (q: string) => `Risultati per «${q}»`,
   searchNone: (q: string) => `Nessun risultato per «${q}»`,
-  // RF-19
-  groupHeader: (name: string) => `Gruppo ${name}`,
-  groupEmpty: (name: string) => `Nessuna persona nel gruppo ${name}`,
-  groupUsage: "Scrivi /gruppo seguito dal nome del gruppo, es. /gruppo Famiglia",
   // RF-20
   monthHeader: (monthName: string, year: number) => `Compleanni di ${monthName} ${year}`,
   monthNone: (monthName: string) => `Nessun compleanno a ${monthName}`,
@@ -279,6 +284,8 @@ export const T = {
     phoneInvalid: "telefono non valido",
     priorityInvalid: (v: string) => `priorità "${v}" non valida`,
     groupTooLong: (v: string) => `gruppo "${v}" troppo lungo (max ${TEXT_LIMITS.groupName})`,
+    // FR-006a: solo per i gruppi da creare.
+    groupKeyTooShort: (v: string) => `gruppo "${v}" senza almeno ${GROUP_KEY_MIN_LENGTH} lettere o cifre`,
     messageTooLong: "messaggio troppo lungo",
     extraColumns: "colonne in più",
   },
@@ -336,12 +343,11 @@ export const T = {
   help: [
     "Comandi disponibili:",
     "/nuovo — aggiungi una persona, un campo alla volta",
-    "/gruppi — elenca, crea, rinomina ed elimina i gruppi",
+    "/gruppi [nome] — elenco gruppi a pulsanti; con un nome cerca il gruppo e apre la scheda",
     "/messaggio — modifica il messaggio di auguri",
     "/oggi — compleanni di oggi",
     "/prossimi [giorni] [gruppo] — prossimi compleanni",
     "/cerca <testo> — cerca per nome o nickname",
-    "/gruppo <nome> — persone di un gruppo",
     "/mese [mese] — compleanni del mese",
     `/scaduti — ultimi ${OUTCOME_CORRECTION_DAYS} giorni non fatti`,
     "/anno [anno] — riepilogo dell'anno",
@@ -358,3 +364,25 @@ export const T = {
     "Per importare persone inviami un file CSV.",
   ].join("\n"),
 } as const;
+
+// Menu dei comandi di Telegram (FR-014 di 005, research R-10): i comandi di /aiuto senza "/" né
+// argomenti; /gruppo resta un alias non elencato. Il cron lo registra con setMyCommands quando cambia.
+export const BOT_COMMANDS: readonly BotCommand[] = [
+  { command: "nuovo", description: "Aggiungi una persona" },
+  { command: "gruppi", description: "Elenco gruppi; con un nome cerca e apre la scheda" },
+  { command: "messaggio", description: "Modifica il messaggio di auguri" },
+  { command: "oggi", description: "Compleanni di oggi" },
+  { command: "prossimi", description: "Prossimi compleanni" },
+  { command: "cerca", description: "Cerca per nome o nickname" },
+  { command: "mese", description: "Compleanni del mese" },
+  { command: "scaduti", description: `Ultimi ${OUTCOME_CORRECTION_DAYS} giorni non fatti` },
+  { command: "anno", description: "Riepilogo dell'anno" },
+  { command: "modello", description: "Modello CSV per l'import" },
+  { command: "export", description: "Esporta le persone in CSV" },
+  { command: "backup", description: "Backup completo in JSON" },
+  { command: "ripristina", description: "Ripristina da un backup" },
+  { command: "annulla", description: "Interrompe l'operazione guidata in corso" },
+  { command: "id", description: "Mostra il tuo ID Telegram" },
+  { command: "aiuto", description: "Elenco dei comandi" },
+  { command: "start", description: "Messaggio di benvenuto" },
+];

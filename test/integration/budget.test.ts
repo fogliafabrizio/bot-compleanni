@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { count, insertGroup, insertPerson } from "../helpers/db";
+import { nameHash } from "../../src/domain/text";
+import { addToGroup, count, insertGroup, insertPerson } from "../helpers/db";
 import { makeDeps, type TestDeps } from "../helpers/deps";
 import { cbOf } from "../helpers/fake-telegram";
 import { press, say } from "../helpers/send";
@@ -45,10 +46,55 @@ describe("principio II, RNF-17: budget per update", () => {
     expect(m.d1 + m.tg).toBeLessThanOrEqual(15);
   });
 
-  it("RNF-17: /gruppi con 20 gruppi ≤ 15 subrequest", async () => {
+  it("RNF-17, RF-07 (005): /gruppi con 20 gruppi = 2 D1 + 1 Telegram", async () => {
     for (let i = 0; i < 20; i++) await insertGroup(`Gruppo ${i}`);
     const deps = makeDeps();
     const m = await measure(deps, () => say(deps, "/gruppi"));
-    expect(m.d1 + m.tg).toBeLessThanOrEqual(15);
+    expect(m).toEqual({ d1: 2, tg: 1 });
+  });
+});
+
+describe("principio II, research R-07 (005): budget dei gruppi con 200 persone", () => {
+  // Gruppo "Tutti" con 200 persone: la scheda occupa 5 messaggi.
+  async function bigGroup(): Promise<number> {
+    const gid = await insertGroup("Tutti");
+    await insertGroup("Lavoro");
+    for (let i = 0; i < 200; i++) {
+      const pid = await insertPerson({ fullName: `Persona ${i}`, day: (i % 28) + 1, month: (i % 12) + 1 });
+      await addToGroup(pid, gid);
+    }
+    return gid;
+  }
+
+  it("RF-19: /gruppi <testo> con esito one = 2 D1 (una batch) + 5 Telegram", async () => {
+    await bigGroup();
+    const deps = makeDeps();
+    const m = await measure(deps, () => say(deps, "/gruppi tutti"));
+    expect(m).toEqual({ d1: 2, tg: 5 });
+  });
+
+  it("FR-002: tocco g2:o = 2 D1 + 5 messaggi + 1 answer ≤ 9", async () => {
+    const gid = await bigGroup();
+    const deps = makeDeps();
+    const m = await measure(deps, () => press(deps, `g2:o:${gid}:${nameHash("Tutti")}`));
+    expect(m).toEqual({ d1: 2, tg: 6 });
+  });
+
+  it("FR-009: Rinomina, risposta valida con scheda di 200 persone = 3 D1 + 5 Telegram ≤ 8", async () => {
+    const gid = await bigGroup();
+    const deps = makeDeps();
+    await press(deps, `g2:r:${gid}:${nameHash("Tutti")}`);
+    const m = await measure(deps, () => say(deps, "Tutti quanti"));
+    expect(m).toEqual({ d1: 3, tg: 5 });
+  });
+
+  it("FR-010: Elimina, Sì = 2 D1 + 1 messaggio + 1 answer ≤ 4", async () => {
+    const gid = await bigGroup();
+    const deps = makeDeps();
+    await press(deps, `g2:x:${gid}:${nameHash("Tutti")}`);
+    const yes = cbOf(deps.tg.lastKeyboard(), "Sì");
+    const m = await measure(deps, () => press(deps, yes));
+    expect(await count("groups")).toBe(1);
+    expect(m).toEqual({ d1: 2, tg: 2 });
   });
 });

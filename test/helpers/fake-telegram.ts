@@ -1,5 +1,5 @@
 import { TelegramError, type TelegramApi } from "../../src/telegram/client";
-import type { InlineKeyboardButton, InlineKeyboardMarkup, MessageEntity } from "../../src/telegram/types";
+import type { BotCommand, InlineKeyboardButton, InlineKeyboardMarkup, MessageEntity } from "../../src/telegram/types";
 
 export type SendCall = {
   method: "sendMessage";
@@ -21,9 +21,11 @@ export type AnswerCall = { method: "answerCallbackQuery"; id: string; text?: str
 export type DocumentCall = { method: "sendDocument"; chatId: number; name: string; mimeType: string; text: string; caption?: string };
 export type GetFileCall = { method: "getFile"; fileId: string };
 export type DownloadCall = { method: "downloadFile"; filePath: string };
-export type TgCall = SendCall | EditCall | TextEditCall | AnswerCall | DocumentCall | GetFileCall | DownloadCall;
+// Menu dei comandi (FR-014 di 005).
+export type CommandsCall = { method: "setMyCommands"; commands: BotCommand[] };
+export type TgCall = SendCall | EditCall | TextEditCall | AnswerCall | DocumentCall | GetFileCall | DownloadCall | CommandsCall;
 
-type FileMethod = "sendDocument" | "getFile" | "downloadFile";
+type FileMethod = "sendDocument" | "getFile" | "downloadFile" | "setMyCommands";
 
 // Telegram simulato: registra ogni chiamata, nessuna rete (principio X).
 export class FakeTelegram implements TelegramApi {
@@ -31,7 +33,7 @@ export class FakeTelegram implements TelegramApi {
   private nextMessageId = 100;
   private failures: number[] = [];
   private failRules: { predicate: (text: string) => boolean; code: number }[] = [];
-  private fileFailures: Record<FileMethod, number[]> = { sendDocument: [], getFile: [], downloadFile: [] };
+  private fileFailures: Record<FileMethod, number[]> = { sendDocument: [], getFile: [], downloadFile: [], setMyCommands: [] };
   private files = new Map<string, { filePath: string; content: Uint8Array }>();
 
   // Le prossime `times` chiamate del metodo indicato lanciano TelegramError(code).
@@ -109,6 +111,15 @@ export class FakeTelegram implements TelegramApi {
     this.calls.push({ method: "downloadFile", filePath });
     for (const f of this.files.values()) if (f.filePath === filePath) return f.content;
     throw new TelegramError(404);
+  }
+
+  async setMyCommands(commands: readonly BotCommand[]) {
+    this.maybeFail("setMyCommands");
+    this.calls.push({ method: "setMyCommands", commands: [...commands] });
+  }
+
+  commandsSet(): CommandsCall[] {
+    return this.calls.filter((c): c is CommandsCall => c.method === "setMyCommands");
   }
 
   documents(): DocumentCall[] {

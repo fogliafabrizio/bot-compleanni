@@ -1,7 +1,7 @@
 import { LIST_MAX_LINES_PER_MESSAGE, LIST_NAME_COLUMN_MAX, MESSAGE_MAX_LENGTH } from "../config";
 import { formatShort } from "../domain/date";
 import { displayName, type ListRow } from "../domain/viste";
-import type { MessageEntity } from "../telegram/types";
+import type { InlineKeyboardMarkup, MessageEntity } from "../telegram/types";
 import { T, WEEKDAYS_IT } from "../texts";
 import type { LocalDate } from "../time";
 import type { Ctx } from "./context";
@@ -114,9 +114,16 @@ export function splitMessage(lines: readonly ListLine[]): OutMessage[] {
   return out;
 }
 
-// Invia "<intestazione>", riga vuota e le righe, in uno o più messaggi senza tastiera (FR-004).
-export async function sendList(ctx: Ctx, header: string, lines: readonly ListLine[]): Promise<void> {
-  for (const m of splitMessage([plainLine(header), plainLine(""), ...lines])) {
-    await ctx.deps.tg.sendMessage(ctx.chatId, m.text, undefined, m.entities);
+// Invia le righe in uno o più messaggi; la tastiera, se c'è, solo sull'ultimo (FR-008 di 005).
+export async function sendLines(ctx: Ctx, lines: readonly ListLine[], keyboard?: InlineKeyboardMarkup): Promise<void> {
+  const messages = splitMessage(lines);
+  for (const [i, m] of messages.entries()) {
+    await ctx.deps.tg.sendMessage(ctx.chatId, m.text, i === messages.length - 1 ? keyboard : undefined, m.entities);
   }
+}
+
+// Invia "<intestazione>", riga vuota e le righe. Le liste di 003 non hanno tastiera (FR-004,
+// RNF-14); la scheda gruppo la passa per l'ultimo messaggio (research R-08 di 005).
+export async function sendList(ctx: Ctx, header: string, lines: readonly ListLine[], keyboard?: InlineKeyboardMarkup): Promise<void> {
+  await sendLines(ctx, [plainLine(header), plainLine(""), ...lines], keyboard);
 }

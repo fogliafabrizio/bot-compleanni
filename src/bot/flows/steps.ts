@@ -5,7 +5,7 @@ import type { Person } from "../../db/persons";
 import { formatLong, formatShort, parseBirthDate, type BirthDate } from "../../domain/date";
 import { validateGreeting } from "../../domain/greeting";
 import { normalizePhone } from "../../domain/phone";
-import { cleanText, normKey } from "../../domain/text";
+import { cleanText, hasValidGroupKey, normKey } from "../../domain/text";
 import { normalizeUsername } from "../../domain/username";
 import { keyboard } from "../../telegram/keyboard";
 import type { InlineKeyboardButton, InlineKeyboardMarkup } from "../../telegram/types";
@@ -22,6 +22,13 @@ export function validateText(input: string, max: number): Validation<string> {
   const r = cleanText(input, max);
   if (r.ok) return r;
   return { ok: false, error: r.reason === "empty" ? T.emptyValue : T.tooLong(r.max) };
+}
+
+// Nome di un gruppo nuovo o rinominato: vuoto, lunghezza (001 FR-010a) e chiave BR-26 (FR-006a, R-05).
+export function validateGroupName(input: string, max: number = TEXT_LIMITS.groupName): Validation<string> {
+  const r = validateText(input, max);
+  if (!r.ok || hasValidGroupKey(r.value)) return r;
+  return { ok: false, error: T.groupKeyTooShort };
 }
 
 // FR-035: messaggio di auguri (personalizzato o default), {nome} contato 60 caratteri.
@@ -194,7 +201,7 @@ export function newGroupStep(opts: { backStep: string; maxLength: number }): Ste
       return { text: T.askNewGroupName, keyboard: keyboard([[cancelButton(state)]]) };
     },
     async onText(text, state, ctx) {
-      const r = validateText(text, opts.maxLength);
+      const r = validateGroupName(text, opts.maxLength);
       if (!r.ok) {
         await repeatStep(ctx, state, r.error);
         return;

@@ -318,3 +318,36 @@ describe("RF-25, R-10: riga di export", () => {
     ).toEqual(["Marco Rossi", "", "29/02", "+39 3331234567", "marco.ig", "", "amici|Famiglia|Università", "alta", "Auguri {nome}"]);
   });
 });
+
+describe("FR-006a, 004 FR-006: gruppi da creare con chiave troppo corta", () => {
+  it("FR-006a: gruppo nuovo 🏖 → riga non valida con il motivo", () => {
+    const p = preview([row({ nome: "A", data: "01/01", gruppi: "🏖" })]);
+    expect(p.rows).toEqual([]);
+    expect(p.errors).toEqual([{ line: 2, reasons: ['gruppo "🏖" senza almeno 2 lettere o cifre'] }]);
+    expect(p.groupsToCreate).toEqual([]);
+  });
+
+  it("FR-006a: gruppo nuovo 🏖 X → riga non valida", () => {
+    const p = preview([row({ nome: "A", data: "01/01", gruppi: "Amici|🏖 X" })]);
+    expect(p.errors).toEqual([{ line: 2, reasons: ['gruppo "🏖 X" senza almeno 2 lettere o cifre'] }]);
+    expect(p.groupsToCreate).toEqual([]);
+  });
+
+  it("FR-006a: gruppo nuovo U2 → riga valida e gruppo da creare", () => {
+    const p = preview([row({ nome: "A", data: "01/01", gruppi: "U2" })]);
+    expect(p.errors).toEqual([]);
+    expect(p.groupsToCreate).toEqual(["U2"]);
+  });
+
+  it("FR-016: gruppo 🏖 già esistente (stesso name_norm) → riga valida e associata, nessun gruppo da creare", () => {
+    const p = preview([row({ nome: "A", data: "01/01", gruppi: "🏖" })], [], [{ name: "🏖", nameNorm: "🏖" }]);
+    expect(p.errors).toEqual([]);
+    expect(p.rows[0]?.groups).toEqual([{ name: "🏖", nameNorm: "🏖" }]);
+    expect(p.groupsToCreate).toEqual([]);
+  });
+
+  it("FR-006a: il motivo si aggiunge agli altri errori della riga", () => {
+    const p = preview([row({ nome: "", data: "01/01", gruppi: "★★" })]);
+    expect(p.errors[0]?.reasons).toEqual(["nome mancante", 'gruppo "★★" senza almeno 2 lettere o cifre']);
+  });
+});

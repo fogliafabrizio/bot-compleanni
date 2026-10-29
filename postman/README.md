@@ -49,8 +49,8 @@ Senza lo script: `npx wrangler d1 migrations apply birthday-bot-db --local`,
 | Id | Persona | Compleanno | Gruppo | Occorrenze |
 |---|---|---|---|---|
 | 9001 | Marco Rossi "Marchino", 1994, 📱 | oggi | Smoke Lavoro | 9101 oggi *aperta*; 9102 anno scorso *fatto* |
-| 9002 | Anna Bianchi, senza anno | oggi + 5 | Smoke Famiglia | — |
-| 9003 | Nicolò Verdi, 1990 | oggi + 40 | — | — |
+| 9002 | Anna Bianchi, senza anno | oggi + 5 | Smoke Famiglia, 👨‍👩‍👧 Smoke Casa | — |
+| 9003 | Nicolò Verdi, 1990 | oggi + 40 | Smoke Casa Rossi | — |
 | 9004 | Luca Neri, 2000 | oggi − 3 | Smoke Lavoro | 9103 *saltato*; 9104 anno prima *saltato* |
 | 9005 | Sara Gialli, senza anno | oggi − 2 | — | 9105 *aperta* |
 | 9006 | Paolo Blu, 1985 | oggi − 5 | — | 9106 *non confermato* |
@@ -69,14 +69,14 @@ compaiono anche nelle liste: le attese valgono per i soli dati di prova.
 | 00 Preparazione | Helper attivo, seed |
 | 01 Sicurezza | 401, 401, 405, 404, 400; estraneo, gruppo, callback di un estraneo, /id da estraneo: nessun messaggio |
 | 02 Comandi base | /start, /aiuto, /id, testo libero, comando inesistente, /annulla a vuoto, foto |
-| 03–09 Viste | /oggi e Fatto, /prossimi, /cerca, /gruppo, /mese, /anno, /scaduti e Segna fatto |
+| 03–09 Viste | /oggi e Fatto, /prossimi (anche con scelta del gruppo `g2:p`), /cerca, /gruppi <nome> e /gruppo, /mese, /anno, /scaduti e Segna fatto |
 | 10 Esiti | `o:f`/`o:s` su recupero e pre-reminder, correzione entro D+7, cron dell'ora attuale |
 | 11 Scheda | /p_<id>, pulsanti `s:h`, `s:n`, `p:x`, `p:m` su persona inesistente |
 | 12 /nuovo | Tutti gli step con errori, Correggi, gruppi esistenti e nuovi, priorità, salvataggio |
 | 13 Interruzioni | Possibile duplicato e Salva comunque; comandi, /id, foto e pulsanti vecchi durante un flusso |
 | 14 Modifica | Ogni campo, Svuota, data con conferma, gruppi |
 | 15 Elimina | Conferma, persona eliminata |
-| 16 Gruppi | Crea, nome doppio o lungo, rinomina (anche solo maiuscole), elimina con e senza membri |
+| 16 Gruppi | Elenco a pulsanti, crea (`g2:n`, nome doppio, lungo o senza lettere), scheda (`g2:o`), rinomina dalla scheda (anche solo maiuscole, hash vecchio), elimina dalla scheda con e senza membri, pulsanti vecchi `g:r` e `f:…:sg` |
 | 17 /messaggio | Troppo lungo, anteprima, conferma, ripristino del messaggio standard |
 | 18 File in uscita | /modello, /export, /backup |
 | 19 Import CSV | Anteprima, Importa, duplicati, separatore `,` e BOM, intestazione, vuoto, Latin-1, .txt, .json, file troppo grandi, download fallito |
@@ -97,6 +97,11 @@ compaiono anche nelle liste: le attese valgono per i soli dati di prova.
   il flusso e quella chiamata fallisce. Le cartelle usano `/annulla`.
 - **La cartella 20 cancella tutto il D1 locale**, compresi i tuoi dati non di prova, e lo
   sostituisce con `fixtures/backup-ok.json`. La 21 rimette solo i dati di prova.
+- I pulsanti dei gruppi (`g2:<azione>:<id>:<hash>`) contengono l'hash del nome: nelle richieste si
+  scrive `{{hash:<nome esatto>}}` e lo script di collection lo calcola con `nameHash` (stesso
+  algoritmo di `src/domain/text.ts`). Il gruppo 9203 ha l'hash fisso `1ol49qr`.
+- "Cron ora" senza promemoria né backup da inviare registra anche il menu dei comandi
+  (`setMyCommands`) sul bot di `.dev.vars`, la prima volta e a ogni cambio del menu.
 - La richiesta "Cron ora" della cartella 10 usa l'ora attuale: invia promemoria solo alle 9, 13, 18
   e 21 (ora di Roma). Serve `wrangler dev --test-scheduled`.
 - Nei primi giorni di gennaio le occorrenze "passate" del seed cadono nell'anno precedente: `/anno`
@@ -104,6 +109,12 @@ compaiono anche nelle liste: le attese valgono per i soli dati di prova.
 
 ## Changelog
 
+- **2.1.0** (2026-10-29): feature 005 (gruppi v1.1), 229 richieste. Cartelle aggiornate: 02
+  (`/aiuto` con `/gruppi [nome]`, senza `/gruppo`), 04 (`/prossimi 7 casa` con scelta `g2:p`,
+  gruppo inesistente con elenco a pulsanti), 06 → "06 · /gruppi <nome> (RF-19, BR-26)", 16 →
+  "16 · Gruppi (/gruppi, g2:*)" (Rinomina ed Elimina dalla scheda, FR-006a, pulsanti vecchi).
+  Seed: gruppi 9203 "👨‍👩‍👧 Smoke Casa" e 9204 "Smoke Casa Rossi". Script di collection: `nameHash`
+  e `{{hash:<nome>}}`.
 - **2.0.0** (2026-10-29): collection completa per le feature 001–004, 226 richieste. Aggiunti
   helper (`helper.mjs`), controlli sul D1, `{{flowId}}` automatico, file di prova (`fixtures/`),
   invii 9301–9303 nel seed, cartelle 00, 02, 10–21 e casi nuovi in 01. Cartelle 03–09 = vecchie

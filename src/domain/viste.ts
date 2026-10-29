@@ -2,7 +2,7 @@ import { MIN_BIRTH_YEAR, OUTCOME_CORRECTION_DAYS, UPCOMING_DEFAULT_DAYS, UPCOMIN
 import { MONTHS_IT } from "../texts";
 import { addDays, toDateString, type LocalDate } from "../time";
 import { effectiveDate, nextBirthday } from "./date";
-import { compareNames, normKey, searchKey } from "./text";
+import { compareNames, groupKey, normKey, searchKey } from "./text";
 
 // Selezione, ordinamento e argomenti delle viste (feature 003, research R-03, R-04, R-09, R-10).
 // Puro: nessun import di cloudflare:*, così il benchmark gira in Node.
@@ -127,4 +127,38 @@ export function parseYear(args: string, today: LocalDate): { ok: true; year: num
   if (!/^\d{4}$/.test(text)) return { ok: false };
   const year = Number(text);
   return year >= MIN_BIRTH_YEAR && year <= today.year ? { ok: true, year } : { ok: false };
+}
+
+// --- Gruppi: ordinamento e ricerca morbida (BR-26, FR-001, FR-006, FR-007, FR-016, research R-03) ---
+
+export type GroupSearch<G> = { kind: "empty" } | { kind: "one"; group: G } | { kind: "many"; groups: G[] } | { kind: "none" };
+
+// Per chiave BR-26 (così "👨‍👩‍👧 Famiglia" sta accanto a "Famiglia"), poi nome, poi id.
+export function sortGroups<G extends { id: number; name: string }>(groups: readonly G[]): G[] {
+  return groups
+    .map((g) => ({ g, key: groupKey(g.name) }))
+    .sort((a, b) => (a.key < b.key ? -1 : a.key > b.key ? 1 : compareNames(a.g.name, b.g.name) || a.g.id - b.g.id))
+    .map((x) => x.g);
+}
+
+// Chiave del testo vuota = nessun testo; l'esatta vince sulle parziali; più esatte → scelta.
+// Un gruppo con chiave vuota non è mai trovato (FR-016): si raggiunge dall'elenco.
+export function findGroups<G extends { id: number; name: string }>(groups: readonly G[], query: string): GroupSearch<G> {
+  const k = groupKey(query);
+  if (k === "") return { kind: "empty" };
+  const exact: G[] = [];
+  const partial: G[] = [];
+  for (const g of groups) {
+    const key = groupKey(g.name);
+    if (key === "" || !key.includes(k)) continue;
+    partial.push(g);
+    if (key === k) exact.push(g);
+  }
+  const [onlyExact] = exact;
+  const [onlyPartial] = partial;
+  if (exact.length === 1 && onlyExact) return { kind: "one", group: onlyExact };
+  if (exact.length > 1) return { kind: "many", groups: sortGroups(exact) };
+  if (partial.length === 1 && onlyPartial) return { kind: "one", group: onlyPartial };
+  if (partial.length > 1) return { kind: "many", groups: sortGroups(partial) };
+  return { kind: "none" };
 }

@@ -1,8 +1,8 @@
 import { MIN_BIRTH_YEAR, OUTCOME_CORRECTION_DAYS, UPCOMING_MAX_DAYS } from "../config";
 import {
-  groupLookupStatements,
-  groupNamesStatement,
+  groupCardStatements,
   listPersonsStatement,
+  membersOf,
   overdueStatement,
   rowToListPerson,
   yearStatements,
@@ -10,8 +10,9 @@ import {
   type ListPersonRow,
 } from "../db/viste";
 import type { OccurrenceStatus } from "../domain/schedule";
-import { normKey } from "../domain/text";
+import { groupKey, nameHash } from "../domain/text";
 import {
+  findGroups,
   matchSearch,
   monthRows,
   parseDateString,
@@ -23,35 +24,18 @@ import {
   sortByDate,
   sortByNextBirthday,
   upcoming,
+  type ListPerson,
   type ListRow,
 } from "../domain/viste";
 import { MONTHS_IT, T } from "../texts";
 import { toLocal } from "../time";
 import { reply, type Ctx } from "./context";
+import { cardFromBatch, readGroupSearch, replyGroupGone, showGroupChoice, showGroups } from "./gruppi";
 import { formatRows, plainLine, sendList } from "./liste";
 import { showScheda } from "./scheda";
 
 // Comandi delle viste (feature 003, contracts/comandi.md). Ogni comando fa una sola andata a D1
 // (research R-08); le liste non hanno tastiera (FR-004, RNF-14).
-
-// FR-010, FR-014: gruppo inesistente + elenco dei gruppi esistenti.
-export async function replyGroupNotFound(ctx: Ctx, query: string, allNames: readonly string[]): Promise<void> {
-  await reply(ctx, `${T.groupNotFound(query)}\n${existingGroupsText(allNames)}`);
-}
-
-const existingGroupsText = (names: readonly string[]) => (names.length > 0 ? T.existingGroups(names.join(", ")) : T.noGroups);
-
-// Persone di un gruppo per nome normalizzato; null se il gruppo non esiste (risposta già inviata).
-async function lookupGroup(ctx: Ctx, query: string): Promise<{ name: string; people: ListPersonRow[] } | null> {
-  const { db } = ctx.deps;
-  const [group, people, all] = await db.batch(groupLookupStatements(db, normKey(query)));
-  const found = group?.results[0] as { id: number; name: string } | undefined;
-  if (!found) {
-    await replyGroupNotFound(ctx, query, ((all?.results ?? []) as { name: string }[]).map((r) => r.name));
-    return null;
-  }
-  return { name: found.name, people: (people?.results ?? []) as ListPersonRow[] };
-}
 
 async function allPersons(ctx: Ctx, month?: number): Promise<ListPersonRow[]> {
   return (await listPersonsStatement(ctx.deps.db, month).all<ListPersonRow>()).results;
@@ -67,26 +51,42 @@ const occurrenceRow = (r: ListOccurrenceRow): ListRow & { status: OccurrenceStat
   };
 };
 
-// RF-17
+// RF-17, FR-011: con il testo di un gruppo, ricerca morbida (BR-26) in una sola batch: un gruppo →
+// lista filtrata con il nome salvato; più → scelta g2:p che conserva i giorni; nessuno → avviso +
+// elenco. Testo con chiave vuota = nessun filtro (003 FR-009).
 export async function showProssimi(ctx: Ctx, args: string): Promise<void> {
   const parsed = parseUpcomingArgs(args);
   if (!parsed.ok) {
     await reply(ctx, T.upcomingDaysRange(UPCOMING_MAX_DAYS));
     return;
   }
-  let people: ListPersonRow[];
-  let groupName: string | null = null;
-  if (parsed.group !== null) {
-    const found = await lookupGroup(ctx, parsed.group);
-    if (!found) return;
-    people = found.people;
-    groupName = found.name;
-  } else {
-    people = await allPersons(ctx);
+  const query = parsed.group !== null && groupKey(parsed.group) !== "" ? parsed.group : null;
+  if (query === null) {
+    await sendUpcoming(ctx, (await allPersons(ctx)).map(rowToListPerson), parsed.days, null);
+    return;
   }
-  const rows = upcoming(people.map(rowToListPerson), toLocal(ctx.deps.now()), parsed.days);
-  if (rows.length === 0) await reply(ctx, T.upcomingNone(parsed.days, groupName));
-  else await sendList(ctx, T.upcomingHeader(parsed.days, groupName), formatRows(rows));
+  const { groups, memberships } = await readGroupSearch(ctx);
+  const found = findGroups(groups, query);
+  if (found.kind === "one") await sendUpcoming(ctx, membersOf(memberships, found.group.id), parsed.days, found.group.name);
+  else if (found.kind === "many") await showGroupChoice(ctx, T.groupsMany(query), found.groups, parsed.days);
+  else await showGroups(ctx, T.groupNoMatch(query), groups);
+}
+
+// Tocco g2:p (FR-011, FR-005): gruppo assente o nome cambiato → non esiste più.
+export async function showProssimiForGroup(ctx: Ctx, groupId: number, hash: string, days: number): Promise<void> {
+  const { db } = ctx.deps;
+  const card = cardFromBatch(await db.batch(groupCardStatements(db, groupId)));
+  if (!card || nameHash(card.group.name) !== hash) {
+    await replyGroupGone(ctx);
+    return;
+  }
+  await sendUpcoming(ctx, card.people, days, card.group.name);
+}
+
+async function sendUpcoming(ctx: Ctx, people: readonly ListPerson[], days: number, groupName: string | null): Promise<void> {
+  const rows = upcoming(people, toLocal(ctx.deps.now()), days);
+  if (rows.length === 0) await reply(ctx, T.upcomingNone(days, groupName));
+  else await sendList(ctx, T.upcomingHeader(days, groupName), formatRows(rows));
 }
 
 // RF-18
@@ -101,24 +101,6 @@ export async function showCerca(ctx: Ctx, args: string): Promise<void> {
   if (found.length === 0) await reply(ctx, T.searchNone(query));
   else if (found.length === 1 && only) await showScheda(ctx, only.id);
   else await sendList(ctx, T.searchHeader(query), formatRows(sortByNextBirthday(found, toLocal(ctx.deps.now()))));
-}
-
-// RF-19
-export async function showGruppo(ctx: Ctx, args: string): Promise<void> {
-  const query = args.trim();
-  if (query === "") {
-    const { results } = await groupNamesStatement(ctx.deps.db).all<{ name: string }>();
-    await reply(ctx, `${T.groupUsage}\n${existingGroupsText(results.map((r) => r.name))}`);
-    return;
-  }
-  const found = await lookupGroup(ctx, query);
-  if (!found) return;
-  if (found.people.length === 0) {
-    await reply(ctx, T.groupEmpty(found.name));
-    return;
-  }
-  const rows = sortByNextBirthday(found.people.map(rowToListPerson), toLocal(ctx.deps.now()));
-  await sendList(ctx, T.groupHeader(found.name), formatRows(rows));
 }
 
 // RF-20

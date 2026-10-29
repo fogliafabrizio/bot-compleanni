@@ -10,7 +10,7 @@ import { handleOutcomeCallback } from "./esiti";
 import { getById } from "../db/persons";
 import { handleFlowCallback, handleFlowText, repeatStep } from "./flows/engine";
 import { startElimina } from "./flows/elimina";
-import { startGruppi } from "./flows/gruppi";
+import { handleGroupCallback } from "./flows/gruppi";
 import { startModifica } from "./flows/modifica";
 import { startNuovo } from "./flows/nuovo";
 import { handleTodayCallback } from "./oggi";
@@ -29,9 +29,6 @@ export const STATIC_CALLBACKS: Record<string, StaticCallbackHandler> = {
     const person = await getById(ctx.deps.db, id ?? 0);
     if (person) await startElimina(ctx, person.id, person.fullName);
   },
-  "g:n": (ctx) => startGruppi(ctx, "nuovo"),
-  "g:r": (ctx) => startGruppi(ctx, "rinomina"),
-  "g:x": (ctx) => startGruppi(ctx, "elimina"),
 };
 
 export async function route(update: Update, deps: Deps): Promise<void> {
@@ -106,6 +103,10 @@ async function routeCallback(cq: CallbackQuery, deps: Deps): Promise<void> {
     await answerCallback(ctx, T.actionUnavailable);
   } else if (cb.kind === "flow") {
     await handleFlowCallback(ctx, cb.flowId, cb.action, cb.arg);
+  } else if (cb.kind === "group") {
+    // FR-005: come gli altri pulsanti senza stato, il tocco sostituisce il flusso in corso.
+    await clear(deps.db, ctx.chatId);
+    await handleGroupCallback(ctx, cb);
   } else if (cb.scope === "o" || cb.scope === "t") {
     // R-11: gli esiti dei promemoria (o:) e di /oggi (t:) non interrompono il flusso guidato in corso.
     if ((cb.action === "f" || cb.action === "s") && cb.id !== undefined) {

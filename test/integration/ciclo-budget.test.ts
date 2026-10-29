@@ -3,6 +3,8 @@ import { describe, expect, it } from "vitest";
 import { count, insertOccurrence, insertPerson } from "../helpers/db";
 import { runAt, runScheduledAt } from "../helpers/cron";
 import { makeCronDeps, type TestCronDeps } from "../helpers/deps";
+import { nameHash } from "../../src/domain/text";
+import { BOT_COMMANDS } from "../../src/texts";
 
 // Scenari di research R-09 con ~200 persone (RNF-16). Oggi = 14/03/2027.
 const PEOPLE = 200;
@@ -85,6 +87,13 @@ async function measureScheduled(deps: TestCronDeps, day: number, hour: number): 
   return deps.counter.count + deps.tg.calls.length;
 }
 
+// FR-014 di 005: menu dei comandi già registrato (hash di BOT_COMMANDS salvato).
+async function saveMenu(): Promise<void> {
+  await env.DB.prepare("INSERT INTO settings (key, value, updated_at) VALUES ('bot_commands', ?, '2027-03-01T00:00:00.000Z')")
+    .bind(nameHash(JSON.stringify(BOT_COMMANDS)))
+    .run();
+}
+
 describe("principio II, RNF-17: subrequest del cron con il backup mensile (004)", () => {
   it("R-12: 1° del mese alle 9:00, 40 promemoria + backup dovuto = 47", async () => {
     for (let i = 1; i <= PEOPLE; i++) await insertPerson({ id: i, fullName: `Persona ${i}`, day: 1, month: 3, priority: "alta" });
@@ -93,6 +102,8 @@ describe("principio II, RNF-17: subrequest del cron con il backup mensile (004)"
     expect(total).toBe(47);
     expect(total).toBeLessThanOrEqual(50);
     expect(deps.tg.documents()).toHaveLength(1);
+    // FR-014 di 005: il menu (mai registrato, quindi cambiato) non si aggiunge al caso con invii.
+    expect(deps.tg.commandsSet()).toEqual([]);
     expectParamsWithinLimit(deps);
   });
 
@@ -104,9 +115,32 @@ describe("principio II, RNF-17: subrequest del cron con il backup mensile (004)"
     expect(deps.tg.documents()).toEqual([]);
   });
 
-  it("R-12: 1° del mese prima delle 9:00 → nessuna query in più (ora senza invii = 2)", async () => {
+  it("R-12: 1° del mese prima delle 9:00 → nessuna query in più per il backup (ora senza invii = 2 + 1 lettura del menu)", async () => {
     await fill(0);
+    await saveMenu();
     const deps = makeCronDeps();
-    expect(await measureScheduled(deps, 1, 8)).toBe(2);
+    expect(await measureScheduled(deps, 1, 8)).toBe(3);
+  });
+});
+
+describe("principio II, FR-014 (005): subrequest del passo del menu dei comandi", () => {
+  // 14/03/2027 alle 10, backup di marzo già inviato: ciclo senza invii + reclamo del backup a vuoto.
+  async function quietHour(): Promise<TestCronDeps> {
+    await fill(0);
+    await env.DB.prepare("INSERT INTO settings (key, value, updated_at) VALUES ('auto_backup', '2027-03:inviato', '2027-03-01T08:00:00.000Z')").run();
+    return makeCronDeps();
+  }
+
+  it("FR-014: cron senza invii, menu cambiato = ciclo 2 + backup 1 + lettura, setMyCommands, salvataggio = 6", async () => {
+    const deps = await quietHour();
+    expect(await measureScheduled(deps, 14, 10)).toBe(6);
+    expect(deps.tg.commandsSet()).toHaveLength(1);
+  });
+
+  it("FR-014: cron senza invii, menu invariato = ciclo 2 + backup 1 + lettura = 4", async () => {
+    const deps = await quietHour();
+    await saveMenu();
+    expect(await measureScheduled(deps, 14, 10)).toBe(4);
+    expect(deps.tg.commandsSet()).toEqual([]);
   });
 });

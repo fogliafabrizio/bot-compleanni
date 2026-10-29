@@ -1,7 +1,7 @@
--- Dati di prova per gli smoke test della collection Postman (feature 001–004). Solo D1 LOCALE:
+-- Dati di prova per gli smoke test della collection Postman (feature 001–005). Solo D1 LOCALE:
 --   npx wrangler d1 execute birthday-bot-db --local --file postman/seed-smoke.sql
 -- (lo esegue anche la richiesta "Seed" della collection, tramite postman/helper.mjs).
--- Id fissi (persone 9001–9006, gruppi 9201–9202, occorrenze 9101–9106, invii 9301–9303) così le
+-- Id fissi (persone 9001–9006, gruppi 9201–9204, occorrenze 9101–9106, invii 9301–9303) così le
 -- richieste possono usare /p_<id>, t:f:<occorrenza>, p:f:<persona> e o:f:<invio>. Le date sono
 -- relative a oggi (ora locale della macchina): rieseguire il file riporta tutto allo stato iniziale.
 
@@ -42,6 +42,11 @@ INSERT INTO persons (id, full_name, full_name_norm, nickname, birth_day, birth_m
 -- Gruppi con nome di due parole (prova anche gli spazi negli argomenti).
 INSERT INTO groups (id, name, name_norm) VALUES (9201, 'Smoke Famiglia', 'smoke famiglia'), (9202, 'Smoke Lavoro', 'smoke lavoro');
 INSERT INTO person_groups (person_id, group_id) VALUES (9002, 9201), (9001, 9202), (9004, 9202);
+
+-- Gruppi della ricerca morbida (feature 005, BR-26): emoji in testa e due gruppi che contengono
+-- "casa" (scelta tra più gruppi). name_norm = normKey(name) = trim + minuscolo, emoji comprese.
+INSERT INTO groups (id, name, name_norm) VALUES (9203, '👨‍👩‍👧 Smoke Casa', '👨‍👩‍👧 smoke casa'), (9204, 'Smoke Casa Rossi', 'smoke casa rossi');
+INSERT INTO person_groups (person_id, group_id) VALUES (9002, 9203), (9003, 9204);
 
 -- Occorrenze: Marco oggi aperta (t:f:9101) e l'anno scorso fatto; Luca saltato quest'anno e l'anno
 -- prima (serie di /anno, "Segna fatto"); Sara aperta di 2 giorni fa; Paolo non confermato di 5 giorni fa.
