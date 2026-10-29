@@ -10,7 +10,7 @@ Committente e unico utente MVP: Fabrizio
 | 1.1 | REV-001 — Tono più caldo ed emoji | Accettata con modifiche | Aggiunto RNF-19 (guida di stile). Aggiornati tutti i mockup di §5. |
 | 1.1 | REV-002 — Telefono da contatto condiviso | Accettata con modifiche | Modificati RF-01 e RF-04. Aggiunti BR-25 e V-08. Aggiornati §2 Out of scope, mockup §5.2 e l'alternativa scartata "Contatto condiviso da Telegram". |
 | 1.1 | REV-003 — `/gruppi` con pulsanti e scheda gruppo | Accettata con modifiche | Modificati RF-07, RF-19 e RNF-14. Aggiunti V-09 e l'idea futura RF-52. Aggiornati §5.1, i nuovi mockup §5.9 e l'alternativa scartata "Pulsanti per navigare le liste". |
-| 1.1 | REV-004 — Ricerca morbida del gruppo | Accettata con modifiche | Modificati RF-17 e RF-19. Aggiunto BR-26. |
+| 1.1 | REV-004 — Ricerca morbida del gruppo | Accettata con modifiche | Modificati RF-17 e RF-19. Aggiunto BR-26, con la chiave di almeno 2 caratteri per i nomi dei gruppi (decisione del proprietario, 29/10/2026). |
 | 1.1 | REV-005 — Pulsanti di contatto nella scheda | Accettata con modifiche | Modificati RF-03 e RF-11. Aggiornato il mockup §5.6. |
 | 1.1 | REV-006 — Chiusura di PA-01 | Accettata | PA-01 chiuso come verificato. |
 | 1.1 | REV-007 — Stato e statistiche | Accettata con modifiche | Aggiunti RF-31 (`/stato`), RF-32 (`/statistiche`) e N-06 (avviso di buco del cron). Aggiornati §8 (Impostazioni), §5.1 e i mockup §5.10-5.12. |
@@ -520,7 +520,7 @@ alcuni promemoria potrebbero essere andati persi. Controlla /oggi e /scaduti.
   - con 11 cifre o più il numero è già internazionale e si antepone "+".
 
   Il risultato va validato con BR-15 e confermato dall'utente (RF-01).
-- **BR-26** *(v1.1)* **Ricerca dei gruppi** (`/gruppi <nome>`, filtro di `/prossimi`). Testo cercato e nomi dei gruppi si confrontano con una chiave che ignora maiuscole, accenti ed emoji e compatta gli spazi: "famiglia" corrisponde esattamente a "👨‍👩‍👧 Famiglia". Il testo si cerca in qualsiasi parte del nome, come in `/cerca`. Una corrispondenza esatta della chiave vince sulle parziali. La chiave si calcola al momento e non modifica i nomi salvati; l'unicità resta quella di BR-17.
+- **BR-26** *(v1.1)* **Ricerca dei gruppi** (`/gruppi <nome>`, filtro di `/prossimi`). Testo cercato e nomi dei gruppi si confrontano con una chiave che ignora maiuscole, accenti ed emoji e compatta gli spazi: "famiglia" corrisponde esattamente a "👨‍👩‍👧 Famiglia". Il testo si cerca in qualsiasi parte del nome, come in `/cerca`. Una corrispondenza esatta della chiave vince sulle parziali. La chiave si calcola al momento e non modifica i nomi salvati; l'unicità resta quella di BR-17. La chiave contiene solo lettere senza accenti, in minuscolo, e cifre: ogni altro carattere (emoji, anche composte, bandiere, simboli, punteggiatura) diventa uno spazio. Il nome di un gruppo deve avere una chiave di almeno 2 caratteri: la regola vale in creazione (`/gruppi`, al volo nell'inserimento o nella modifica, import CSV) e in rinomina; i gruppi già esistenti che non la rispettano restano invariati e si adeguano alla prossima rinomina; il ripristino da backup non la applica.
 
 ### Import CSV
 - **BR-18** Colonne: `nome; nickname; data; telefono; instagram; telegram; gruppi; priorita; messaggio`. Obbligatori: `nome`, `data`.
@@ -789,6 +789,7 @@ Punti chiusi:
   - nessuna conversione;
   - i dati tecnici nascono vuoti: `/stato` mostra "mai registrato" e N-06 non scatta fino alla prima esecuzione dopo il deploy;
   - i nomi dei gruppi non cambiano, perché la chiave di BR-26 si calcola al momento;
+  - i gruppi il cui nome ha una chiave di meno di 2 caratteri restano invariati e raggiungibili dall'elenco; la regola di BR-26 si applica loro solo alla rinomina;
   - il messaggio di auguri di default e i messaggi personalizzati non vengono toccati;
   - i messaggi già inviati restano con il testo vecchio;
   - lo storico di invii e occorrenze è già utilizzabile da `/stato` e `/statistiche`.
