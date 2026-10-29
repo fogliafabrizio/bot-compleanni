@@ -1,8 +1,9 @@
 import { env } from "cloudflare:test";
 import { describe, expect, it } from "vitest";
-import { addToGroup, count, insertGroup, insertPerson } from "../helpers/db";
+import type { InlineKeyboardMarkup } from "../../src/telegram/types";
+import { addToGroup, count, insertGroup, insertOccurrence, insertPerson } from "../helpers/db";
 import { makeDeps } from "../helpers/deps";
-import { buttons } from "../helpers/fake-telegram";
+import { buttons, cbOf, urlOf } from "../helpers/fake-telegram";
 import { press, say } from "../helpers/send";
 
 describe("US3: scheda persona", () => {
@@ -69,5 +70,140 @@ describe("US3: scheda persona", () => {
     await say(deps, "/p_12");
     expect(deps.counter.count).toBe(2);
     expect(deps.counter.batches).toHaveLength(1);
+  });
+});
+
+describe("RF-03, RF-11: tastiera della scheda v1.1", () => {
+  const rowsOf = (kb: InlineKeyboardMarkup | undefined) => (kb?.inline_keyboard ?? []).map((r) => r.map((b) => b.text));
+  const full = { fullName: "Marco Rossi", day: 25, month: 10, year: 1994, phone: "+393331234567", instagram: "marco.rossi", telegram: "mrossi" };
+
+  it("RF-03: US1-1 telefono + Instagram → WhatsApp e Instagram sopra Modifica/Elimina", async () => {
+    await insertPerson({ id: 12, fullName: "Marco Rossi", day: 14, month: 3, year: 1994, phone: "+393331234567", instagram: "marco.rossi" });
+    const deps = makeDeps();
+    await say(deps, "/p_12");
+    expect(buttons(deps.tg.lastKeyboard())).toEqual([
+      ["WhatsApp", "https://wa.me/393331234567"],
+      ["Instagram", "https://ig.me/m/marco.rossi"],
+      ["Modifica", "p:m:12"],
+      ["Elimina", "p:x:12"],
+    ]);
+    expect(rowsOf(deps.tg.lastKeyboard())).toEqual([["WhatsApp", "Instagram"], ["Modifica", "Elimina"]]);
+  });
+
+  it("RF-11, D-27: US1-2 con occorrenza aperta WhatsApp della scheda senza ?text=", async () => {
+    const id = await insertPerson({ ...full, day: 27 });
+    await insertOccurrence({ personId: id, year: 2026, effectiveDate: "2026-10-27", status: "aperta" });
+    const deps = makeDeps();
+    await say(deps, `/p_${id}`);
+    expect(urlOf(deps.tg.lastKeyboard(), "WhatsApp")).toBe("https://wa.me/393331234567");
+  });
+
+  it("RF-03: US1-3 nessun contatto → prima riga Modifica/Elimina", async () => {
+    await insertPerson({ id: 12, fullName: "Marco Rossi", day: 14, month: 3 });
+    const deps = makeDeps();
+    await say(deps, "/p_12");
+    expect(rowsOf(deps.tg.lastKeyboard())).toEqual([["Modifica", "Elimina"]]);
+  });
+
+  it("FR-002: US1-4 saltato di 3 giorni fa + tutti i contatti → contatti, Segna fatto, Modifica/Elimina", async () => {
+    const id = await insertPerson(full);
+    await insertOccurrence({ personId: id, year: 2026, effectiveDate: "2026-10-25", status: "saltato" });
+    const deps = makeDeps();
+    await say(deps, `/p_${id}`);
+    expect(rowsOf(deps.tg.lastKeyboard())).toEqual([["WhatsApp", "Instagram", "Telegram"], ["Segna fatto"], ["Modifica", "Elimina"]]);
+  });
+
+  it("FR-005: US1-5 nessun Copia messaggio nella scheda", async () => {
+    const id = await insertPerson(full);
+    await insertOccurrence({ personId: id, year: 2026, effectiveDate: "2026-10-25", status: "saltato" });
+    const deps = makeDeps();
+    await say(deps, `/p_${id}`);
+    expect(deps.tg.lastKeyboard()!.inline_keyboard.flat().some((b) => "copy_text" in b)).toBe(false);
+  });
+
+  it("FR-003: US1-6 dopo Segna fatto e dopo Modifica → Instagram → Svuota la riga contatti è aggiornata", async () => {
+    const id = await insertPerson(full);
+    await insertOccurrence({ personId: id, year: 2026, effectiveDate: "2026-10-25", status: "saltato" });
+    const deps = makeDeps();
+    await press(deps, `p:f:${id}`, 321);
+    expect(rowsOf(deps.tg.textEdits()[0]!.keyboard)).toEqual([["WhatsApp", "Instagram", "Telegram"], ["Modifica", "Elimina"]]);
+
+    await press(deps, `p:m:${id}`);
+    await press(deps, cbOf(deps.tg.lastKeyboard(), "Instagram"));
+    await press(deps, cbOf(deps.tg.lastKeyboard(), "Svuota"));
+    expect(rowsOf(deps.tg.lastKeyboard())).toEqual([["WhatsApp", "Telegram"], ["Modifica", "Elimina"]]);
+  });
+
+  it("FR-003: /cerca con un solo risultato e Salva in /nuovo mostrano la stessa tastiera", async () => {
+    const id = await insertPerson({ ...full, fullName: "Marco Rossi" });
+    const deps = makeDeps();
+    await say(deps, `/p_${id}`);
+    const expected = deps.tg.lastKeyboard();
+    await say(deps, "/cerca marco");
+    expect(deps.tg.lastKeyboard()).toEqual(expected);
+
+    await say(deps, "/nuovo");
+    await say(deps, "Anna Bianchi");
+    await press(deps, cbOf(deps.tg.lastKeyboard(), "Salta"));
+    await say(deps, "01/02/1990");
+    await press(deps, cbOf(deps.tg.lastKeyboard(), "Sì"));
+    await say(deps, "+39 333 7654321");
+    await say(deps, "@anna.b");
+    await press(deps, cbOf(deps.tg.lastKeyboard(), "Salta"));
+    await press(deps, cbOf(deps.tg.lastKeyboard(), "Fine"));
+    await press(deps, cbOf(deps.tg.lastKeyboard(), "Media ✓"));
+    await press(deps, cbOf(deps.tg.lastKeyboard(), "Salta"));
+    await press(deps, cbOf(deps.tg.lastKeyboard(), "Salva"));
+    expect(buttons(deps.tg.lastKeyboard()).slice(0, 2)).toEqual([
+      ["WhatsApp", "https://wa.me/393337654321"],
+      ["Instagram", "https://ig.me/m/anna.b"],
+    ]);
+    expect(rowsOf(deps.tg.lastKeyboard())).toEqual([["WhatsApp", "Instagram"], ["Modifica", "Elimina"]]);
+  });
+
+  it("FR-015: p:m, p:x e p:f di una scheda inviata senza riga contatti funzionano", async () => {
+    const id = await insertPerson(full);
+    await insertOccurrence({ personId: id, year: 2026, effectiveDate: "2026-10-25", status: "saltato" });
+    const deps = makeDeps();
+    await press(deps, `p:m:${id}`);
+    expect(deps.tg.lastText()).toBe("Quale campo vuoi modificare?");
+    await press(deps, `p:x:${id}`);
+    expect(deps.tg.lastText()).toBe("Eliminare Marco Rossi? Perderai anche lo storico");
+    await press(deps, `p:f:${id}`, 321);
+    expect(deps.tg.textEdits()).toHaveLength(1);
+    expect(await count("occurrences", "status = 'fatto'")).toBe(1);
+  });
+
+  it("FR-002, Q5: username Instagram non valido → pulsante assente; dopo la correzione presente", async () => {
+    await insertPerson({ id: 12, fullName: "Marco Rossi", day: 14, month: 3, instagram: "marco rossi" });
+    const deps = makeDeps();
+    await say(deps, "/p_12");
+    expect(rowsOf(deps.tg.lastKeyboard())).toEqual([["Modifica", "Elimina"]]);
+    await press(deps, "p:m:12");
+    await press(deps, cbOf(deps.tg.lastKeyboard(), "Instagram"));
+    await say(deps, "marco.rossi");
+    expect(rowsOf(deps.tg.lastKeyboard())).toEqual([["Instagram"], ["Modifica", "Elimina"]]);
+    expect(urlOf(deps.tg.lastKeyboard(), "Instagram")).toBe("https://ig.me/m/marco.rossi");
+  });
+});
+
+describe("RF-03, FR-001: testo della scheda senza username", () => {
+  it("RF-03, FR-001: US1-1 telefono + Instagram → nel testo solo il telefono", async () => {
+    await insertPerson({ id: 12, fullName: "Marco Rossi", day: 14, month: 3, year: 1994, phone: "+393331234567", instagram: "marco.rossi" });
+    const deps = makeDeps();
+    await say(deps, "/p_12");
+    const text = deps.tg.lastText()!;
+    expect(text).toContain("📱 +393331234567");
+    expect(text).not.toMatch(/IG @|TG @|marco\.rossi/);
+  });
+
+  it("FR-001: persona con soli username → nessuna riga contatti, pulsanti presenti", async () => {
+    await insertPerson({ id: 12, fullName: "Marco Rossi", day: 14, month: 3, year: 1994, instagram: "marco.rossi", telegram: "mrossi" });
+    const deps = makeDeps();
+    await say(deps, "/p_12");
+    expect(deps.tg.lastText()).toBe(
+      ["Marco Rossi", "14/03/1994 · compie 33 anni tra 137 giorni", "Priorità: media", "Messaggio: standard"].join("\n"),
+    );
+    expect(buttons(deps.tg.lastKeyboard()).map(([t]) => t)).toEqual(["Instagram", "Telegram", "Modifica", "Elimina"]);
   });
 });

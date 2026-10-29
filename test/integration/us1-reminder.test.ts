@@ -90,6 +90,21 @@ describe("US1: reminder del giorno", () => {
     expect(deps.tg.lastText()).not.toContain("📱");
   });
 
+  it("RF-11, FR-005: US1-7 il reminder mantiene WhatsApp con gli auguri e Copia messaggio", async () => {
+    await insertPerson({ ...marco, phone: "+393331234567" });
+    const deps = makeCronDeps();
+    await at(deps, 9);
+    expect(urlOf(deps.tg.lastKeyboard(), "WhatsApp")).toContain("?text=");
+    expect(labels(deps.tg.lastKeyboard())).toContain("Copia messaggio");
+  });
+
+  it("FR-002, Q5: username Telegram non valido → pulsante Telegram assente nel reminder", async () => {
+    await insertPerson({ ...marco, telegram: "abc" });
+    const deps = makeCronDeps();
+    await at(deps, 9);
+    expect(labels(deps.tg.lastKeyboard())).toEqual(["Copia messaggio", "Fatto ✅", "Salta quest'anno"]);
+  });
+
   it("FR-029, V-05: Copia messaggio copia gli auguri della persona", async () => {
     await insertPerson({ ...marco, customMessage: "Buon compleanno {nome}!" });
     const deps = makeCronDeps();

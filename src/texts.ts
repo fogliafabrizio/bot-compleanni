@@ -84,8 +84,12 @@ export const T = {
   askBirthDate: "Data di nascita? Formato gg/mm/aaaa, oppure gg/mm se non sai l'anno",
   confirmDate: (s: string) => `${s}, giusto?`,
   invalidDate: "Data non valida. Usa il formato gg/mm/aaaa, oppure gg/mm se non sai l'anno (es. 14/03/1994)",
-  askPhone: "Telefono? (con prefisso, es. +39 333 1234567)",
+  // FR-007 di 006, AFU §5.2.
+  askPhone: "📱 Telefono? Scrivilo con il prefisso (es. +39 333 1234567)\noppure condividi il contatto 📎",
   invalidPhone: "Numero non valido. Scrivilo con il prefisso, es. +39 333 1234567",
+  // RF-01, RF-04: telefono da contatto condiviso (FR-009, FR-010 di 006).
+  confirmPhone: (n: string) => `📱 ${n}, giusto?`,
+  contactWithoutPhone: "Questo contatto non ha un numero di telefono",
   askInstagram: "Username Instagram?",
   askTelegram: "Username Telegram?",
   askGroups: "Gruppi?",
@@ -116,8 +120,6 @@ export const T = {
   schedaPriority: (p: string) => `Priorità: ${p}`,
   schedaGroups: (names: string) => `Gruppi: ${names}`,
   schedaPhone: (phone: string) => `📱 ${phone}`,
-  schedaInstagram: (u: string) => `IG @${u}`,
-  schedaTelegram: (u: string) => `TG @${u}`,
   schedaMessageStandard: "Messaggio: standard",
   schedaMessageCustom: (m: string) => `Messaggio: "${m}"`,
   schedaHistory: (items: string) => `Storico: ${items}`,
@@ -142,7 +144,8 @@ export const T = {
     n: "Nuovo nome completo?",
     k: "Nuovo nickname?",
     d: "Nuova data di nascita? Formato gg/mm/aaaa, oppure gg/mm se non sai l'anno",
-    p: "Nuovo telefono? (con prefisso, es. +39 333 1234567)",
+    // FR-012 di 006: stesse regole di RF-01, compreso il suggerimento del contatto.
+    p: "Nuovo telefono? Scrivilo con il prefisso (es. +39 333 1234567)\noppure condividi il contatto 📎",
     i: "Nuovo username Instagram?",
     t: "Nuovo username Telegram?",
     m: "Nuovo messaggio di auguri personalizzato?",

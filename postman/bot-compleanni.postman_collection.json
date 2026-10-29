@@ -1,8 +1,8 @@
 {
   "info": {
     "name": "Bot compleanni — test locale completo",
-    "description": "Versione 2.1.0. Test del webhook in locale (`wrangler dev`), feature 001–005: sicurezza, comandi, viste, esiti dei promemoria, flussi guidati (/nuovo, modifica, elimina, gruppi, /messaggio), import CSV, export, backup e ripristino.\n\nIl Worker risponde sempre 200 vuoto: la risposta del bot arriva **nella chat Telegram del proprietario** (il Worker locale usa la Bot API reale con il token di `.dev.vars`). I test controllano anche il D1 locale tramite `postman/helper.mjs` (porta 8788): stato del flusso e campi salvati.\n\nAvvio: `scripts/smoke-postman.ps1`, poi Runner sull'intera collection (o cartella per cartella, **in ordine**). Istruzioni e limiti in `postman/README.md`.",
-    "version": "2.1.0",
+    "description": "Versione 2.2.0. Test del webhook in locale (`wrangler dev`), feature 001–006: sicurezza, comandi, viste, esiti dei promemoria, flussi guidati (/nuovo e modifica anche con il contatto condiviso, elimina, gruppi, /messaggio), import CSV, export, backup e ripristino.\n\nIl Worker risponde sempre 200 vuoto: la risposta del bot arriva **nella chat Telegram del proprietario** (il Worker locale usa la Bot API reale con il token di `.dev.vars`). I test controllano anche il D1 locale tramite `postman/helper.mjs` (porta 8788): stato del flusso e campi salvati.\n\nAvvio: `scripts/smoke-postman.ps1`, poi Runner sull'intera collection (o cartella per cartella, **in ordine**). Istruzioni e limiti in `postman/README.md`.",
+    "version": "2.2.0",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "event": [
@@ -751,6 +751,58 @@
               ]
             },
             "description": "Atteso: `Non ho capito. Scrivi /aiuto per l'elenco dei comandi`."
+          }
+        },
+        {
+          "name": "Contatto fuori flusso → non capito",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "const q = (sql, cb) => pm.sendRequest({ url: pm.variables.get(\"helperUrl\") + \"/query\", method: \"POST\", header: { \"Content-Type\": \"application/json\" }, body: { mode: \"raw\", raw: JSON.stringify({ sql: sql.replace(/:(\\w+)/g, (_, k) => pm.variables.get(k)) }) } }, (err, res) => {",
+                  "  pm.test(\"Helper: query riuscita\", () => { pm.expect(err).to.equal(null); pm.expect(res.code).to.equal(200); });",
+                  "  if (!err && res.code === 200) cb(res.json().rows);",
+                  "});",
+                  "q(\"SELECT flow, step FROM conversation_state WHERE chat_id = :ownerId\", (rows) => pm.test(\"Nessun flusso guidato attivo\", () => pm.expect(rows.length).to.equal(0)));",
+                  "q(\"SELECT COUNT(*) AS n FROM persons WHERE phone = '+393330000001'\", (rows) => pm.test(\"Nessuna persona creata dal contatto\", () => pm.expect(rows[0].n).to.equal(0)));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Telegram-Bot-Api-Secret-Token",
+                "value": "{{webhookSecret}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"update_id\": {{$randomInt}},\n  \"message\": {\n    \"message_id\": {{$randomInt}},\n    \"from\": { \"id\": {{ownerId}} },\n    \"chat\": { \"id\": {{ownerId}}, \"type\": \"private\" },\n    \"contact\": { \"phone_number\": \"393330000001\", \"first_name\": \"Contatto Postman\" }\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/webhook",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "webhook"
+              ]
+            },
+            "description": "FR-011 di 006: un contatto senza flusso attivo non crea persone. Atteso: `Non ho capito. Scrivi /aiuto per l'elenco dei comandi`."
           }
         },
         {
@@ -3273,7 +3325,7 @@
                 "webhook"
               ]
             },
-            "description": "Atteso: `Marco Rossi — \"Marchino\"`, data, età, priorità media, gruppo Smoke Lavoro, 📱, storico, pulsanti **Modifica**, **Elimina**."
+            "description": "Atteso: `Marco Rossi — \"Marchino\"`, data, età, priorità media, gruppo Smoke Lavoro, `📱 +393331234567`, storico; **nessun** `IG @`/`TG @` nel testo (FR-001 di 006). Pulsanti: riga **WhatsApp** (link `https://wa.me/393331234567` **senza** `?text=`, D-27), poi **Modifica**, **Elimina**; niente **Copia messaggio** né **Segna fatto** (il compleanno è oggi)."
           }
         },
         {
@@ -3319,7 +3371,7 @@
                 "webhook"
               ]
             },
-            "description": "Anna Bianchi: `compleanno tra 5 giorni`, senza età."
+            "description": "Anna Bianchi: `compleanno tra 5 giorni`, senza età. Nessun contatto: nessuna riga 📱 e la tastiera parte da **Modifica**, **Elimina** (RF-03 v1.1)."
           }
         },
         {
@@ -4333,7 +4385,111 @@
                 "webhook"
               ]
             },
-            "description": "Atteso: `Telefono? …` con **Salta**."
+            "description": "Atteso: `📱 Telefono? Scrivilo con il prefisso (es. +39 333 1234567)` / `oppure condividi il contatto 📎` con **Salta**."
+          }
+        },
+        {
+          "name": "Contatto senza numero",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "const q = (sql, cb) => pm.sendRequest({ url: pm.variables.get(\"helperUrl\") + \"/query\", method: \"POST\", header: { \"Content-Type\": \"application/json\" }, body: { mode: \"raw\", raw: JSON.stringify({ sql: sql.replace(/:(\\w+)/g, (_, k) => pm.variables.get(k)) }) } }, (err, res) => {",
+                  "  pm.test(\"Helper: query riuscita\", () => { pm.expect(err).to.equal(null); pm.expect(res.code).to.equal(200); });",
+                  "  if (!err && res.code === 200) cb(res.json().rows);",
+                  "});",
+                  "q(\"SELECT flow, step FROM conversation_state WHERE chat_id = :ownerId\", (rows) => pm.test(\"Flusso nuovo/telefono\", () => { pm.expect(rows.length).to.equal(1); pm.expect(rows[0].flow + \"/\" + rows[0].step).to.equal(\"nuovo/telefono\"); }));",
+                  "q(\"SELECT json_extract(data, '$.pendingPhone') AS pending FROM conversation_state WHERE chat_id = :ownerId\", (rows) => pm.test(\"Nessun numero in attesa di conferma\", () => pm.expect(rows[0] && rows[0].pending).to.eql(null)));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Telegram-Bot-Api-Secret-Token",
+                "value": "{{webhookSecret}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"update_id\": {{$randomInt}},\n  \"message\": {\n    \"message_id\": {{$randomInt}},\n    \"from\": { \"id\": {{ownerId}} },\n    \"chat\": { \"id\": {{ownerId}}, \"type\": \"private\" },\n    \"contact\": { \"first_name\": \"Contatto Postman\" }\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/webhook",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "webhook"
+              ]
+            },
+            "description": "FR-009 di 006. Atteso: `Questo contatto non ha un numero di telefono` + `📱 Telefono? Scrivilo con il prefisso (es. +39 333 1234567)` / `oppure condividi il contatto 📎` con **Salta**."
+          }
+        },
+        {
+          "name": "Contatto 12345 → non valido",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "const q = (sql, cb) => pm.sendRequest({ url: pm.variables.get(\"helperUrl\") + \"/query\", method: \"POST\", header: { \"Content-Type\": \"application/json\" }, body: { mode: \"raw\", raw: JSON.stringify({ sql: sql.replace(/:(\\w+)/g, (_, k) => pm.variables.get(k)) }) } }, (err, res) => {",
+                  "  pm.test(\"Helper: query riuscita\", () => { pm.expect(err).to.equal(null); pm.expect(res.code).to.equal(200); });",
+                  "  if (!err && res.code === 200) cb(res.json().rows);",
+                  "});",
+                  "q(\"SELECT flow, step FROM conversation_state WHERE chat_id = :ownerId\", (rows) => pm.test(\"Flusso nuovo/telefono\", () => { pm.expect(rows.length).to.equal(1); pm.expect(rows[0].flow + \"/\" + rows[0].step).to.equal(\"nuovo/telefono\"); }));",
+                  "q(\"SELECT json_extract(data, '$.pendingPhone') AS pending FROM conversation_state WHERE chat_id = :ownerId\", (rows) => pm.test(\"Nessun numero in attesa di conferma\", () => pm.expect(rows[0] && rows[0].pending).to.eql(null)));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Telegram-Bot-Api-Secret-Token",
+                "value": "{{webhookSecret}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"update_id\": {{$randomInt}},\n  \"message\": {\n    \"message_id\": {{$randomInt}},\n    \"from\": { \"id\": {{ownerId}} },\n    \"chat\": { \"id\": {{ownerId}}, \"type\": \"private\" },\n    \"contact\": { \"phone_number\": \"12345\", \"first_name\": \"Contatto Postman\" }\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/webhook",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "webhook"
+              ]
+            },
+            "description": "BR-25 → BR-15: meno di 9 cifre. Atteso: `Numero non valido. Scrivilo con il prefisso, es. +39 333 1234567` + `📱 Telefono? Scrivilo con il prefisso (es. +39 333 1234567)` / `oppure condividi il contatto 📎`."
           }
         },
         {
@@ -4388,7 +4544,7 @@
           }
         },
         {
-          "name": "Telefono 333 9876543",
+          "name": "Contatto 393331234567 → conferma",
           "event": [
             {
               "listen": "test",
@@ -4400,7 +4556,8 @@
                   "  pm.test(\"Helper: query riuscita\", () => { pm.expect(err).to.equal(null); pm.expect(res.code).to.equal(200); });",
                   "  if (!err && res.code === 200) cb(res.json().rows);",
                   "});",
-                  "q(\"SELECT flow, step FROM conversation_state WHERE chat_id = :ownerId\", (rows) => pm.test(\"Flusso nuovo/instagram\", () => { pm.expect(rows.length).to.equal(1); pm.expect(rows[0].flow + \"/\" + rows[0].step).to.equal(\"nuovo/instagram\"); }));"
+                  "q(\"SELECT flow, step FROM conversation_state WHERE chat_id = :ownerId\", (rows) => pm.test(\"Flusso nuovo/telefono_conferma\", () => { pm.expect(rows.length).to.equal(1); pm.expect(rows[0].flow + \"/\" + rows[0].step).to.equal(\"nuovo/telefono_conferma\"); }));",
+                  "q(\"SELECT json_extract(data, '$.pendingPhone') AS pending FROM conversation_state WHERE chat_id = :ownerId\", (rows) => pm.test(\"Numero proposto +393331234567\", () => pm.expect(rows[0] && rows[0].pending).to.eql(\"+393331234567\")));"
                 ]
               }
             }
@@ -4419,7 +4576,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"update_id\": {{$randomInt}},\n  \"message\": {\n    \"message_id\": {{$randomInt}},\n    \"from\": { \"id\": {{ownerId}} },\n    \"chat\": { \"id\": {{ownerId}}, \"type\": \"private\" },\n    \"text\": \"333 9876543\"\n  }\n}",
+              "raw": "{\n  \"update_id\": {{$randomInt}},\n  \"message\": {\n    \"message_id\": {{$randomInt}},\n    \"from\": { \"id\": {{ownerId}} },\n    \"chat\": { \"id\": {{ownerId}}, \"type\": \"private\" },\n    \"contact\": { \"phone_number\": \"393331234567\", \"first_name\": \"Contatto Postman\" }\n  }\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -4435,7 +4592,164 @@
                 "webhook"
               ]
             },
-            "description": "Senza prefisso vale +39. Atteso: `Username Instagram?`."
+            "description": "RF-01, BR-25: 12 cifre senza `+` → `+` + cifre. Atteso: `📱 +393331234567, giusto?` con **Sì** / **Correggi**. Nulla è salvato prima di Sì (D-24)."
+          }
+        },
+        {
+          "name": "Correggi (c) sul numero",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "const q = (sql, cb) => pm.sendRequest({ url: pm.variables.get(\"helperUrl\") + \"/query\", method: \"POST\", header: { \"Content-Type\": \"application/json\" }, body: { mode: \"raw\", raw: JSON.stringify({ sql: sql.replace(/:(\\w+)/g, (_, k) => pm.variables.get(k)) }) } }, (err, res) => {",
+                  "  pm.test(\"Helper: query riuscita\", () => { pm.expect(err).to.equal(null); pm.expect(res.code).to.equal(200); });",
+                  "  if (!err && res.code === 200) cb(res.json().rows);",
+                  "});",
+                  "q(\"SELECT flow, step FROM conversation_state WHERE chat_id = :ownerId\", (rows) => pm.test(\"Flusso nuovo/telefono\", () => { pm.expect(rows.length).to.equal(1); pm.expect(rows[0].flow + \"/\" + rows[0].step).to.equal(\"nuovo/telefono\"); }));",
+                  "q(\"SELECT json_extract(data, '$.pendingPhone') AS pending FROM conversation_state WHERE chat_id = :ownerId\", (rows) => pm.test(\"Nessun numero in attesa di conferma\", () => pm.expect(rows[0] && rows[0].pending).to.eql(null)));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Telegram-Bot-Api-Secret-Token",
+                "value": "{{webhookSecret}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"update_id\": {{$randomInt}},\n  \"callback_query\": {\n    \"id\": \"smoke-{{$randomInt}}\",\n    \"from\": { \"id\": {{ownerId}} },\n    \"data\": \"f:{{flowId}}:c\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/webhook",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "webhook"
+              ]
+            },
+            "description": "D-24: il numero proposto non si usa. Atteso: `📱 Telefono? Scrivilo con il prefisso (es. +39 333 1234567)` / `oppure condividi il contatto 📎` con **Salta**."
+          }
+        },
+        {
+          "name": "Contatto 393339876543 → conferma",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "const q = (sql, cb) => pm.sendRequest({ url: pm.variables.get(\"helperUrl\") + \"/query\", method: \"POST\", header: { \"Content-Type\": \"application/json\" }, body: { mode: \"raw\", raw: JSON.stringify({ sql: sql.replace(/:(\\w+)/g, (_, k) => pm.variables.get(k)) }) } }, (err, res) => {",
+                  "  pm.test(\"Helper: query riuscita\", () => { pm.expect(err).to.equal(null); pm.expect(res.code).to.equal(200); });",
+                  "  if (!err && res.code === 200) cb(res.json().rows);",
+                  "});",
+                  "q(\"SELECT flow, step FROM conversation_state WHERE chat_id = :ownerId\", (rows) => pm.test(\"Flusso nuovo/telefono_conferma\", () => { pm.expect(rows.length).to.equal(1); pm.expect(rows[0].flow + \"/\" + rows[0].step).to.equal(\"nuovo/telefono_conferma\"); }));",
+                  "q(\"SELECT json_extract(data, '$.pendingPhone') AS pending FROM conversation_state WHERE chat_id = :ownerId\", (rows) => pm.test(\"Numero proposto +393339876543\", () => pm.expect(rows[0] && rows[0].pending).to.eql(\"+393339876543\")));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Telegram-Bot-Api-Secret-Token",
+                "value": "{{webhookSecret}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"update_id\": {{$randomInt}},\n  \"message\": {\n    \"message_id\": {{$randomInt}},\n    \"from\": { \"id\": {{ownerId}} },\n    \"chat\": { \"id\": {{ownerId}}, \"type\": \"private\" },\n    \"contact\": { \"phone_number\": \"393339876543\", \"first_name\": \"Altro Nome\", \"user_id\": 999 }\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/webhook",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "webhook"
+              ]
+            },
+            "description": "Nome e `user_id` del contatto sono ignorati (FR-008). Atteso: `📱 +393339876543, giusto?` con **Sì** / **Correggi**."
+          }
+        },
+        {
+          "name": "Sì (y) sul numero",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "const q = (sql, cb) => pm.sendRequest({ url: pm.variables.get(\"helperUrl\") + \"/query\", method: \"POST\", header: { \"Content-Type\": \"application/json\" }, body: { mode: \"raw\", raw: JSON.stringify({ sql: sql.replace(/:(\\w+)/g, (_, k) => pm.variables.get(k)) }) } }, (err, res) => {",
+                  "  pm.test(\"Helper: query riuscita\", () => { pm.expect(err).to.equal(null); pm.expect(res.code).to.equal(200); });",
+                  "  if (!err && res.code === 200) cb(res.json().rows);",
+                  "});",
+                  "q(\"SELECT flow, step FROM conversation_state WHERE chat_id = :ownerId\", (rows) => pm.test(\"Flusso nuovo/instagram\", () => { pm.expect(rows.length).to.equal(1); pm.expect(rows[0].flow + \"/\" + rows[0].step).to.equal(\"nuovo/instagram\"); }));",
+                  "q(\"SELECT json_extract(data, '$.pendingPhone') AS pending FROM conversation_state WHERE chat_id = :ownerId\", (rows) => pm.test(\"Nessun numero in attesa di conferma\", () => pm.expect(rows[0] && rows[0].pending).to.eql(null)));",
+                  "q(\"SELECT json_extract(data, '$.phone') AS phone, json_extract(data, '$.fullName') AS name FROM conversation_state WHERE chat_id = :ownerId\", (rows) => pm.test(\"Telefono +393339876543, nome invariato\", () => { pm.expect(rows[0].phone).to.eql(\"+393339876543\"); pm.expect(rows[0].name).to.eql(\"Giulia Postman\"); }));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Telegram-Bot-Api-Secret-Token",
+                "value": "{{webhookSecret}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"update_id\": {{$randomInt}},\n  \"callback_query\": {\n    \"id\": \"smoke-{{$randomInt}}\",\n    \"from\": { \"id\": {{ownerId}} },\n    \"data\": \"f:{{flowId}}:y\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/webhook",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "webhook"
+              ]
+            },
+            "description": "Atteso: `Username Instagram?`. Il numero confermato entra nei dati del flusso."
           }
         },
         {
@@ -5215,7 +5529,7 @@
                 "webhook"
               ]
             },
-            "description": "Atteso: la scheda di Giulia Postman (15/06/1992, priorità alta, gruppi Postman Gruppo e Smoke Famiglia, 📱 +393339876543, IG @giulia.postman, messaggio personalizzato)."
+            "description": "Atteso: la scheda di Giulia Postman (15/06/1992, priorità alta, gruppi Postman Gruppo e Smoke Famiglia, 📱 +393339876543, messaggio personalizzato), **senza** `IG @` nel testo (FR-001 di 006). Pulsanti: riga **WhatsApp** (senza `?text=`) e **Instagram** (`https://ig.me/m/giulia.postman`), poi **Modifica**, **Elimina**."
           }
         },
         {
@@ -7385,7 +7699,7 @@
                 "webhook"
               ]
             },
-            "description": "Atteso: la domanda del campo."
+            "description": "Atteso: `Nuovo telefono? Scrivilo con il prefisso (es. +39 333 1234567)` / `oppure condividi il contatto 📎` con **Svuota** / **Annulla** (FR-012 di 006)."
           }
         },
         {
@@ -7439,7 +7753,214 @@
                 "webhook"
               ]
             },
-            "description": "`00` → `+`, punti rimossi."
+            "description": "`00` → `+`, punti rimossi. Atteso: scheda con `📱 +393471112223` e pulsante **WhatsApp** senza `?text=`."
+          }
+        },
+        {
+          "name": "Modifica (p:m) → Telefono (contatto)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "const q = (sql, cb) => pm.sendRequest({ url: pm.variables.get(\"helperUrl\") + \"/query\", method: \"POST\", header: { \"Content-Type\": \"application/json\" }, body: { mode: \"raw\", raw: JSON.stringify({ sql: sql.replace(/:(\\w+)/g, (_, k) => pm.variables.get(k)) }) } }, (err, res) => {",
+                  "  pm.test(\"Helper: query riuscita\", () => { pm.expect(err).to.equal(null); pm.expect(res.code).to.equal(200); });",
+                  "  if (!err && res.code === 200) cb(res.json().rows);",
+                  "});",
+                  "q(\"SELECT flow, step FROM conversation_state WHERE chat_id = :ownerId\", (rows) => pm.test(\"Flusso modifica/menu\", () => { pm.expect(rows.length).to.equal(1); pm.expect(rows[0].flow + \"/\" + rows[0].step).to.equal(\"modifica/menu\"); }));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Telegram-Bot-Api-Secret-Token",
+                "value": "{{webhookSecret}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"update_id\": {{$randomInt}},\n  \"callback_query\": {\n    \"id\": \"smoke-{{$randomInt}}\",\n    \"from\": { \"id\": {{ownerId}} },\n    \"data\": \"p:m:{{giuliaId}}\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/webhook",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "webhook"
+              ]
+            },
+            "description": "Atteso: `Quale campo vuoi modificare?` con i 9 campi."
+          }
+        },
+        {
+          "name": "Campo Telefono (contatto) (e:p)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "const q = (sql, cb) => pm.sendRequest({ url: pm.variables.get(\"helperUrl\") + \"/query\", method: \"POST\", header: { \"Content-Type\": \"application/json\" }, body: { mode: \"raw\", raw: JSON.stringify({ sql: sql.replace(/:(\\w+)/g, (_, k) => pm.variables.get(k)) }) } }, (err, res) => {",
+                  "  pm.test(\"Helper: query riuscita\", () => { pm.expect(err).to.equal(null); pm.expect(res.code).to.equal(200); });",
+                  "  if (!err && res.code === 200) cb(res.json().rows);",
+                  "});",
+                  "q(\"SELECT flow, step FROM conversation_state WHERE chat_id = :ownerId\", (rows) => pm.test(\"Flusso modifica/valore\", () => { pm.expect(rows.length).to.equal(1); pm.expect(rows[0].flow + \"/\" + rows[0].step).to.equal(\"modifica/valore\"); }));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Telegram-Bot-Api-Secret-Token",
+                "value": "{{webhookSecret}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"update_id\": {{$randomInt}},\n  \"callback_query\": {\n    \"id\": \"smoke-{{$randomInt}}\",\n    \"from\": { \"id\": {{ownerId}} },\n    \"data\": \"f:{{flowId}}:e:p\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/webhook",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "webhook"
+              ]
+            },
+            "description": "Atteso: `Nuovo telefono? Scrivilo con il prefisso (es. +39 333 1234567)` / `oppure condividi il contatto 📎` con **Svuota** / **Annulla** (FR-012 di 006)."
+          }
+        },
+        {
+          "name": "Contatto 333 1112224 → conferma",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "const q = (sql, cb) => pm.sendRequest({ url: pm.variables.get(\"helperUrl\") + \"/query\", method: \"POST\", header: { \"Content-Type\": \"application/json\" }, body: { mode: \"raw\", raw: JSON.stringify({ sql: sql.replace(/:(\\w+)/g, (_, k) => pm.variables.get(k)) }) } }, (err, res) => {",
+                  "  pm.test(\"Helper: query riuscita\", () => { pm.expect(err).to.equal(null); pm.expect(res.code).to.equal(200); });",
+                  "  if (!err && res.code === 200) cb(res.json().rows);",
+                  "});",
+                  "q(\"SELECT flow, step FROM conversation_state WHERE chat_id = :ownerId\", (rows) => pm.test(\"Flusso modifica/valore_conferma\", () => { pm.expect(rows.length).to.equal(1); pm.expect(rows[0].flow + \"/\" + rows[0].step).to.equal(\"modifica/valore_conferma\"); }));",
+                  "q(\"SELECT json_extract(data, '$.pendingPhone') AS pending FROM conversation_state WHERE chat_id = :ownerId\", (rows) => pm.test(\"Numero proposto +393331112224\", () => pm.expect(rows[0] && rows[0].pending).to.eql(\"+393331112224\")));",
+                  "q(\"SELECT phone FROM persons WHERE id = :giuliaId\", (rows) => pm.test(\"Telefono salvato invariato\", () => pm.expect(rows[0].phone).to.eql(\"+393471112223\")));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Telegram-Bot-Api-Secret-Token",
+                "value": "{{webhookSecret}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"update_id\": {{$randomInt}},\n  \"message\": {\n    \"message_id\": {{$randomInt}},\n    \"from\": { \"id\": {{ownerId}} },\n    \"chat\": { \"id\": {{ownerId}}, \"type\": \"private\" },\n    \"contact\": { \"phone_number\": \"333 1112224\", \"first_name\": \"Contatto Postman\" }\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/webhook",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "webhook"
+              ]
+            },
+            "description": "RF-04, BR-25: 10 cifre → `+39`. Atteso: `📱 +393331112224, giusto?` con **Sì** / **Correggi**; il telefono salvato non cambia ancora."
+          }
+        },
+        {
+          "name": "Sì (y) sul numero",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "const q = (sql, cb) => pm.sendRequest({ url: pm.variables.get(\"helperUrl\") + \"/query\", method: \"POST\", header: { \"Content-Type\": \"application/json\" }, body: { mode: \"raw\", raw: JSON.stringify({ sql: sql.replace(/:(\\w+)/g, (_, k) => pm.variables.get(k)) }) } }, (err, res) => {",
+                  "  pm.test(\"Helper: query riuscita\", () => { pm.expect(err).to.equal(null); pm.expect(res.code).to.equal(200); });",
+                  "  if (!err && res.code === 200) cb(res.json().rows);",
+                  "});",
+                  "q(\"SELECT flow, step FROM conversation_state WHERE chat_id = :ownerId\", (rows) => pm.test(\"Nessun flusso guidato attivo\", () => pm.expect(rows.length).to.equal(0)));",
+                  "q(\"SELECT phone FROM persons WHERE id = :giuliaId\", (rows) => pm.test(\"Telefono dal contatto salvato\", () => pm.expect(rows[0].phone).to.eql(\"+393331112224\")));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Telegram-Bot-Api-Secret-Token",
+                "value": "{{webhookSecret}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"update_id\": {{$randomInt}},\n  \"callback_query\": {\n    \"id\": \"smoke-{{$randomInt}}\",\n    \"from\": { \"id\": {{ownerId}} },\n    \"data\": \"f:{{flowId}}:y\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/webhook",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "webhook"
+              ]
+            },
+            "description": "Atteso: scheda di Giulia con `📱 +393331112224` e pulsante **WhatsApp** `https://wa.me/393331112224`."
           }
         },
         {

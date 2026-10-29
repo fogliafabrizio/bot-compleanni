@@ -1,11 +1,12 @@
 import { env } from "cloudflare:test";
 import { describe, expect, it } from "vitest";
+import { T } from "../../src/texts";
 import { addHours } from "../../src/time";
 import { NOW } from "../helpers/constants";
 import { addToGroup, count, insertGroup, insertPerson, rows } from "../helpers/db";
 import { makeDeps, type TestDeps } from "../helpers/deps";
-import { cbOf, labels } from "../helpers/fake-telegram";
-import { press, say } from "../helpers/send";
+import { cbOf, labels, urlOf } from "../helpers/fake-telegram";
+import { press, say, shareContact } from "../helpers/send";
 
 const LATER = addHours(NOW, 2);
 const tap = (deps: TestDeps, label: string) => press(deps, cbOf(deps.tg.lastKeyboard(), label));
@@ -48,11 +49,12 @@ describe("US4: modifica per campo", () => {
     await say(deps, "@nuovo.user");
     const after = await person(1);
     expect(after).toEqual({ ...before, instagram: "nuovo.user", updated_at: LATER.toISOString() });
-    expect(deps.tg.lastText()).toContain("IG @nuovo.user");
-    expect(labels(deps.tg.lastKeyboard())).toEqual(["Modifica", "Elimina"]);
+    expect(urlOf(deps.tg.lastKeyboard(), "Instagram")).toBe("https://ig.me/m/nuovo.user");
+    expect(deps.tg.lastText()).not.toContain("IG @");
+    expect(labels(deps.tg.lastKeyboard())).toEqual(["Instagram", "Telegram", "Modifica", "Elimina"]);
   });
 
-  it("RF-04, FR-015, SC-005: Telefono → Svuota in 3 interazioni", async () => {
+  it("RF-04, FR-015, SC-005: US3-4 Telefono → Svuota in 3 interazioni", async () => {
     await insertPerson({ id: 1, fullName: "Marco Rossi", day: 14, month: 3, phone: "+393331234567" });
     const deps = makeDeps();
     await press(deps, "p:m:1");
@@ -240,5 +242,112 @@ describe("US4: modifica per campo", () => {
     await tap(deps, "Alta");
     await press(deps, cbOf(menu, "Nome"));
     expect(deps.tg.lastAnswer()).toBe("Questa azione non è più disponibile");
+  });
+});
+
+describe("RF-04, BR-25: telefono da contatto in Modifica", () => {
+  async function stateRow() {
+    return env.DB.prepare("SELECT flow, step, data FROM conversation_state").first<{ flow: string; step: string; data: string }>();
+  }
+
+  it("RF-04, BR-25, SC-004: US3-1 contatto 333 1234567, Sì → aggiornato solo il telefono e scheda rimostrata", async () => {
+    await insertPerson({ id: 1, fullName: "Marco Rossi", day: 14, month: 3, year: 1994, phone: "+390000000000", telegram: "mrossi" });
+    const before = await person(1);
+    const deps = makeDeps({ now: LATER });
+    await openEdit(deps, 1, "Telefono");
+    await shareContact(deps, "333 1234567");
+    expect(deps.tg.lastText()).toBe("📱 +393331234567, giusto?");
+    expect(labels(deps.tg.lastKeyboard())).toEqual(["Sì", "Correggi"]);
+    // SC-004: nulla salvato prima di Sì.
+    expect(await person(1)).toEqual(before);
+    await tap(deps, "Sì");
+    expect(await person(1)).toEqual({ ...before, phone: "+393331234567", updated_at: LATER.toISOString() });
+    expect(deps.tg.lastText()).toContain("Marco Rossi");
+    expect(deps.tg.lastText()).toContain("📱 +393331234567");
+    expect(await count("conversation_state")).toBe(0);
+  });
+
+  it("RF-04, D-24: US3-2 Correggi → domanda del telefono, telefono salvato invariato", async () => {
+    await insertPerson({ id: 1, fullName: "Marco Rossi", day: 14, month: 3, phone: "+390000000000" });
+    const deps = makeDeps();
+    await openEdit(deps, 1, "Telefono");
+    await shareContact(deps, "333 1234567");
+    await tap(deps, "Correggi");
+    expect(deps.tg.lastText()).toBe(T.editAsk.p);
+    expect(labels(deps.tg.lastKeyboard())).toEqual(["Svuota", "Annulla"]);
+    const s = await stateRow();
+    expect(s?.step).toBe("valore");
+    expect(JSON.parse(s!.data)).toMatchObject({ field: "p" });
+    expect(JSON.parse(s!.data)).not.toHaveProperty("pendingPhone");
+    expect((await person(1)).phone).toBe("+390000000000");
+  });
+
+  it("FR-011: US3-3 Modifica → Instagram, contatto → domanda Instagram ripetuta", async () => {
+    await insertPerson({ id: 1, fullName: "Marco Rossi", day: 14, month: 3, instagram: "marco" });
+    const before = await person(1);
+    const deps = makeDeps();
+    await openEdit(deps, 1, "Instagram");
+    await shareContact(deps, "393331234567");
+    expect(deps.tg.lastText()).toBe("Nuovo username Instagram?");
+    expect(labels(deps.tg.lastKeyboard())).toEqual(["Svuota", "Annulla"]);
+    expect((await stateRow())?.step).toBe("valore");
+    expect(await person(1)).toEqual(before);
+  });
+
+  it("RF-04: numero confermato uguale a quello salvato → salvataggio e scheda", async () => {
+    await insertPerson({ id: 1, fullName: "Marco Rossi", day: 14, month: 3, phone: "+393331234567" });
+    const deps = makeDeps();
+    await openEdit(deps, 1, "Telefono");
+    await shareContact(deps, "393331234567");
+    await tap(deps, "Sì");
+    expect((await person(1)).phone).toBe("+393331234567");
+    expect(deps.tg.lastText()).toContain("📱 +393331234567");
+    expect(await count("conversation_state")).toBe(0);
+  });
+
+  it("FR-018c: persona eliminata durante la conferma → Persona non trovata", async () => {
+    await insertPerson({ id: 1, fullName: "Marco Rossi", day: 14, month: 3 });
+    const deps = makeDeps();
+    await openEdit(deps, 1, "Telefono");
+    await shareContact(deps, "393331234567");
+    await env.DB.prepare("DELETE FROM persons WHERE id = 1").run();
+    await tap(deps, "Sì");
+    expect(deps.tg.lastAnswer()).toBe("Persona non trovata");
+    expect(await count("persons")).toBe(0);
+  });
+
+  it("FR-016: stato pre-rilascio allo step valore senza pendingPhone → il contatto porta alla conferma", async () => {
+    await insertPerson({ id: 1, fullName: "Marco Rossi", day: 14, month: 3 });
+    await env.DB.prepare(
+      "INSERT INTO conversation_state (chat_id, flow, step, flow_id, data, expires_at, updated_at) VALUES (?, 'modifica', 'valore', 'abc123', ?, '2099-01-01T00:00:00.000Z', 'x')",
+    )
+      .bind(1001, JSON.stringify({ personId: 1, field: "p", groups: { ids: [], pending: [] } }))
+      .run();
+    const deps = makeDeps();
+    await shareContact(deps, "393331234567");
+    expect(deps.tg.lastText()).toBe("📱 +393331234567, giusto?");
+    await tap(deps, "Sì");
+    expect((await person(1)).phone).toBe("+393331234567");
+  });
+
+  it("FR-009: contatto senza numero e numero non valido → messaggio e domanda del telefono", async () => {
+    await insertPerson({ id: 1, fullName: "Marco Rossi", day: 14, month: 3 });
+    const deps = makeDeps();
+    await openEdit(deps, 1, "Telefono");
+    await shareContact(deps);
+    expect(deps.tg.lastText()).toBe(`Questo contatto non ha un numero di telefono\n\n${T.editAsk.p}`);
+    await shareContact(deps, "12345");
+    expect(deps.tg.lastText()).toBe(`${T.invalidPhone}\n\n${T.editAsk.p}`);
+    expect((await stateRow())?.step).toBe("valore");
+  });
+});
+
+describe("RF-04, FR-012: domanda di Modifica → Telefono", () => {
+  it("RF-04, FR-012: Modifica → Telefono suggerisce il contatto", async () => {
+    await insertPerson({ id: 1, fullName: "Marco Rossi", day: 14, month: 3 });
+    const deps = makeDeps();
+    await openEdit(deps, 1, "Telefono");
+    expect(deps.tg.lastText()).toBe("Nuovo telefono? Scrivilo con il prefisso (es. +39 333 1234567)\noppure condividi il contatto 📎");
+    expect(labels(deps.tg.lastKeyboard())).toEqual(["Svuota", "Annulla"]);
   });
 });

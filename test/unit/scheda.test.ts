@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { renderScheda, schedaKeyboard } from "../../src/bot/scheda";
+import { renderRiepilogo, renderScheda, schedaKeyboard } from "../../src/bot/scheda";
 import { buttons } from "../helpers/fake-telegram";
 import type { PersonFields } from "../../src/db/persons";
 
@@ -26,7 +26,7 @@ describe("RF-03: scheda persona (AFU §5.6)", () => {
       'Marco Rossi — "Marchino"',
       "14/03/1994 · compie 33 anni tra 137 giorni",
       "Priorità: alta · Gruppi: Beach tennis, Lavoro",
-      "📱 +393331234567 · IG @marco.rossi · TG @mrossi",
+      "📱 +393331234567",
       "Messaggio: standard",
     ]);
   });
@@ -72,9 +72,58 @@ describe("RF-03: scheda persona (AFU §5.6)", () => {
   });
 
   it("FR-017, BR-08: Segna fatto sopra Modifica/Elimina solo con un'occorrenza in sospeso", () => {
-    expect(schedaKeyboard(12).inline_keyboard.map((r) => r.map((b) => b.text))).toEqual([["Modifica", "Elimina"]]);
-    const kb = schedaKeyboard(12, true);
+    expect(schedaKeyboard(12, { phone: null, instagram: null, telegram: null }).inline_keyboard.map((r) => r.map((b) => b.text))).toEqual([["Modifica", "Elimina"]]);
+    const kb = schedaKeyboard(12, { phone: null, instagram: null, telegram: null }, true);
     expect(kb.inline_keyboard.map((r) => r.map((b) => b.text))).toEqual([["Segna fatto"], ["Modifica", "Elimina"]]);
     expect(buttons(kb)[0]).toEqual(["Segna fatto", "p:f:12"]);
+  });
+});
+
+describe("RF-03, FR-002, FR-005: schedaKeyboard", () => {
+  const all = { phone: "+393331234567", instagram: "marco.rossi", telegram: "mrossi" };
+  const none = { phone: null, instagram: null, telegram: null };
+  const rowsOf = (kb: ReturnType<typeof schedaKeyboard>) => kb.inline_keyboard.map((r) => r.map((b) => b.text));
+
+  it("FR-002: contatti, Segna fatto, Modifica/Elimina nell'ordine", () => {
+    const kb = schedaKeyboard(12, all, true);
+    expect(rowsOf(kb)).toEqual([["WhatsApp", "Instagram", "Telegram"], ["Segna fatto"], ["Modifica", "Elimina"]]);
+    expect(buttons(kb)).toEqual([
+      ["WhatsApp", "https://wa.me/393331234567"],
+      ["Instagram", "https://ig.me/m/marco.rossi"],
+      ["Telegram", "https://t.me/mrossi"],
+      ["Segna fatto", "p:f:12"],
+      ["Modifica", "p:m:12"],
+      ["Elimina", "p:x:12"],
+    ]);
+  });
+
+  it("FR-002: nessun contatto → prima riga Modifica/Elimina; solo telefono → riga WhatsApp", () => {
+    expect(rowsOf(schedaKeyboard(12, none))).toEqual([["Modifica", "Elimina"]]);
+    expect(rowsOf(schedaKeyboard(12, { ...none, phone: "+393331234567" }))).toEqual([["WhatsApp"], ["Modifica", "Elimina"]]);
+  });
+
+  it("FR-005, D-27: nessun Copia messaggio e WhatsApp senza ?text=", () => {
+    const flat = schedaKeyboard(12, all, true).inline_keyboard.flat();
+    expect(flat.some((b) => "copy_text" in b)).toBe(false);
+    for (const b of flat) if ("url" in b) expect(b.url).not.toContain("?text=");
+  });
+});
+
+describe("RF-03, FR-001: username fuori dal testo della scheda", () => {
+  it("RF-03, FR-001: persona con soli username → nessuna riga contatti nel testo", () => {
+    const text = renderScheda({ ...marco, phone: null }, [], [], today);
+    expect(text.split("\n")).toEqual([
+      'Marco Rossi — "Marchino"',
+      "14/03/1994 · compie 33 anni tra 137 giorni",
+      "Priorità: alta",
+      "Messaggio: standard",
+    ]);
+    expect(text).not.toMatch(/IG @|TG @|marco\.rossi|mrossi/);
+  });
+
+  it("FR-001: renderRiepilogo senza username", () => {
+    const text = renderRiepilogo(marco, [], today);
+    expect(text).toContain("📱 +393331234567");
+    expect(text).not.toMatch(/IG @|TG @|marco\.rossi|mrossi/);
   });
 });

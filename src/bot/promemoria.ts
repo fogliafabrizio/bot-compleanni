@@ -3,6 +3,7 @@ import { formatShort } from "../domain/date";
 import { composeGreeting } from "../domain/greeting";
 import type { Kind, OccurrenceStatus } from "../domain/schedule";
 import { sortNames } from "../domain/text";
+import { isInstagramLinkable, isTelegramLinkable } from "../domain/username";
 import { button, copyButton, keyboard, urlButton } from "../telegram/keyboard";
 import type { InlineKeyboardButton, InlineKeyboardMarkup } from "../telegram/types";
 import { T } from "../texts";
@@ -54,13 +55,24 @@ const outcomeButton = (d: ReminderData, label: string, action: "f" | "s") =>
 const done = (d: ReminderData) => outcomeButton(d, T.btnOutcomeDone, "f");
 const skip = (d: ReminderData, label: string) => outcomeButton(d, label, "s");
 
-// RF-11, V-04…V-06: solo i contatti presenti; link https:// e copia nativa.
-export function contactRows(d: ReminderData, layout: "giorno" | "recupero"): InlineKeyboardButton[][] {
-  const p = d.person;
+export type ContactFields = Pick<ReminderPerson, "phone" | "instagram" | "telegram">;
+
+// RF-11, V-04…V-06: solo i contatti presenti, link https://. WhatsApp con gli auguri solo se
+// `greeting` c'è (la scheda passa null, D-27); username non validi per il link omessi (FR-002 di 006).
+export function contactLinks(p: ContactFields, greeting: string | null): InlineKeyboardButton[] {
   const links: InlineKeyboardButton[] = [];
-  if (p.phone) links.push(urlButton(T.btnWhatsApp, `https://wa.me/${p.phone.replace(/^\+/, "")}?text=${encodeURIComponent(d.greeting)}`));
-  if (p.instagram) links.push(urlButton(T.btnInstagram, `https://ig.me/m/${encodeURIComponent(p.instagram)}`));
-  if (p.telegram) links.push(urlButton(T.btnTelegram, `https://t.me/${encodeURIComponent(p.telegram)}`));
+  if (p.phone) {
+    const text = greeting !== null ? `?text=${encodeURIComponent(greeting)}` : "";
+    links.push(urlButton(T.btnWhatsApp, `https://wa.me/${p.phone.replace(/^\+/, "")}${text}`));
+  }
+  if (p.instagram && isInstagramLinkable(p.instagram)) links.push(urlButton(T.btnInstagram, `https://ig.me/m/${encodeURIComponent(p.instagram)}`));
+  if (p.telegram && isTelegramLinkable(p.telegram)) links.push(urlButton(T.btnTelegram, `https://t.me/${encodeURIComponent(p.telegram)}`));
+  return links;
+}
+
+// RF-11: contatti più la copia nativa degli auguri.
+export function contactRows(d: ReminderData, layout: "giorno" | "recupero"): InlineKeyboardButton[][] {
+  const links = contactLinks(d.person, d.greeting);
   // Messaggi salvati prima di FR-035 possono superare il limite di copy_text (spec Assumptions).
   const copy = [...d.greeting].length <= TEXT_LIMITS.customMessage ? [copyButton(T.btnCopy, d.greeting)] : [];
   return layout === "giorno" ? [links, copy] : [[...links, ...copy]];

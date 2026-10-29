@@ -1,7 +1,7 @@
 import { clear, getActive, start, update, type ConversationState, type FlowName } from "../../db/conversation";
 import { T } from "../../texts";
 import { button } from "../../telegram/keyboard";
-import type { InlineKeyboardButton, InlineKeyboardMarkup } from "../../telegram/types";
+import type { Contact, InlineKeyboardButton, InlineKeyboardMarkup } from "../../telegram/types";
 import { answerCallback, reply, type Ctx } from "../context";
 
 // Motore dei flussi guidati (contracts/flussi.md, regole comuni).
@@ -18,6 +18,8 @@ export interface Step {
   prompt(state: ConversationState, ctx: Ctx): Promise<Prompt>;
   onText?(text: string, state: ConversationState, ctx: Ctx): Promise<void>;
   onCallback?(action: string, arg: string | undefined, state: ConversationState, ctx: Ctx): Promise<void>;
+  // Contatto condiviso (FR-011 di 006): solo gli step del telefono lo gestiscono.
+  onContact?(contact: Contact, state: ConversationState, ctx: Ctx): Promise<void>;
 }
 
 export interface FlowDef {
@@ -91,6 +93,18 @@ export async function handleFlowText(ctx: Ctx, state: ConversationState, text: s
     return;
   }
   await step.onText(text, state, ctx);
+}
+
+// FR-011 di 006: negli step senza onContact il contatto ripete la domanda (come FR-018b).
+export async function handleFlowContact(ctx: Ctx, state: ConversationState, contact: Contact): Promise<void> {
+  const step = stepOf(state);
+  if (!step) {
+    await clear(ctx.deps.db, ctx.chatId);
+    await reply(ctx, T.notUnderstood);
+    return;
+  }
+  if (step.onContact) await step.onContact(contact, state, ctx);
+  else await repeatStep(ctx, state);
 }
 
 export async function handleFlowCallback(ctx: Ctx, flowId: string, action: string, arg: string | undefined): Promise<void> {

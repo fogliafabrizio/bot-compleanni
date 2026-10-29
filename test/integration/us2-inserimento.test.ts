@@ -1,11 +1,13 @@
 import { env } from "cloudflare:test";
 import { describe, expect, it } from "vitest";
+import { T } from "../../src/texts";
 import { addHours } from "../../src/time";
-import { NOW } from "../helpers/constants";
+import { NOW, STRANGER_ID } from "../helpers/constants";
 import { count, insertGroup, insertPerson, rows } from "../helpers/db";
 import { makeDeps, type TestDeps } from "../helpers/deps";
 import { buttons, cbOf, labels } from "../helpers/fake-telegram";
-import { press, say } from "../helpers/send";
+import { press, say, send, shareContact } from "../helpers/send";
+import { contactUpdate } from "../helpers/updates";
 
 const kb = (deps: TestDeps) => deps.tg.lastKeyboard();
 const tap = (deps: TestDeps, label: string) => press(deps, cbOf(kb(deps), label));
@@ -53,7 +55,7 @@ describe("US2: inserimento guidato", () => {
     expect(labels(kb(deps))).toEqual(["Sì", "Correggi"]);
 
     await tap(deps, "Sì");
-    expect(deps.tg.lastText()).toBe("Telefono? (con prefisso, es. +39 333 1234567)");
+    expect(deps.tg.lastText()).toBe(T.askPhone);
     expect(labels(kb(deps))).toEqual(["Salta"]);
     await tap(deps, "Salta");
     expect(deps.tg.lastText()).toBe("Username Instagram?");
@@ -532,5 +534,219 @@ describe("FR-006a: creazione al volo di un gruppo nello step Gruppi di /nuovo", 
     await tap(deps, "➕ Nuovo gruppo");
     await say(deps, "★ Bar");
     expect(labels(kb(deps))).toEqual(["☑ ★ Bar", "➕ Nuovo gruppo", "Fine"]);
+  });
+});
+
+describe("RF-01, FR-011: contatto fuori dallo step telefono", () => {
+  it("FR-011, 001 FR-025a: contatto senza flusso attivo → Non ho capito, nessuna persona", async () => {
+    const deps = makeDeps();
+    await shareContact(deps, "393331234567");
+    expect(deps.tg.messages().map((m) => m.text)).toEqual(["Non ho capito. Scrivi /aiuto per l'elenco dei comandi"]);
+    expect(await count("persons")).toBe(0);
+  });
+
+  it("US2-4, FR-011: contatto allo step Nome → domanda del nome ripetuta", async () => {
+    const deps = makeDeps();
+    await say(deps, "/nuovo");
+    const before = await stateRow();
+    await shareContact(deps, "393331234567");
+    expect(deps.tg.lastText()).toBe("Nome completo?");
+    expect(labels(kb(deps))).toEqual(["Annulla"]);
+    expect(await stateRow()).toEqual(before);
+  });
+
+  it("FR-011: contatto in uno step di /messaggio → domanda dello step ripetuta con i suoi pulsanti", async () => {
+    const deps = makeDeps();
+    await say(deps, "/messaggio");
+    const question = deps.tg.lastText();
+    await shareContact(deps, "393331234567");
+    expect(deps.tg.lastText()).toBe(question);
+    expect(labels(kb(deps))).toEqual(["Annulla"]);
+    expect(await stateRow()).toMatchObject({ flow: "messaggio", step: "testo" });
+  });
+
+  it("RF-30: contatto da un estraneo → nessuna chiamata a Telegram", async () => {
+    const deps = makeDeps();
+    await send(deps, contactUpdate(STRANGER_ID, "393331234567"));
+    expect(deps.tg.calls).toEqual([]);
+    expect(await count("persons")).toBe(0);
+  });
+});
+
+// Porta /nuovo fino allo step Telefono.
+async function toPhone(deps: TestDeps, name = "Marco Rossi") {
+  await say(deps, "/nuovo");
+  await say(deps, name);
+  await tap(deps, "Salta");
+  await say(deps, "14/03/1994");
+  await tap(deps, "Sì");
+}
+
+// Dallo step Instagram fino alla scheda, con Telegram scritto a mano.
+async function instagramToSaved(deps: TestDeps, telegram?: string) {
+  await tap(deps, "Salta"); // instagram
+  if (telegram) await say(deps, telegram);
+  else await tap(deps, "Salta");
+  await groupsToSummary(deps);
+  await tap(deps, "Salva");
+}
+
+async function stateData() {
+  const row = await env.DB.prepare("SELECT data FROM conversation_state").first<{ data: string }>();
+  return row ? (JSON.parse(row.data) as Record<string, unknown>) : null;
+}
+
+describe("RF-01, BR-25, V-08: telefono da contatto in /nuovo", () => {
+  it("RF-01, BR-25, SC-004: US2-1 contatto 393331234567 → conferma +393331234567, Sì salva il numero", async () => {
+    const deps = makeDeps();
+    await toPhone(deps);
+    await shareContact(deps, "393331234567");
+    const flowId = (await stateRow())!.flow_id;
+    expect(deps.tg.lastText()).toBe("📱 +393331234567, giusto?");
+    expect(buttons(kb(deps))).toEqual([
+      ["Sì", `f:${flowId}:y`],
+      ["Correggi", `f:${flowId}:c`],
+    ]);
+    expect((await stateRow())?.step).toBe("telefono_conferma");
+    // SC-004: nulla salvato prima di Sì.
+    expect(await count("persons")).toBe(0);
+
+    await tap(deps, "Sì");
+    expect(deps.tg.lastText()).toBe("Username Instagram?");
+    expect(await stateData()).not.toHaveProperty("pendingPhone");
+    await instagramToSaved(deps);
+    const [p] = await rows("SELECT phone FROM persons");
+    expect(p).toMatchObject({ phone: "+393331234567" });
+  });
+
+  it("RF-01, BR-25: US2-2 contatto 333 1234567 → propone +393331234567", async () => {
+    const deps = makeDeps();
+    await toPhone(deps);
+    await shareContact(deps, "333 1234567");
+    expect(deps.tg.lastText()).toBe("📱 +393331234567, giusto?");
+    expect(await stateData()).toMatchObject({ pendingPhone: "+393331234567" });
+  });
+
+  it.each([
+    ["+41 79 123 45 67", "+41791234567"],
+    ["0041791234567", "+41791234567"],
+  ])("BR-25: contatto %j → conferma %s", async (input, expected) => {
+    const deps = makeDeps();
+    await toPhone(deps);
+    await shareContact(deps, input);
+    expect(deps.tg.lastText()).toBe(`📱 ${expected}, giusto?`);
+  });
+
+  it("RF-01, D-24: US2-3 Correggi → domanda del telefono, nulla salvato", async () => {
+    const deps = makeDeps();
+    await toPhone(deps);
+    await shareContact(deps, "393331234567");
+    await tap(deps, "Correggi");
+    expect(deps.tg.lastText()).toContain("Telefono?");
+    expect(labels(kb(deps))).toEqual(["Salta"]);
+    expect((await stateRow())?.step).toBe("telefono");
+    const d = await stateData();
+    expect(d).not.toHaveProperty("pendingPhone");
+    expect(d).toMatchObject({ phone: null });
+    expect(await count("persons")).toBe(0);
+  });
+
+  it("BR-25, FR-009: US2-5 contatto 12345 → numero non valido e domanda ripetuta", async () => {
+    const deps = makeDeps();
+    await toPhone(deps);
+    await shareContact(deps, "12345");
+    expect(deps.tg.lastText()).toMatch(/^Numero non valido\. Scrivilo con il prefisso, es\. \+39 333 1234567\n\n.*Telefono\?/s);
+    expect(labels(kb(deps))).toEqual(["Salta"]);
+    expect((await stateRow())?.step).toBe("telefono");
+    expect(await count("persons")).toBe(0);
+  });
+
+  it.each([undefined, "", "   "])("FR-009, Q3: contatto con phone_number %j → senza numero e domanda ripetuta", async (phone) => {
+    const deps = makeDeps();
+    await toPhone(deps);
+    await shareContact(deps, phone);
+    expect(deps.tg.lastText()).toMatch(/^Questo contatto non ha un numero di telefono\n\n.*Telefono\?/s);
+    expect(labels(kb(deps))).toEqual(["Salta"]);
+    expect((await stateRow())?.step).toBe("telefono");
+  });
+
+  it("FR-008: US2-7 nome e user_id del contatto ignorati", async () => {
+    const deps = makeDeps();
+    await toPhone(deps);
+    await shareContact(deps, "393331234567", { first_name: "Altro", last_name: "Nome", user_id: 999 });
+    await tap(deps, "Sì");
+    await instagramToSaved(deps, "@mrossi");
+    const [p] = await rows("SELECT full_name, telegram, phone FROM persons");
+    expect(p).toEqual({ full_name: "Marco Rossi", telegram: "mrossi", phone: "+393331234567" });
+  });
+
+  it("FR-011, Q4, SC-004: durante la conferma un secondo contatto o un testo ripetono la conferma", async () => {
+    const deps = makeDeps();
+    await toPhone(deps);
+    await shareContact(deps, "393331234567");
+    const before = await stateRow();
+    await shareContact(deps, "+41 79 123 45 67");
+    expect(deps.tg.lastText()).toBe("📱 +393331234567, giusto?");
+    expect(labels(kb(deps))).toEqual(["Sì", "Correggi"]);
+    await say(deps, "+39 333 7654321");
+    expect(deps.tg.lastText()).toBe("📱 +393331234567, giusto?");
+    expect(await stateRow()).toEqual(before);
+    expect(await stateData()).toMatchObject({ pendingPhone: "+393331234567" });
+    expect(await count("persons")).toBe(0);
+  });
+
+  it("001 FR-018c: Sì premuto dopo /annulla → non più disponibile", async () => {
+    const deps = makeDeps();
+    await toPhone(deps);
+    await shareContact(deps, "393331234567");
+    const yes = cbOf(kb(deps), "Sì");
+    await say(deps, "/annulla");
+    await press(deps, yes);
+    expect(deps.tg.lastAnswer()).toBe("Questa azione non è più disponibile");
+    expect(await count("persons")).toBe(0);
+  });
+
+  it("FR-016: stato pre-rilascio allo step telefono senza pendingPhone → il contatto porta alla conferma", async () => {
+    const data = {
+      fullName: "Marco Rossi",
+      nickname: null,
+      birth: { day: 14, month: 3, year: 1994 },
+      phone: null,
+      instagram: null,
+      telegram: null,
+      groups: { ids: [], pending: [] },
+      priority: "media",
+      customMessage: null,
+    };
+    await env.DB.prepare(
+      "INSERT INTO conversation_state (chat_id, flow, step, flow_id, data, expires_at, updated_at) VALUES (?, 'nuovo', 'telefono', 'abc123', ?, '2099-01-01T00:00:00.000Z', 'x')",
+    )
+      .bind(1001, JSON.stringify(data))
+      .run();
+    const deps = makeDeps();
+    await shareContact(deps, "393331234567");
+    expect(deps.tg.lastText()).toBe("📱 +393331234567, giusto?");
+    await tap(deps, "Sì");
+    expect(deps.tg.lastText()).toBe("Username Instagram?");
+    await instagramToSaved(deps);
+    expect(await rows("SELECT full_name, phone FROM persons")).toEqual([{ full_name: "Marco Rossi", phone: "+393331234567" }]);
+  });
+
+  it("V-08: si usa solo phone_number, mai la vCard", async () => {
+    const deps = makeDeps();
+    await toPhone(deps);
+    await shareContact(deps, "393331234567", { vcard: "BEGIN:VCARD\nTEL:+41791234567\nEND:VCARD" });
+    expect(deps.tg.lastText()).toBe("📱 +393331234567, giusto?");
+    expect(await stateData()).toMatchObject({ pendingPhone: "+393331234567" });
+  });
+});
+
+describe("RF-01, FR-007: domanda del telefono", () => {
+  it("RF-01, §5.2: US2-6 la domanda del telefono suggerisce di condividere il contatto", async () => {
+    const deps = makeDeps();
+    await toPhone(deps);
+    expect(deps.tg.lastText()).toBe("📱 Telefono? Scrivilo con il prefisso (es. +39 333 1234567)\noppure condividi il contatto 📎");
+    expect(deps.tg.lastText()).toContain("condividi il contatto");
+    expect(labels(kb(deps))).toEqual(["Salta"]);
   });
 });

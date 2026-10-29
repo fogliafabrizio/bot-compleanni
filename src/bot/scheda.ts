@@ -7,6 +7,7 @@ import type { InlineKeyboardMarkup } from "../telegram/types";
 import { T } from "../texts";
 import { toIso, toLocal, type LocalDate } from "../time";
 import { answerCallback, reply, type Ctx } from "./context";
+import { contactLinks, type ContactFields } from "./promemoria";
 
 // Scheda persona (AFU §5.6, contracts/comandi.md, research R-16).
 
@@ -23,12 +24,8 @@ function schedaLines(p: PersonFields, groupNames: readonly string[], today: Loca
     [T.schedaPriority(p.priority), ...(sorted.length > 0 ? [T.schedaGroups(sorted.join(", "))] : [])].join(" · "),
   );
 
-  const contacts = [
-    ...(p.phone ? [T.schedaPhone(p.phone)] : []),
-    ...(p.instagram ? [T.schedaInstagram(p.instagram)] : []),
-    ...(p.telegram ? [T.schedaTelegram(p.telegram)] : []),
-  ];
-  if (contacts.length > 0) lines.push(contacts.join(" · "));
+  // FR-001 di 006, V-04: nel testo solo il telefono; gli username sono pulsanti della tastiera.
+  if (p.phone) lines.push(T.schedaPhone(p.phone));
 
   lines.push(p.customMessage ? T.schedaMessageCustom(p.customMessage) : T.schedaMessageStandard);
   return lines;
@@ -52,10 +49,12 @@ export function renderRiepilogo(p: PersonFields, groupNames: readonly string[], 
   return `${T.summaryTitle}\n${schedaLines(p, groupNames, today).join("\n")}`;
 }
 
-// RNF-14: solo pulsanti di azione; "Segna fatto" sopra Modifica/Elimina se c'è un'occorrenza in
-// sospeso (FR-017).
-export function schedaKeyboard(personId: number, hasPending = false): InlineKeyboardMarkup {
+// RF-03, FR-002 di 006: riga dei contatti presenti (WhatsApp senza auguri, niente Copia messaggio),
+// poi "Segna fatto" se c'è un'occorrenza in sospeso (FR-017), poi Modifica/Elimina. Le righe vuote
+// sono scartate da keyboard().
+export function schedaKeyboard(personId: number, contacts: ContactFields, hasPending = false): InlineKeyboardMarkup {
   return keyboard([
+    contactLinks(contacts, null),
     hasPending ? [button(T.btnMarkDone, { kind: "static", scope: "p", action: "f", id: personId })] : [],
     [
       button(T.btnEdit, { kind: "static", scope: "p", action: "m", id: personId }),
@@ -73,7 +72,7 @@ export async function showScheda(ctx: Ctx, personId: number, prefix?: string): P
     return;
   }
   const text = renderScheda(data.person, data.groups, data.outcomes, today);
-  await reply(ctx, prefix ? `${prefix}\n\n${text}` : text, schedaKeyboard(personId, data.pending !== null));
+  await reply(ctx, prefix ? `${prefix}\n\n${text}` : text, schedaKeyboard(personId, data.person, data.pending !== null));
 }
 
 // "Segna fatto" (p:f, FR-017, FR-018, BR-08): una batch con l'UPDATE e la rilettura della scheda.
@@ -101,7 +100,7 @@ export async function markDone(ctx: Ctx, personId: number): Promise<void> {
       ctx.chatId,
       messageId,
       renderScheda(data.person, data.groups, data.outcomes, today),
-      schedaKeyboard(personId, data.pending !== null),
+      schedaKeyboard(personId, data.person, data.pending !== null),
     );
   }
   await answerCallback(ctx);

@@ -20,6 +20,18 @@ export interface Message {
   document?: Document;
   caption?: string;
   photo?: { file_id: string }[];
+  // Contatto condiviso dalla rubrica (RF-01, RF-04, research R-01 di 006).
+  contact?: Contact;
+}
+
+// Solo phone_number decide qualcosa (V-08); gli altri campi sono ignorati (FR-008 di 006).
+export interface Contact {
+  // Obbligatorio nella Bot API; opzionale qui per il contatto senza numero (FR-009 di 006).
+  phone_number?: string;
+  first_name?: string;
+  last_name?: string;
+  user_id?: number;
+  vcard?: string;
 }
 
 export interface Document {

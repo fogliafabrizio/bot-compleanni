@@ -4,7 +4,7 @@ import { existsNorm, listAll } from "../../db/groups";
 import type { Person } from "../../db/persons";
 import { formatLong, formatShort, parseBirthDate, type BirthDate } from "../../domain/date";
 import { validateGreeting } from "../../domain/greeting";
-import { normalizePhone } from "../../domain/phone";
+import { normalizeContactPhone, normalizePhone } from "../../domain/phone";
 import { cleanText, hasValidGroupKey, normKey } from "../../domain/text";
 import { normalizeUsername } from "../../domain/username";
 import { keyboard } from "../../telegram/keyboard";
@@ -113,6 +113,54 @@ export function dateConfirmStep(opts: {
       }
       await opts.onConfirm(d, state, ctx);
     },
+  };
+}
+
+// --- Telefono da contatto condiviso (RF-01, RF-04, BR-25, D-24; research R-04 di 006) ---
+
+export interface WithPendingPhone {
+  pendingPhone?: string;
+}
+
+function withoutPendingPhone(data: unknown): unknown {
+  const { pendingPhone: _, ...rest } = data as WithPendingPhone & Record<string, unknown>;
+  return rest;
+}
+
+// Conferma del numero proposto: nessun Annulla, come la conferma della data (FR-010).
+export function phoneConfirmStep(opts: {
+  correctStep: string;
+  onConfirm: (phone: string, state: ConversationState, ctx: Ctx) => Promise<void>;
+}): Step {
+  return {
+    kind: "buttons",
+    actions: ["y", "c"],
+    async prompt(state) {
+      return {
+        text: T.confirmPhone((state.data as WithPendingPhone).pendingPhone ?? ""),
+        keyboard: keyboard([[flowButton(state, T.btnYes, "y"), flowButton(state, T.btnFix, "c")]]),
+      };
+    },
+    async onCallback(action, _arg, state, ctx) {
+      const phone = (state.data as WithPendingPhone).pendingPhone;
+      if (action === "c" || !phone) {
+        await goTo(ctx, state, opts.correctStep, withoutPendingPhone(state.data));
+        return;
+      }
+      await opts.onConfirm(phone, state, ctx);
+    },
+  };
+}
+
+// Contatto allo step del telefono: si legge solo phone_number (FR-008, V-08), mai nei log.
+export function phoneContactHandler(confirmStep: string): NonNullable<Step["onContact"]> {
+  return async (contact, state, ctx) => {
+    const r = normalizeContactPhone(contact.phone_number);
+    if (!r.ok) {
+      await repeatStep(ctx, state, r.reason === "missing" ? T.contactWithoutPhone : T.invalidPhone);
+      return;
+    }
+    await goTo(ctx, state, confirmStep, { ...(state.data as object), pendingPhone: r.value });
   };
 }
 

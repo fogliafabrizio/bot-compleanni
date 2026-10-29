@@ -18,13 +18,15 @@ import { T } from "../../texts";
 import { toIso } from "../../time";
 import { answerCallback, type Ctx } from "../context";
 import { showScheda } from "../scheda";
-import { abortFlow, cancelButton, flowButton, goTo, registerFlow, startFlow } from "./engine";
+import { abortFlow, cancelButton, flowButton, goTo, registerFlow, repeatStep, startFlow } from "./engine";
 import {
   dateConfirmStep,
   duplicateInfo,
   duplicateStep,
   groupsStep,
   newGroupStep,
+  phoneConfirmStep,
+  phoneContactHandler,
   priorityStep,
   textStep,
   validateDate,
@@ -55,6 +57,7 @@ interface ModificaData {
   personId: number;
   field?: TextField;
   pendingDate?: BirthDate;
+  pendingPhone?: string;
   pendingPatch?: Partial<PersonFields>;
   duplicate?: { name: string; date: string };
   groups: GroupSelection;
@@ -62,6 +65,9 @@ interface ModificaData {
 }
 
 const data = (state: ConversationState) => state.data as ModificaData;
+
+// Contatto condiviso in Modifica → Telefono (RF-04, BR-25).
+const phoneContact = phoneContactHandler("valore_conferma");
 
 export async function startModifica(ctx: Ctx, personId: number): Promise<void> {
   const initial: ModificaData = { personId, groups: { ids: [], pending: [] } };
@@ -172,36 +178,47 @@ registerFlow({
         }
       },
     },
-    valore: textStep<string | BirthDate>({
-      question: (state) => T.editAsk[data(state).field ?? "n"],
-      buttons: (state) => {
-        const field = data(state).field;
-        return [...(field && CLEARABLE[field] ? [flowButton(state, T.btnClear, "z")] : []), cancelButton(state)];
+    valore: {
+      ...textStep<string | BirthDate>({
+        question: (state) => T.editAsk[data(state).field ?? "n"],
+        buttons: (state) => {
+          const field = data(state).field;
+          return [...(field && CLEARABLE[field] ? [flowButton(state, T.btnClear, "z")] : []), cancelButton(state)];
+        },
+        actions: ["z"],
+        validate: (text, ctx, state) => validateField(data(state).field ?? "n", text, ctx),
+        onValue: async (value, state, ctx) => {
+          const field = data(state).field ?? "n";
+          if (field === "d") {
+            await goTo(ctx, state, "data_conferma", { ...data(state), pendingDate: value as BirthDate });
+            return;
+          }
+          if (field === "n") {
+            const person = await personOrAbort(ctx, state);
+            if (person) await saveWithDuplicateCheck(ctx, state, person, { fullName: value as string });
+            return;
+          }
+          await savePatch(ctx, state, { [TEXT_PATCH[field]]: value as string });
+        },
+        onCallback: async (_action, _arg, state, ctx) => {
+          const field = data(state).field;
+          const column = field ? CLEARABLE[field] : undefined;
+          if (!column) {
+            await answerCallback(ctx, T.actionUnavailable);
+            return;
+          }
+          await savePatch(ctx, state, { [column]: null });
+        },
+      }),
+      // RF-04, FR-012: il contatto vale solo per il Telefono; negli altri campi ripete la domanda.
+      async onContact(contact, state, ctx) {
+        if (data(state).field === "p") await phoneContact(contact, state, ctx);
+        else await repeatStep(ctx, state);
       },
-      actions: ["z"],
-      validate: (text, ctx, state) => validateField(data(state).field ?? "n", text, ctx),
-      onValue: async (value, state, ctx) => {
-        const field = data(state).field ?? "n";
-        if (field === "d") {
-          await goTo(ctx, state, "data_conferma", { ...data(state), pendingDate: value as BirthDate });
-          return;
-        }
-        if (field === "n") {
-          const person = await personOrAbort(ctx, state);
-          if (person) await saveWithDuplicateCheck(ctx, state, person, { fullName: value as string });
-          return;
-        }
-        await savePatch(ctx, state, { [TEXT_PATCH[field]]: value as string });
-      },
-      onCallback: async (_action, _arg, state, ctx) => {
-        const field = data(state).field;
-        const column = field ? CLEARABLE[field] : undefined;
-        if (!column) {
-          await answerCallback(ctx, T.actionUnavailable);
-          return;
-        }
-        await savePatch(ctx, state, { [column]: null });
-      },
+    },
+    valore_conferma: phoneConfirmStep({
+      correctStep: "valore",
+      onConfirm: (phone, state, ctx) => savePatch(ctx, state, { phone }),
     }),
     data_conferma: dateConfirmStep({
       correctStep: "valore",

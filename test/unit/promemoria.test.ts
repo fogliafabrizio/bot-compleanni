@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  contactLinks,
   renderGiorno,
   renderGiornoAfter,
   renderPre,
@@ -8,6 +9,8 @@ import {
   renderRecuperoAfter,
   type ReminderData,
 } from "../../src/bot/promemoria";
+import { keyboard } from "../../src/telegram/keyboard";
+import { T } from "../../src/texts";
 import { buttons, cbOf, copyOf, labels, urlOf } from "../helpers/fake-telegram";
 
 type Over = Partial<Omit<ReminderData, "person">> & { person?: Partial<ReminderData["person"]> };
@@ -102,10 +105,21 @@ describe("RF-11, V-04…V-06: tastiera del reminder del giorno", () => {
     );
   });
 
-  it("V-05: Instagram e Telegram senza testo, username codificato", () => {
-    const kb = renderGiorno(data({ person: { instagram: "a b", telegram: "marcor" } })).keyboard;
-    expect(urlOf(kb, "Instagram")).toBe("https://ig.me/m/a%20b");
+  it("V-05: Instagram e Telegram senza testo", () => {
+    const kb = renderGiorno(data({ person: { instagram: "marco.rossi", telegram: "marcor" } })).keyboard;
+    expect(urlOf(kb, "Instagram")).toBe("https://ig.me/m/marco.rossi");
     expect(urlOf(kb, "Telegram")).toBe("https://t.me/marcor");
+  });
+
+  it("FR-002, Q5: username non validi per il link → pulsante omesso", () => {
+    const kb = renderGiorno(data({ person: { phone: "+393331234567", instagram: "a b", telegram: "abc" } })).keyboard;
+    expect(labels(kb)).toEqual(["WhatsApp", "Copia messaggio", "Fatto ✅", "Salta quest'anno"]);
+    expect(labels(renderRecupero(data({ person: { instagram: "màrco", telegram: "marcor" } })).keyboard)).toEqual([
+      "Telegram",
+      "Copia messaggio",
+      "Fatto ✅",
+      "Saltato",
+    ]);
   });
 
   it("RF-11: solo i contatti presenti", () => {
@@ -146,7 +160,7 @@ describe("RF-13, §5.5: recupero", () => {
   });
 
   it("RF-13: tastiera contatti + copia su una riga, poi Fatto / Saltato", () => {
-    const kb = renderRecupero(data({ person: { phone: "+393331234567", instagram: "m", telegram: "t" } })).keyboard;
+    const kb = renderRecupero(data({ person: { phone: "+393331234567", instagram: "m", telegram: "marcor" } })).keyboard;
     expect(kb.inline_keyboard.map((r) => r.map((b) => b.text))).toEqual([
       ["WhatsApp", "Instagram", "Telegram", "Copia messaggio"],
       ["Fatto ✅", "Saltato"],
@@ -200,5 +214,42 @@ describe("RF-16, contracts/callback-data.md di 003: destinazione dei pulsanti di
     expect([cbOf(o, "Fatto ✅"), cbOf(o, "Salta quest'anno")]).toEqual(["o:f:77", "o:s:77"]);
     const t = renderGiorno(data({ actionTarget: { scope: "t", id: 55 } })).keyboard;
     expect([cbOf(t, "Fatto ✅"), cbOf(t, "Salta quest'anno")]).toEqual(["t:f:55", "t:s:55"]);
+  });
+});
+
+describe("RF-11, FR-004, D-27: contactLinks", () => {
+  const p = { phone: "+393331234567", instagram: "marco.rossi", telegram: "marcor" };
+  const row = (greeting: string | null) => keyboard([contactLinks(p, greeting)]);
+
+  it("D-27, FR-004: senza auguri WhatsApp apre la chat senza ?text=", () => {
+    expect(buttons(row(null))).toEqual([
+      ["WhatsApp", "https://wa.me/393331234567"],
+      ["Instagram", "https://ig.me/m/marco.rossi"],
+      ["Telegram", "https://t.me/marcor"],
+    ]);
+  });
+
+  it("RF-11: con gli auguri WhatsApp ha ?text= codificato", () => {
+    expect(urlOf(row("Auguri!"), "WhatsApp")).toBe("https://wa.me/393331234567?text=Auguri!");
+    expect(urlOf(row("Tanti auguri"), "WhatsApp")).toBe("https://wa.me/393331234567?text=Tanti%20auguri");
+  });
+
+  it("FR-002: username non validi omessi; nessun contatto → nessun pulsante", () => {
+    expect(contactLinks({ phone: null, instagram: "marco rossi", telegram: "abc" }, null)).toEqual([]);
+    expect(contactLinks({ phone: null, instagram: null, telegram: null }, null)).toEqual([]);
+  });
+
+  it("FR-006: etichette senza icone", () => {
+    for (const label of [T.btnWhatsApp, T.btnInstagram, T.btnTelegram, T.btnCopy]) {
+      expect(label).toMatch(/^[\p{L} ]+$/u);
+    }
+  });
+
+  it("FR-005, FR-017: renderGiorno e renderRecupero mantengono WhatsApp con ?text= e Copia messaggio", () => {
+    const d = data({ person: p });
+    for (const kb of [renderGiorno(d).keyboard, renderRecupero(d).keyboard]) {
+      expect(urlOf(kb, "WhatsApp")).toBe("https://wa.me/393331234567?text=Tanti%20auguri%20Marchino!%20%F0%9F%8E%89");
+      expect(copyOf(kb, "Copia messaggio")).toBe("Tanti auguri Marchino! 🎉");
+    }
   });
 });

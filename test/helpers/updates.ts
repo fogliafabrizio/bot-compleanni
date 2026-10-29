@@ -1,4 +1,4 @@
-import type { Update } from "../../src/telegram/types";
+import type { Contact, Update } from "../../src/telegram/types";
 import { SECRET } from "./constants";
 
 let nextId = 1;
@@ -46,6 +46,20 @@ export function photoUpdate(fromId: number): Update {
   return {
     update_id: id,
     message: { message_id: id, from: { id: fromId }, chat: { id: fromId, type: "private" }, photo: [{ file_id: `ph${id}` }] },
+  };
+}
+
+// Contatto condiviso dalla rubrica (contracts/scheda-contatti.md §1 di 006).
+export function contactUpdate(fromId: number, phoneNumber?: string, extra?: Partial<Contact>): Update {
+  const id = nextId++;
+  return {
+    update_id: id,
+    message: {
+      message_id: id,
+      from: { id: fromId },
+      chat: { id: fromId, type: "private" },
+      contact: { first_name: "Contatto", ...(phoneNumber !== undefined ? { phone_number: phoneNumber } : {}), ...extra },
+    },
   };
 }
 

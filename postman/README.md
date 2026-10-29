@@ -109,6 +109,13 @@ compaiono anche nelle liste: le attese valgono per i soli dati di prova.
 
 ## Changelog
 
+- **2.2.0** (2026-10-29): feature 006 (scheda e contatti), 239 richieste. Update con
+  `message.contact`: 02 (contatto fuori flusso → "Non ho capito", nessuna persona), 12 (contatto
+  senza numero, numero non valido, conferma `📱 <numero>, giusto?`, Correggi, Sì → Instagram; il
+  telefono di Giulia arriva ora dal contatto e la richiesta "Telefono 333 9876543" è stata tolta),
+  14 (Modifica → Telefono → contatto → Sì, controllo su D1). Attese aggiornate: domanda del
+  telefono con "oppure condividi il contatto 📎", scheda senza `IG @`/`TG @` e con la riga
+  WhatsApp/Instagram/Telegram (WhatsApp senza `?text=`) in 11, 12 e 14. Seed invariato.
 - **2.1.0** (2026-10-29): feature 005 (gruppi v1.1), 229 richieste. Cartelle aggiornate: 02
   (`/aiuto` con `/gruppi [nome]`, senza `/gruppo`), 04 (`/prossimi 7 casa` con scelta `g2:p`,
   gruppo inesistente con elenco a pulsanti), 06 → "06 · /gruppi <nome> (RF-19, BR-26)", 16 →

@@ -8,7 +8,7 @@ import { answerCallback, reply, type Ctx } from "./context";
 import { awaitsBackupFile, handleDocument } from "./file";
 import { handleOutcomeCallback } from "./esiti";
 import { getById } from "../db/persons";
-import { handleFlowCallback, handleFlowText, repeatStep } from "./flows/engine";
+import { handleFlowCallback, handleFlowContact, handleFlowText, repeatStep } from "./flows/engine";
 import { startElimina } from "./flows/elimina";
 import { handleGroupCallback } from "./flows/gruppi";
 import { startModifica } from "./flows/modifica";
@@ -66,6 +66,12 @@ async function routeMessage(msg: Message, deps: Deps): Promise<void> {
   // Immagine inviata come foto: non si scarica, il flusso resta invariato.
   if (msg.photo) {
     await reply(ctx, awaitsBackupFile(state) ? T.waitingBackupFile : T.sendCsv);
+    return;
+  }
+  // FR-011 di 006: il contatto vale solo negli step del telefono; fuori flusso non crea persone.
+  if (msg.contact) {
+    if (state) await handleFlowContact(ctx, state, msg.contact);
+    else await reply(ctx, T.notUnderstood);
     return;
   }
 

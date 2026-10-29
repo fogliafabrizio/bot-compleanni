@@ -15,6 +15,8 @@ import {
   duplicateStep,
   groupsStep,
   newGroupStep,
+  phoneConfirmStep,
+  phoneContactHandler,
   priorityStep,
   selectedGroupNames,
   textStep,
@@ -34,6 +36,7 @@ interface NuovoData {
   birth: BirthDate | null;
   pendingDate?: BirthDate;
   phone: string | null;
+  pendingPhone?: string;
   instagram: string | null;
   telegram: string | null;
   groups: GroupSelection;
@@ -145,7 +148,18 @@ registerFlow({
         await goTo(ctx, state, "telefono", { ...rest, birth: date });
       },
     }),
-    telefono: optionalField(T.askPhone, validatePhone, (d, v) => ({ ...d, phone: v }), "instagram"),
+    // FR-007: Salta invariato; il contatto condiviso passa dalla conferma (RF-01, BR-25).
+    telefono: {
+      ...optionalField(T.askPhone, validatePhone, (d, v) => ({ ...d, phone: v }), "instagram"),
+      onContact: phoneContactHandler("telefono_conferma"),
+    },
+    telefono_conferma: phoneConfirmStep({
+      correctStep: "telefono",
+      onConfirm: async (phone, state, ctx) => {
+        const { pendingPhone: _, ...rest } = data(state);
+        await goTo(ctx, state, "instagram", { ...rest, phone });
+      },
+    }),
     instagram: optionalField(T.askInstagram, validateUsername, (d, v) => ({ ...d, instagram: v }), "telegram"),
     telegram: optionalField(T.askTelegram, validateUsername, (d, v) => ({ ...d, telegram: v }), "gruppi"),
     gruppi: groupsStep({

@@ -1,8 +1,8 @@
 import { handleRequest } from "../../src/bot/webhook";
-import type { Update } from "../../src/telegram/types";
+import type { Contact, Update } from "../../src/telegram/types";
 import { OWNER_ID, SECRET } from "./constants";
 import type { TestDeps } from "./deps";
-import { callbackUpdate, documentUpdate, textUpdate, webhookRequest } from "./updates";
+import { callbackUpdate, contactUpdate, documentUpdate, textUpdate, webhookRequest } from "./updates";
 
 export function send(deps: TestDeps, update: Update | string, secret: string | null = SECRET): Promise<Response> {
   return handleRequest(webhookRequest(update, secret), deps, SECRET);
@@ -11,6 +11,11 @@ export function send(deps: TestDeps, update: Update | string, secret: string | n
 // Scorciatoie per il proprietario in chat privata.
 export function say(deps: TestDeps, text: string): Promise<Response> {
   return send(deps, textUpdate(OWNER_ID, text));
+}
+
+// Il proprietario condivide un contatto dalla rubrica (RF-01 di 006).
+export function shareContact(deps: TestDeps, phone?: string, extra?: Partial<Contact>): Promise<Response> {
+  return send(deps, contactUpdate(OWNER_ID, phone, extra));
 }
 
 export function press(deps: TestDeps, data: string, messageId = 1): Promise<Response> {
