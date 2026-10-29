@@ -18,3 +18,7 @@
 - REV-005 — Pulsanti di contatto (WhatsApp, Instagram, Telegram) nella scheda persona → Accettata con modifiche (AFU v1.1)
 - REV-006 — Chiusura di PA-01: il numero nel testo è cliccabile → Accettata (AFU v1.1)
 - REV-007 — Comandi di stato (salute di cron, promemoria e backup) e statistiche → Accettata con modifiche (AFU v1.1)
+- REV-008 — Pulsante Indietro per tornare all'elenco gruppi → Accettata con modifiche (AFU v1.2)
+- REV-009 — Voce "Senza gruppo" nell'elenco gruppi per le persone non classificate → Accettata con modifiche (AFU v1.2)
+- REV-010 — Distribuzione per età in /statistiche → Accettata con modifiche (AFU v1.2)
+- REV-011 — Navigazione più guidata: pulsanti di "passo successivo" nei vicoli ciechi → Accettata con modifiche (AFU v1.2)

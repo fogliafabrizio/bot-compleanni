@@ -1,12 +1,17 @@
 # AFU — Bot Telegram Compleanni
 
-**Analisi Funzionale** · versione 1.1 · 29/10/2026
+**Analisi Funzionale** · versione 1.2 · 29/10/2026
 Committente e unico utente MVP: Fabrizio
 
 ## Registro modifiche
 
 | Versione | REV | Decisione | Requisiti |
 |---|---|---|---|
+| 1.2 | REV-008 — Pulsante Indietro dalla scheda gruppo | Accettata con modifiche | Modificati RF-07, RF-19 e RNF-14: [⬅️ Tutti i gruppi] sulla scheda gruppo, sempre con un nuovo messaggio. Aggiornati il mockup §5.9 e l'alternativa scartata "Navigazione sul posto nella scheda gruppo". Aggiunta D-30. |
+| 1.2 | REV-009 — Voce "Senza gruppo" nell'elenco gruppi | Accettata con modifiche | Modificati RF-07, RF-19 e RF-32: voce virtuale [Senza gruppo (N)] e scheda "Senza gruppo", conteggio in `/statistiche`. Aggiornati glossario, mockup §5.9 e §5.11. Aggiunte D-31 e l'alternativa scartata "Gruppo reale «Senza gruppo» o accesso testuale". |
+| 1.2 | REV-010 — Distribuzione per età in `/statistiche` | Accettata con modifiche | Modificati RF-32 (sezione 🧑 Età per decadi con età media) e BR-03 (età attuale in `/statistiche`). Aggiornato il mockup §5.11. Aggiunte D-32 e l'alternativa scartata "Nomi della persona più giovane e più anziana". |
+| 1.2 | REV-011 — Navigazione più guidata | Accettata con modifiche | Modificati RNF-14 e RNF-19 (pulsanti di passo successivo), RF-01 ([➕ Aggiungi un'altra persona] dopo il salvataggio), RF-17 ([Prossimi 90 giorni]), RF-20 (scorrimento dei mesi) e RF-22 (scorrimento degli anni). Aggiornati i mockup §5.2 e §5.7. Aggiunte D-33 e le alternative scartate "Tastiera di risposta persistente", "Indietro di uno step nei flussi guidati" e "Apri scheda dopo il salvataggio" (decisione del proprietario, 29/10/2026). |
+| 1.2 | — | — | Corretto il riferimento di RF-14 a `/anno` (RF-22, non RF-21). |
 | 1.1 | REV-001 — Tono più caldo ed emoji | Accettata con modifiche | Aggiunto RNF-19 (guida di stile). Aggiornati tutti i mockup di §5. |
 | 1.1 | REV-002 — Telefono da contatto condiviso | Accettata con modifiche | Modificati RF-01 e RF-04. Aggiunti BR-25 e V-08. Aggiornati §2 Out of scope, mockup §5.2 e l'alternativa scartata "Contatto condiviso da Telegram". |
 | 1.1 | REV-003 — `/gruppi` con pulsanti e scheda gruppo | Accettata con modifiche | Modificati RF-07, RF-19 e RNF-14. Aggiunti V-09 e l'idea futura RF-52. Aggiornati §5.1, i nuovi mockup §5.9 e l'alternativa scartata "Pulsanti per navigare le liste". |
@@ -55,6 +60,11 @@ In v2 il progetto diventa un repository pubblico, che chiunque può installare c
 - Comandi `/stato` e `/statistiche`, avviso automatico di buco del cron
 - Guida di stile dei testi: tono caldo e sobrio, emoji coerenti
 
+### In scope (v1.2)
+- Ritorno all'elenco gruppi dalla scheda gruppo e voce "Senza gruppo" per le persone non classificate
+- Distribuzione per età in `/statistiche`
+- Pulsanti di passo successivo nelle viste (`/mese`, `/anno`, `/prossimi`) e dopo il salvataggio di una persona
+
 ### In scope (v2)
 - Configurabilità esterna (fuso orario, slot, profili), README e guida all'installazione, script di setup, pubblicazione del repository con licenza MIT
 
@@ -82,7 +92,9 @@ In v2 il progetto diventa un repository pubblico, che chiunque può installare c
 | **Esito** | Stato finale dell'occorrenza: *fatto*, *saltato*, *non confermato*. |
 | **Messaggio di auguri** | Testo precompilato per scrivere alla persona. Esiste un default globale, sostituibile per singola persona. |
 | **Comando persona** | Il comando `/p_<id>` mostrato nelle liste: toccandolo si apre la scheda della persona. |
-| **Scheda gruppo** *(v1.1)* | Messaggio con nome del gruppo, numero di persone, lista delle persone e pulsanti Rinomina / Elimina (RF-19). |
+| **Scheda gruppo** *(v1.1, modificata in v1.2)* | Messaggio con nome del gruppo, numero di persone, lista delle persone e pulsanti Rinomina / Elimina e Tutti i gruppi (RF-19). |
+| **Senza gruppo** *(v1.2)* | Gruppo virtuale che raccoglie le persone senza alcun gruppo. È calcolato al momento, non è un gruppo salvato: non si rinomina, non si elimina, non si cerca per nome e non compare in export e backup (RF-07, RF-19). |
+| **Pulsante di passo successivo** *(v1.2)* | Pulsante in fondo a una vista che porta a una vista vicina (mese o anno accanto, finestra più ampia, elenco gruppi, nuovo inserimento). Manda sempre un nuovo messaggio (RNF-14). |
 
 ## 4. Requisiti funzionali
 
@@ -90,7 +102,7 @@ In v2 il progetto diventa un repository pubblico, che chiunque può installare c
 
 ### 4.1 Anagrafica persone
 
-**RF-01 — Inserimento guidato di una persona** · MVP
+**RF-01 — Inserimento guidato di una persona** · MVP · modificato in v1.1 e v1.2
 Il bot raccoglie i dati un campo alla volta. I campi opzionali hanno il pulsante "Salta". Ordine: nome completo*, nickname, data*, telefono, Instagram, Telegram, gruppi, priorità, messaggio personalizzato. Alla fine mostra un riepilogo con Salva / Annulla.
 - *Dato* che avvio "Aggiungi persona", *quando* rispondo a tutti i campi obbligatori e salto gli opzionali, *allora* la persona viene salvata con priorità Media e il bot mostra la scheda.
 - *Dato* che esiste già una persona con stesso nome e stessa data, *quando* confermo il salvataggio, *allora* il bot avvisa del possibile duplicato e chiede conferma esplicita.
@@ -101,6 +113,12 @@ Il bot raccoglie i dati un campo alla volta. I campi opzionali hanno il pulsante
 - *Dato* che premo Correggi, *allora* il bot ripete "Telefono?" e il numero non viene salvato.
 - *Dato* che sono allo step Nome, *quando* condivido un contatto, *allora* il bot lo ignora e ripete la domanda del nome.
 - *Dato* che il numero normalizzato non è valido per BR-15, *quando* condivido il contatto, *allora* il bot lo segnala e ripete la domanda testuale.
+
+*(v1.2)* **Aggiungi un'altra persona.** Dopo il salvataggio la conferma sta in testa alla scheda, nello stesso messaggio (RNF-19). In quel messaggio, e solo lì, sotto i pulsanti della scheda (RF-03) compare [➕ Aggiungi un'altra persona] su una riga a sé: avvia un nuovo inserimento guidato, come `/nuovo`. Non c'è un pulsante "Apri scheda", perché la scheda è già il messaggio di conferma.
+- *(v1.2)* *Dato* che salvo Marco, *quando* il bot conferma, *allora* vedo "🎉 Fatto! Marchino è in rubrica." in testa alla scheda e, in fondo, [➕ Aggiungi un'altra persona].
+- *(v1.2)* *Dato* che premo [➕ Aggiungi un'altra persona], *allora* il bot chiede il nome della nuova persona, come dopo `/nuovo`.
+- *(v1.2)* *Dato* che apro la scheda di Marco con `/p_<id>` o la ridisegno dopo una modifica, *allora* [➕ Aggiungi un'altra persona] non compare.
+- *(v1.2)* *Dato* che è in corso un altro flusso guidato, *quando* premo [➕ Aggiungi un'altra persona] su una conferma precedente, *allora* il pulsante si comporta come `/nuovo` in quella situazione.
 
 **RF-02 — Inserimento e validazione della data** · MVP
 Unico formato ammesso: `gg/mm/aaaa`, oppure `gg/mm` se l'anno è sconosciuto. Il bot risponde sempre con la data interpretata da confermare.
@@ -139,14 +157,16 @@ Modifica apre un menù di pulsanti: Nome · Nickname · Data · Telefono · Inst
 
 ### 4.2 Gruppi
 
-**RF-07 — Gestione gruppi** · MVP · modificato in v1.1
+**RF-07 — Gestione gruppi** · MVP · modificato in v1.1 e v1.2
 Il comando `/gruppi` elenca i gruppi con il numero di persone e permette di crearne, rinominarne ed eliminarne. Il nome è univoco senza distinzione tra maiuscole e minuscole.
 *(v1.1)* `/gruppi` senza argomento (o l'alias `/gruppo`) mostra l'elenco gruppi come pulsanti, uno per gruppo, nella forma "Famiglia (8)":
 - ordine alfabetico, su due colonne, più [➕ Nuovo gruppo];
-- il tocco su un gruppo manda un nuovo messaggio con la scheda gruppo (RF-19), senza navigazione sul posto né pulsante Indietro;
+- il tocco su un gruppo manda un nuovo messaggio con la scheda gruppo (RF-19), senza navigazione sul posto; *(v1.2)* dalla scheda si torna all'elenco con [⬅️ Tutti i gruppi] (RF-19);
 - Rinomina ed Elimina si avviano dalla scheda gruppo, già sul gruppo scelto, senza il passaggio "Quale gruppo?";
 - oltre 60 gruppi l'elenco è testuale, con l'invito a scrivere `/gruppi <nome>`;
-- senza gruppi, il bot lo dice e mostra solo [➕ Nuovo gruppo].
+- senza gruppi, il bot lo dice e mostra solo [➕ Nuovo gruppo]; *(v1.2)* più [Senza gruppo (N)] se ci sono persone.
+
+*(v1.2)* **Voce "Senza gruppo".** Se ci sono persone senza alcun gruppo (N > 0), l'elenco mostra il pulsante [Senza gruppo (N)], senza emoji, su una riga a sé tra i gruppi e [➕ Nuovo gruppo]. Il tocco manda un nuovo messaggio con la scheda "Senza gruppo" (RF-19). Se N = 0 la voce non compare. Oltre 60 gruppi, con l'elenco testuale, [Senza gruppo (N)] resta come pulsante, insieme a [➕ Nuovo gruppo]. Non è un gruppo salvato: non entra nel limite dei 60 gruppi, non si cerca con `/gruppi <nome>` né con il filtro di `/prossimi`, e non va in export e backup.
 - *(v1.1)* *Dato* che ho i gruppi Famiglia (8) e Lavoro (5), *quando* scrivo `/gruppi`, *allora* vedo i pulsanti [Famiglia (8)] [Lavoro (5)] e [➕ Nuovo gruppo].
 - *(v1.1)* *Dato* che tocco [Famiglia (8)], *allora* ricevo un nuovo messaggio con la scheda gruppo di Famiglia.
 - *(v1.1)* *Dato* che dalla scheda gruppo premo Rinomina, *allora* il bot chiede direttamente il nuovo nome di quel gruppo.
@@ -154,6 +174,11 @@ Il comando `/gruppi` elenca i gruppi con il numero di persone e permette di crea
 - *Dato* che esiste "Famiglia", *quando* provo a creare "famiglia", *allora* il bot rifiuta per nome duplicato.
 - *Dato* che rinomino "Lavoro" in "Ufficio", *allora* tutte le persone associate mostrano "Ufficio".
 - *Dato* che elimino un gruppo con 8 persone, *quando* il bot chiede conferma indicando "8 persone perderanno questa etichetta" e confermo, *allora* il gruppo viene eliminato e le persone restano.
+- *(v1.2)* *Dato* che 12 persone non hanno gruppi, *quando* scrivo `/gruppi`, *allora* sotto i gruppi vedo [Senza gruppo (12)] su una riga a sé, sopra [➕ Nuovo gruppo].
+- *(v1.2)* *Dato* che tutte le persone hanno almeno un gruppo, *quando* scrivo `/gruppi`, *allora* la voce "Senza gruppo" non compare.
+- *(v1.2)* *Dato* che non ho gruppi e ho 30 persone, *quando* scrivo `/gruppi`, *allora* il bot dice che non ci sono gruppi e mostra [Senza gruppo (30)] e [➕ Nuovo gruppo].
+- *(v1.2)* *Dato* che ho più di 60 gruppi e 5 persone senza gruppo, *quando* scrivo `/gruppi`, *allora* vedo l'elenco testuale e i pulsanti [Senza gruppo (5)] e [➕ Nuovo gruppo].
+- *(v1.2)* *Dato* che esiste un gruppo reale chiamato "Senza gruppo", *allora* compare tra i gruppi come gli altri, distinto dalla voce virtuale, che resta sulla sua riga.
 
 **RF-08 — Assegnazione gruppi con creazione al volo** · MVP
 Nello step Gruppi (inserimento o modifica) il bot mostra i gruppi esistenti come pulsanti a selezione multipla (attiva/disattiva), più "➕ Nuovo gruppo" e "Fine".
@@ -194,7 +219,7 @@ Vale per tutte le priorità. Se a fine giornata l'occorrenza è aperta, il giorn
 - *Dato* che non rispondo al recupero, *quando* termina il giorno dopo, *allora* l'occorrenza diventa *non confermato* senza ulteriori messaggi.
 
 **RF-14 — Storico esiti** · MVP
-Ogni occorrenza conserva il suo esito per anno. Lo storico è visibile nella scheda e alimenta "L'anno scorso" (RF-10) e `/anno` (RF-21).
+Ogni occorrenza conserva il suo esito per anno. Lo storico è visibile nella scheda e alimenta "L'anno scorso" (RF-10) e `/anno` (RF-22).
 
 **RF-15 — Messaggio di auguri** · MVP
 Esiste un messaggio di default globale con segnaposto `{nome}` (sostituito dal nickname, o dal nome se il nickname manca). Si modifica con `/messaggio`. Ogni persona può avere un messaggio personalizzato che sostituisce il default.
@@ -210,8 +235,13 @@ Tutte le liste di persone sono testuali (l'elenco gruppi a pulsanti di RF-07 non
 - *Dato* che oggi ci sono compleanni, *quando* scrivo `/oggi`, *allora* ricevo per ciascuno lo stesso messaggio del reminder del giorno, con i suoi pulsanti e lo stato attuale.
 - *Dato* che oggi non ci sono compleanni, *allora* il bot lo dice e indica il prossimo.
 
-**RF-17 — `/prossimi [giorni] [gruppo]`** · MVP · modificato in v1.1
+**RF-17 — `/prossimi [giorni] [gruppo]`** · MVP · modificato in v1.1 e v1.2
 Default 30 giorni, massimo 366. Filtro per gruppo opzionale. *(v1.1)* Il gruppo si cerca con la stessa regola di `/gruppi <nome>` (BR-26).
+*(v1.2)* Se la finestra è sotto i 90 giorni, in fondo alla lista compare il pulsante di passo successivo [Prossimi 90 giorni] (RNF-14): manda un nuovo messaggio con la stessa vista su 90 giorni, con lo stesso filtro di gruppo. Il pulsante compare anche quando la lista è vuota.
+- *(v1.2)* *Dato* che scrivo `/prossimi`, *allora* in fondo alla lista dei 30 giorni vedo [Prossimi 90 giorni] e il tocco mi manda la lista dei prossimi 90 giorni.
+- *(v1.2)* *Dato* che scrivo `/prossimi 7 famiglia`, *quando* premo [Prossimi 90 giorni], *allora* vedo i prossimi 90 giorni del solo gruppo Famiglia.
+- *(v1.2)* *Dato* che scrivo `/prossimi 120`, *allora* il pulsante non compare.
+- *(v1.2)* *Dato* che il gruppo del filtro è stato eliminato nel frattempo, *quando* premo [Prossimi 90 giorni], *allora* il bot si comporta come con un gruppo che non esiste.
 - *Dato* che scrivo `/prossimi 7 famiglia`, *allora* vedo i compleanni dei prossimi 7 giorni delle persone del gruppo Famiglia.
 - *(v1.1)* *Dato* che il gruppo si chiama "👨‍👩‍👧 Famiglia", *quando* scrivo `/prossimi 7 fam`, *allora* vedo la lista filtrata su quel gruppo.
 - *(v1.1)* *Dato* che "fam" corrisponde a "Famiglia" e "Famiglia Rossi", *quando* scrivo `/prossimi 7 fam`, *allora* il bot mostra un pulsante per ciascun gruppo; il tocco rilancia la lista dei prossimi 7 giorni filtrata su quel gruppo.
@@ -222,7 +252,7 @@ Ricerca per parte del nome o del nickname, senza distinzione tra maiuscole e min
 - *Dato* che un solo risultato corrisponde, *allora* il bot apre direttamente la scheda.
 - *Dato* che corrispondono più risultati, *allora* il bot mostra la lista.
 
-**RF-19 — `/gruppi <nome>` e scheda gruppo** · MVP · modificato in v1.1
+**RF-19 — `/gruppi <nome>` e scheda gruppo** · MVP · modificato in v1.1 e v1.2
 - *Dato* che scrivo `/gruppo lavoro`, *allora* vedo tutte le persone del gruppo, ordinate per prossimo compleanno.
 
 *(v1.1)* `/gruppi <testo>` e `/gruppo <testo>` sono lo stesso comando: `/gruppo` resta accettato come alias, ma nel menu e in `/aiuto` compare solo `/gruppi [nome]`. Il testo si cerca come parte del nome del gruppo, secondo BR-26.
@@ -234,24 +264,47 @@ Ricerca per parte del nome o del nickname, senza distinzione tra maiuscole e min
 La **scheda gruppo** contiene:
 - titolo con il nome del gruppo e il numero di persone;
 - la lista delle persone nel formato §5.7, ordinata per prossimo compleanno, con i comandi `/p_<id>`;
-- i pulsanti [✏️ Rinomina] [🗑 Elimina], che agiscono su quel gruppo. Se la lista è spezzata in più messaggi, i pulsanti stanno sull'ultimo.
+- i pulsanti [✏️ Rinomina] [🗑 Elimina], che agiscono su quel gruppo. Se la lista è spezzata in più messaggi, i pulsanti stanno sull'ultimo;
+- *(v1.2)* sotto, su una riga a sé, il pulsante [⬅️ Tutti i gruppi], che manda un nuovo messaggio con l'elenco gruppi, come `/gruppi` senza argomento (RF-07: pulsanti fino a 60 gruppi, oltre elenco testuale). Se la lista è spezzata, sta sull'ultimo messaggio con gli altri pulsanti. La scheda resta in chat così com'era.
+
+*(v1.2)* La **scheda "Senza gruppo"** si apre solo dal pulsante [Senza gruppo (N)] dell'elenco (RF-07) e ha lo stesso formato della scheda gruppo: titolo "Senza gruppo" con il numero di persone, lista §5.7 ordinata per prossimo compleanno con i comandi `/p_<id>`. Non ha Rinomina ed Elimina: ha il solo [⬅️ Tutti i gruppi]. Per dare un gruppo a una persona si usa la scheda persona (Modifica → Gruppi, RF-04, RF-08); la gestione dei membri dalla scheda resta un'idea futura (RF-52).
 
 Valgono BR-17 e la conferma dell'eliminazione con il conteggio delle persone (RF-07, RNF-05).
 - *(v1.1)* *Dato* che il gruppo si chiama "👨‍👩‍👧 Famiglia", *quando* scrivo `/gruppi fam`, *allora* si apre la sua scheda gruppo.
 - *(v1.1)* *Dato* che esistono "Lavoro" e "Lavoro ex", *quando* scrivo `/gruppi lavoro`, *allora* si apre direttamente "Lavoro" (la corrispondenza esatta vince).
 - *(v1.1)* *Dato* che "fam" corrisponde a "Famiglia" e "Famiglia Rossi", *quando* scrivo `/gruppi fam`, *allora* vedo due pulsanti e il tocco apre la scheda del gruppo scelto.
-- *(v1.1)* *Dato* che il gruppo non ha persone, *quando* apro la scheda gruppo, *allora* vedo il nome, "0 persone" e i pulsanti Rinomina ed Elimina.
+- *(v1.1)* *Dato* che il gruppo non ha persone, *quando* apro la scheda gruppo, *allora* vedo il nome, "0 persone" e i pulsanti Rinomina ed Elimina. *(v1.2)* Sotto c'è anche [⬅️ Tutti i gruppi].
+- *(v1.2)* *Dato* che sono nella scheda gruppo di Famiglia, *quando* premo [⬅️ Tutti i gruppi], *allora* ricevo un nuovo messaggio con l'elenco gruppi a pulsanti, e la scheda di Famiglia resta in chat.
+- *(v1.2)* *Dato* che la scheda gruppo è spezzata in due messaggi, *allora* [✏️ Rinomina] [🗑 Elimina] e [⬅️ Tutti i gruppi] stanno sul secondo.
+- *(v1.2)* *Dato* che ho più di 60 gruppi, *quando* premo [⬅️ Tutti i gruppi], *allora* ricevo l'elenco testuale con l'invito a scrivere `/gruppi <nome>`.
+- *(v1.2)* *Dato* che 12 persone non hanno gruppi, *quando* premo [Senza gruppo (12)], *allora* vedo "Senza gruppo · 12 persone", la loro lista per prossimo compleanno con `/p_<id>` e il solo pulsante [⬅️ Tutti i gruppi].
+- *(v1.2)* *Dato* che nel frattempo ho dato un gruppo a tutte le persone, *quando* premo [Senza gruppo (N)] su un elenco precedente, *allora* il bot dice che ora tutte le persone hanno un gruppo e mostra l'elenco gruppi aggiornato.
+- *(v1.2)* *Dato* che scrivo `/gruppi senza`, *allora* il testo si cerca solo tra i gruppi salvati (BR-26) e la scheda "Senza gruppo" non si apre.
 
-**RF-20 — `/mese [mese]`** · MVP
+**RF-20 — `/mese [mese]`** · MVP · modificato in v1.2
 Default: mese corrente. Il mese si indica per nome ("marzo") o per numero.
+*(v1.2)* In fondo alla vista compaiono i pulsanti di passo successivo [◀️ <mese precedente>] [<mese successivo> ▶️] (RNF-14), con il nome del mese per esteso. Ognuno manda un nuovo messaggio con `/mese` di quel mese. Lo scorrimento è circolare: prima di gennaio viene dicembre e dopo dicembre viene gennaio. I pulsanti compaiono anche se il mese mostrato non ha compleanni. Il pulsante porta solo il mese: l'anno di riferimento (età e intestazione) segue la regola di `/mese`, cioè anno corrente per il mese corrente e i successivi, anno prossimo per i mesi già passati.
 - *Dato* che scrivo `/mese marzo`, *allora* vedo tutti i compleanni di marzo ordinati per giorno.
+- *(v1.2)* *Dato* che scrivo `/mese marzo`, *allora* in fondo vedo [◀️ Febbraio] [Aprile ▶️], e il tocco su [Aprile ▶️] mi manda la vista di aprile.
+- *(v1.2)* *Dato* che scrivo `/mese dicembre`, *allora* vedo [◀️ Novembre] [Gennaio ▶️].
+- *(v1.2)* *Dato* che scrivo `/mese gennaio`, *allora* vedo [◀️ Dicembre] [Febbraio ▶️].
+- *(v1.2)* *Dato* che oggi è il 29/10/2026 e scrivo `/mese`, *quando* premo [◀️ Settembre], *allora* vedo settembre 2027, con le età che si compiranno in quell'anno.
 
 **RF-21 — `/scaduti`** · MVP
 Compleanni degli ultimi 7 giorni con esito diverso da *fatto*. Dalla scheda, per un'occorrenza degli ultimi 7 giorni non *fatto*, è disponibile il pulsante "Segna fatto".
 - *Dato* che sono stato in vacanza, *quando* scrivo `/scaduti`, *allora* vedo chi ho saltato o non confermato e posso aprirne la scheda per segnarlo come fatto.
 
-**RF-22 — `/anno [anno]`** · MVP
+**RF-22 — `/anno [anno]`** · MVP · modificato in v1.2
 Riepilogo dell'anno (default: corrente): numero di occorrenze *fatto*, *saltato*, *non confermato*; elenco dei saltati; persone saltate per 2 o più anni consecutivi.
+*(v1.2)* In fondo al riepilogo compaiono i pulsanti di passo successivo (RNF-14), ognuno con un nuovo messaggio con `/anno` di quell'anno:
+- [◀️ <anno − 1>], solo se l'anno precedente ha almeno un'occorrenza nello storico;
+- [<anno + 1> ▶️], solo se l'anno mostrato è precedente all'anno corrente (Europe/Rome).
+
+Se nessuna delle due condizioni vale, non compare alcun pulsante.
+- *(v1.2)* *Dato* che siamo nel 2026 e ho uno storico dal 2025, *quando* scrivo `/anno`, *allora* vedo solo [◀️ 2025].
+- *(v1.2)* *Dato* che premo [◀️ 2025] e il 2024 non ha storico, *allora* vedo il riepilogo del 2025 con il solo [2026 ▶️].
+- *(v1.2)* *Dato* che siamo nel primo anno d'uso e non c'è storico precedente, *quando* scrivo `/anno`, *allora* non compare alcun pulsante.
+- *(v1.2)* *Dato* che scrivo `/anno 2023`, anno senza storico, e il 2022 non ha storico, *allora* vedo il riepilogo vuoto con il solo [2024 ▶️].
 
 ### 4.5 Import, export e backup
 
@@ -300,14 +353,30 @@ Se un valore non è ancora stato registrato, compare "mai registrato". Se la let
 - *Dato* che un reminder di ieri è stato abbandonato dopo i tentativi (N-03), *quando* scrivo `/stato`, *allora* lo vedo nella riga degli ultimi 7 giorni con il nome della persona.
 - *Dato* che il bot è appena stato aggiornato e il cron non ha ancora girato, *quando* scrivo `/stato`, *allora* l'ultimo controllo orario risulta "mai registrato".
 
-**RF-32 — `/statistiche`** · v1.1
+**RF-32 — `/statistiche`** · v1.1 · modificato in v1.2
 Mostra cifre sintetiche sulla rubrica e sull'andamento. Per il dettaglio di un singolo anno resta `/anno` (RF-22).
-- totale persone, con la suddivisione per priorità e per gruppo (una persona in più gruppi conta in ciascuno);
+- totale persone, con la suddivisione per priorità e per gruppo (una persona in più gruppi conta in ciascuno); *(v1.2)* in fondo alla riga dei gruppi, "Senza gruppo N" con il numero di persone senza alcun gruppo;
 - compleanni per mese, come istogramma testuale di 12 righe;
+- *(v1.2)* distribuzione per età (sezione "🧑 Età"), subito dopo l'istogramma per mese;
 - numero di persone senza anno di nascita e numero di persone senza alcun contatto (solo conteggi, senza elenchi);
 - percentuale di *fatto* sul totale delle occorrenze chiuse, per ciascun anno con storico, dal più recente.
+
+*(v1.2)* **Sezione Età.** Conta solo le persone con l'anno di nascita. L'età è quella attuale, cioè gli anni compiuti all'ultimo compleanno alla data di oggi in Europe/Rome (BR-03); per chi è nato il 29/02, negli anni non bisestili il compleanno si considera compiuto il 28/02 (BR-04).
+- Istogramma testuale per decadi (0-9, 10-19, …, 70-79), più una fascia finale unica "80+".
+- Le righe vanno dalla decade più bassa alla più alta tra quelle con almeno una persona; le decadi vuote intermedie compaiono con 0.
+- In fondo alla sezione: "Età media: N anni", arrotondata all'intero più vicino (0,5 per eccesso), e il richiamo al numero di persone senza anno di nascita, escluse dal calcolo.
+- Se nessuna persona ha l'anno di nascita, la sezione dice che l'età non è disponibile.
+- Solo conteggi: niente nomi della persona più giovane o più anziana.
 - *Dato* che ho 112 persone, *quando* scrivo `/statistiche`, *allora* vedo il totale, le suddivisioni per priorità, per gruppo e per mese, i conteggi delle schede senza anno e senza contatti, e la percentuale di *fatto* per anno.
 - *Dato* che non c'è ancora uno storico, *quando* scrivo `/statistiche`, *allora* la sezione sull'andamento dice che non ci sono ancora anni con esiti.
+- *(v1.2)* *Dato* che 12 persone non hanno gruppi, *quando* scrivo `/statistiche`, *allora* la riga dei gruppi termina con "Senza gruppo 12".
+- *(v1.2)* *Dato* che ho persone di 8, 34, 37 e 52 anni, *quando* scrivo `/statistiche`, *allora* la sezione Età mostra 0-9 1, 10-19 0, 20-29 0, 30-39 2, 40-49 0, 50-59 1 e "Età media: 33 anni".
+- *(v1.2)* *Dato* che oggi è il 29/10/2026 e Marco è nato il 14/03/1994, *allora* conta come 32 anni, nella decade 30-39.
+- *(v1.2)* *Dato* che oggi è il 10/03/2026 e Marco è nato il 14/03/1994, *allora* conta come 31 anni, perché il compleanno di quest'anno non è ancora passato.
+- *(v1.2)* *Dato* che Anna è nata il 29/02/2000 e oggi è il 28/02/2026, *allora* conta come 26 anni (BR-04).
+- *(v1.2)* *Dato* che ho persone di 83 e 91 anni, *allora* entrambe stanno nella fascia "80+".
+- *(v1.2)* *Dato* che 23 persone non hanno l'anno di nascita, *allora* sono escluse dall'istogramma e dall'età media, e la sezione lo richiama.
+- *(v1.2)* *Dato* che nessuna persona ha l'anno di nascita, *allora* la sezione Età dice che l'età non è disponibile.
 
 ### 4.8 Evoluzioni
 
@@ -332,7 +401,7 @@ Mostra cifre sintetiche sulla rubrica e sull'andamento. Per il dettaglio di un s
 | `/oggi` | Compleanni di oggi | RF-16 |
 | `/prossimi [giorni] [gruppo]` | Prossimi compleanni | RF-17 |
 | `/mese [mese]` | Compleanni del mese | RF-20 |
-| `/gruppi [nome]` *(v1.1)* | Senza nome: elenco gruppi a pulsanti. Con nome: ricerca e scheda gruppo. Alias accettato: `/gruppo` | RF-07, RF-19 |
+| `/gruppi [nome]` *(v1.1)* | Senza nome: elenco gruppi a pulsanti, *(v1.2)* con la voce "Senza gruppo". Con nome: ricerca e scheda gruppo. Alias accettato: `/gruppo` | RF-07, RF-19 |
 | `/scaduti` | Ultimi 7 giorni non fatti | RF-21 |
 | `/anno [anno]` | Riepilogo annuale | RF-22 |
 | `/statistiche` *(v1.1)* | Statistiche della rubrica e andamento | RF-32 |
@@ -347,7 +416,7 @@ Mostra cifre sintetiche sulla rubrica e sull'andamento. Per il dettaglio di un s
 
 *(v1.1)* Tutti i mockup seguono la guida di stile RNF-19. Sono indicativi del tono e della struttura: i testi definitivi stanno nel punto unico dei testi (RNF-15).
 
-### 5.2 Inserimento persona (esempio) *(v1.1)*
+### 5.2 Inserimento persona (esempio) *(v1.1, modificato in v1.2)*
 ```
 Tu:  /nuovo
 Bot: 👤 Come si chiama? Nome e cognome                [Annulla]
@@ -370,7 +439,14 @@ Bot: ✍️ Messaggio di auguri personalizzato? Se salti uso quello standard.  [
 Bot: 📋 Riepilogo: … (scheda)                         [Salva] [Annulla]
 Tu:  [Salva]
 Bot: 🎉 Fatto! Marchino è in rubrica.
+
+     👤 Marco Rossi — "Marchino"
+     … (scheda, §5.6)
+     [WhatsApp] [Instagram]
+     [✏️ Modifica] [🗑 Elimina]
+     [➕ Aggiungi un'altra persona]
 ```
+*(v1.2)* [➕ Aggiungi un'altra persona] compare solo in questo messaggio, non quando la scheda si apre con `/p_<id>` (RF-01).
 
 ### 5.3 Reminder del giorno *(v1.1)*
 ```
@@ -411,15 +487,29 @@ Storico: 2025 fatto · 2024 saltato
 ```
 Se c'è un'occorrenza da segnare (RF-21), [Segna fatto] compare tra la riga dei contatti e [✏️ Modifica] [🗑 Elimina].
 
-### 5.7 Liste (`/prossimi`, `/gruppi <nome>`, `/cerca`) *(v1.1)*
+### 5.7 Liste (`/prossimi`, `/mese`, `/gruppi <nome>`, `/cerca`) *(v1.1, modificato in v1.2)*
 ```
 📆 Prossimi 30 giorni (Famiglia)
 
 Gio 30/10  Anna (28)      /p_4
 Dom 02/11  Luca (35)      /p_17
 Mer 12/11  Giulia         /p_9
+
+[Prossimi 90 giorni]
 ```
 In `/mese` le righe sono raggruppate per settimana o in ordine di giorno; nelle altre viste la lista è continua. Le emoji stanno solo nell'intestazione, mai nelle righe (RNF-19).
+
+*(v1.2)* Pulsanti di passo successivo (RNF-14), sempre in fondo e mai sulle righe delle persone:
+```
+🗓 Compleanni di marzo 2027
+…
+[◀️ Febbraio] [Aprile ▶️]
+
+🗂 Riepilogo 2025
+…
+[2026 ▶️]
+```
+`/cerca` non ha pulsanti di passo successivo.
 
 ### 5.8 Import CSV *(v1.1)*
 ```
@@ -434,12 +524,13 @@ Tu:  [Importa]
 Bot: 🎉 Importate 104 persone, creati 2 gruppi.
 ```
 
-### 5.9 Elenco gruppi e scheda gruppo *(v1.1)*
+### 5.9 Elenco gruppi e scheda gruppo *(v1.1, modificato in v1.2)*
 ```
 Tu:  /gruppi
 Bot: 👥 I tuoi gruppi
      [Beach tennis (6)]  [Famiglia (8)]
      [Lavoro (5)]        [Università (12)]
+     [Senza gruppo (12)]
      [➕ Nuovo gruppo]
 Tu:  [Famiglia (8)]
 Bot: 👥 Famiglia · 8 persone
@@ -448,6 +539,16 @@ Bot: 👥 Famiglia · 8 persone
      Dom 02/11  Luca (35)      /p_17
      …
      [✏️ Rinomina] [🗑 Elimina]
+     [⬅️ Tutti i gruppi]
+Tu:  [⬅️ Tutti i gruppi]
+Bot: 👥 I tuoi gruppi
+     … (nuovo messaggio con l'elenco)
+Tu:  [Senza gruppo (12)]
+Bot: 👥 Senza gruppo · 12 persone
+
+     Sab 01/11  Paolo (41)     /p_23
+     …
+     [⬅️ Tutti i gruppi]
 
 Tu:  /gruppi fam
 Bot: 🔍 Più gruppi corrispondono a «fam»:
@@ -466,18 +567,28 @@ Bot: 🩺 Stato del bot
      🔗 Webhook: nessun errore, 0 update in coda
 ```
 
-### 5.11 Statistiche *(v1.1)*
+### 5.11 Statistiche *(v1.1, modificato in v1.2)*
 ```
 Tu:  /statistiche
 Bot: 📊 Statistiche
      112 persone · Alta 18 · Media 70 · Bassa 24
-     Gruppi: Famiglia 8 · Lavoro 5 · Beach tennis 6 · …
+     Gruppi: Famiglia 8 · Lavoro 5 · Beach tennis 6 · … · Senza gruppo 12
      Senza anno di nascita: 23 · Senza contatti: 41
 
      🎂 Compleanni per mese
      Gen ████████  11
      Feb █████      7
      …
+
+     🧑 Età
+     0-9   ██         3
+     10-19 █          2
+     20-29 ██████    14
+     30-39 ████████  21
+     …
+     80+   █          1
+     Età media: 41 anni · senza anno di nascita: 23
+
      ✅ Auguri fatti: 2026 87% · 2025 81%
 ```
 
@@ -492,7 +603,7 @@ alcuni promemoria potrebbero essere andati persi. Controlla /oggi e /scaduti.
 ### Date ed età
 - **BR-01** Formato unico `gg/mm/aaaa` o `gg/mm`; vale sia nel bot sia nel CSV.
 - **BR-02** L'anno, se presente, non può essere futuro né precedente al 1900.
-- **BR-03** Età = anno dell'occorrenza − anno di nascita. Mostrata solo all'utente, **mai** nel messaggio di auguri.
+- **BR-03** Età = anno dell'occorrenza − anno di nascita. Mostrata solo all'utente, **mai** nel messaggio di auguri. *(v1.2)* Eccezione: in `/statistiche` (RF-32) si usa l'età attuale, cioè gli anni compiuti alla data di oggi (anno corrente − anno di nascita, meno uno se il compleanno di quest'anno non è ancora passato, con BR-04 per il 29/02).
 - **BR-04 29 febbraio**: la data registrata e mostrata resta **29/02** ovunque (scheda, liste, export). Negli anni non bisestili la data effettiva è il **28/02**; il reminder riporta "(compleanno il 29/02)". I pre-reminder si contano a ritroso dalla data effettiva.
 - **BR-05** Un'occorrenza appartiene all'anno del compleanno, anche se i suoi pre-reminder cadono nell'anno precedente (es. compleanno il 02/01, pre-reminder −7 il 26/12).
 
@@ -616,6 +727,9 @@ Note:
 ### Usabilità
 - **RNF-13** Interazione il più possibile guidata: nessuna sintassi da ricordare oltre al formato della data.
 - **RNF-14** Pulsanti solo per le azioni; la navigazione nelle liste usa i comandi `/p_<id>` nel testo. *(v1.1)* Eccezione: i gruppi, che sono pochi, si scelgono con pulsanti (elenco gruppi di RF-07, scelta tra più gruppi trovati in RF-17 e RF-19). Le liste di persone restano senza pulsanti.
+  *(v1.2)* **Pulsanti di passo successivo.** Una vista può terminare con al massimo 2 pulsanti di navigazione verso viste vicine, per il passo più probabile. Ognuno manda sempre un nuovo messaggio: il messaggio di partenza resta com'era, senza navigazione sul posto. Non ci sono mai pulsanti sulle righe delle persone. Si applicano a: `/mese` (RF-20), `/anno` (RF-22), `/prossimi` (RF-17), scheda gruppo e scheda "Senza gruppo" ([⬅️ Tutti i gruppi], RF-19) e conferma del salvataggio di una persona (RF-01). Nuovi punti vanno decisi con una revisione dell'AFU.
+  - *Dato* che apro una delle viste elencate, *allora* in fondo trovo al più 2 pulsanti di passo successivo, oltre agli eventuali pulsanti di azione già previsti.
+  - *Dato* che premo un pulsante di passo successivo, *allora* ricevo un nuovo messaggio e quello precedente non cambia.
 - **RNF-15** Testi del bot raccolti in un unico punto, per facilitarne modifica e traduzione futura.
 - **RNF-19** *(v1.1)* **Guida di stile dei testi.** Il tono è caldo, personale e sobrio, senza diventare verboso. Valgono anche per le funzionalità future.
   - Un'emoji "di sezione" all'inizio di titoli e intestazioni (es. 🎂, 📅, 📆, 👥, 📊), mai dentro le righe delle liste, per non rompere l'allineamento.
@@ -623,6 +737,7 @@ Note:
   - ⚠️ negli avvisi e ❌ negli errori.
   - Un'icona per campo nelle domande dei flussi guidati.
   - Icone solo sui pulsanti di azione (✏️ Modifica, 🗑 Elimina, ⏭ Salta, ➕ Nuovo gruppo…). I pulsanti di contatto (WhatsApp, Instagram, Telegram, Copia messaggio) restano senza icona, per non essere troncati su mobile.
+  - *(v1.2)* Pulsanti di passo successivo (RNF-14): ◀️ e ▶️ per scorrere mesi e anni, con la freccia verso l'esterno ([◀️ Febbraio] [Aprile ▶️]); ⬅️ per tornare a un elenco ([⬅️ Tutti i gruppi]); ➕ per avviare un nuovo inserimento ([➕ Aggiungi un'altra persona]); nessuna icona sull'allargamento della finestra ([Prossimi 90 giorni]). La voce [Senza gruppo (N)] è senza emoji, come i pulsanti dei gruppi.
   - Nessuna emoji legata a priorità o gruppo.
   - Esclusi: il messaggio di auguri di default (A-06) e i messaggi personalizzati, che sono dati dell'utente.
   - *Dato* che salvo una persona, *allora* la conferma contiene un'emoji di successo e il nome della persona.
@@ -646,7 +761,7 @@ Note:
 - **V-06** Il link WhatsApp funziona solo con il numero in formato internazionale.
 - **V-07** Limiti sui file Telegram (20 MB in ricezione dal bot, 50 MB in invio): irrilevanti per i volumi previsti.
 - **V-08** *(v1.1)* Un contatto condiviso porta un solo numero, quello principale scelto da Telegram, spesso senza "+". Gli altri numeri stanno solo nella vCard, che può mancare. Il pulsante "condividi contatto" della tastiera di Telegram condivide solo il contatto dell'utente stesso, quindi non è utilizzabile: si condivide da 📎 → Contatto.
-- **V-09** *(v1.1)* Una tastiera inline ha al massimo 100 pulsanti: per questo l'elenco gruppi a pulsanti è limitato a 60 gruppi (RF-07).
+- **V-09** *(v1.1)* Una tastiera inline ha al massimo 100 pulsanti: per questo l'elenco gruppi a pulsanti è limitato a 60 gruppi (RF-07). *(v1.2)* Con [Senza gruppo (N)] e [➕ Nuovo gruppo] si arriva al più a 62 pulsanti.
 
 ### Assunzioni
 - **A-01** Un solo utente per istanza; fuso orario Europe/Rome.
@@ -691,6 +806,10 @@ Note:
 | D-27 *(v1.1)* | Nella scheda persona WhatsApp apre la chat vuota; il telefono resta nel testo | La scheda si apre tutto l'anno; il numero nel testo è l'unico modo di chiamare (V-04). |
 | D-28 *(v1.1)* | `/stato` su richiesta più l'avviso di buco rilevato a posteriori (N-06) | Un cron fermo non può avvisare da solo; il buco si segnala alla ripartenza. |
 | D-29 *(v1.1)* | `/statistiche` separato da `/anno`, con solo conteggi | Poche cifre utili, senza duplicare il riepilogo annuale. |
+| D-30 *(v1.2)* | [⬅️ Tutti i gruppi] sulla scheda gruppo, con un nuovo messaggio | Si torna all'elenco senza riscrivere il comando, restando coerenti con `/p_<id>`. La scheda persona resta senza Indietro, perché `/p_<id>` è testo e non sa da dove si arriva. |
+| D-31 *(v1.2)* | "Senza gruppo" come gruppo virtuale calcolato, raggiungibile solo dal pulsante dell'elenco | Non va tenuto allineato, non finisce in export e backup, e non entra in conflitto con un gruppo reale con lo stesso nome (BR-17, BR-26). |
+| D-32 *(v1.2)* | Età in `/statistiche` per decadi, età attuale, con età media e senza nomi | Fasce neutre senza configurazione; la statistica fotografa oggi, mentre l'età che si compirà resta per le liste; RF-32 resta "solo conteggi". |
+| D-33 *(v1.2)* | Navigazione guidata con al massimo 2 pulsanti di passo successivo per vista (RNF-14) | Rende verificabile la "navigazione più guidata" senza arrivare a un muro di pulsanti. |
 
 ### Alternative scartate
 | Alternativa | Motivo |
@@ -708,7 +827,12 @@ Note:
 | Stile dei testi sobrio o giocoso a scelta nelle impostazioni *(v1.1)* | Eccessivo per un uso personale; basta una guida di stile unica. |
 | Emoji per priorità o per gruppo *(v1.1)* | Rumore visivo, senza un'informazione in più. |
 | Numero da contatto preso senza conferma *(v1.1)* | Un numero senza "+" verrebbe salvato sbagliato in silenzio (V-08). |
-| Navigazione sul posto con pulsante Indietro nella scheda gruppo *(v1.1)* | Coerenza con `/p_<id>`, che manda sempre un nuovo messaggio. |
+| Navigazione sul posto (modifica del messaggio) nella scheda gruppo *(v1.1, riformulata in v1.2)* | Coerenza con `/p_<id>`, che manda sempre un nuovo messaggio; si rompe con le schede spezzate in più messaggi e toglie dalla chat la scheda che si stava guardando, senza vantaggi di costo. L'Indietro con un nuovo messaggio è invece adottato (D-30). |
+| Gruppo reale «Senza gruppo» o accesso testuale (`/gruppi senza`, filtro di `/prossimi`) *(v1.2)* | Un gruppo reale andrebbe tenuto allineato a ogni modifica e finirebbe in export e backup; l'accesso testuale creerebbe conflitti con un gruppo reale con lo stesso nome (BR-17, BR-26). |
+| Nomi della persona più giovane e più anziana in `/statistiche` *(v1.2)* | RF-32 resta "solo conteggi". |
+| Tastiera di risposta persistente con le azioni più usate *(v1.2)* | Doppia il menu dei comandi e occupa stabilmente lo schermo. |
+| Indietro di uno step nei flussi guidati *(v1.2)* | I flussi sono brevi, esistono `/annulla` e Modifica per campo; effort alto per un beneficio scarso. |
+| Pulsante "Apri scheda" dopo il salvataggio di una persona *(v1.2)* | La conferma sta già in testa alla scheda (RF-01). |
 | WhatsApp con auguri precompilati e Copia messaggio nella scheda *(v1.1)* | La scheda si usa tutto l'anno; per gli auguri ci sono reminder, recupero e `/oggi`. |
 | Username di Instagram e Telegram nell'etichetta dei pulsanti *(v1.1)* | Con tre pulsanti su una riga verrebbero troncati su mobile. |
 | Priorità "Silenziosa" (nessun promemoria, solo nelle liste) *(v1.1)* | Non necessaria all'utente. |
@@ -738,6 +862,11 @@ Note:
 - `/stato`, `/statistiche`, avviso di buco del cron (RF-31, RF-32, N-06)
 - Guida di stile dei testi (RNF-19)
 
+### v1.2
+- Gruppi: [⬅️ Tutti i gruppi] sulla scheda gruppo, voce e scheda "Senza gruppo" (RF-07, RF-19, V-09)
+- `/statistiche`: conteggio "Senza gruppo" e distribuzione per età (RF-32, BR-03)
+- Pulsanti di passo successivo in `/mese`, `/anno`, `/prossimi` e dopo il salvataggio di una persona (RNF-14, RNF-19, RF-01, RF-17, RF-20, RF-22)
+
 ### v2
 - Configurabilità esterna di fuso orario, slot e profili (RF-40)
 - README con guida completa (RF-41), basata sul percorso seguito dall'autore:
@@ -762,6 +891,37 @@ Nessun punto aperto bloccante.
 
 Punti chiusi:
 - **PA-01** ~~Il comportamento del numero cliccabile nel testo (V-04) va verificato sui client Telegram usati (Android, iOS, desktop).~~ *(v1.1)* **Chiuso: verificato.** Il numero nel testo è cliccabile sui client in uso; il pulsante "Chiama" tramite una pagina del Worker non serve.
+
+## Impatto della versione 1.2
+
+### Requisiti cambiati per area
+- **Anagrafica e gruppi** (feature 001, 005):
+  - RF-01: [➕ Aggiungi un'altra persona] nella conferma del salvataggio;
+  - RF-07: voce [Senza gruppo (N)] nell'elenco gruppi, anche senza gruppi e oltre i 60 gruppi; V-09 aggiornato.
+- **Promemoria** (feature 002): nessuna modifica.
+- **Viste** (feature 003, 005, 007):
+  - RF-19: [⬅️ Tutti i gruppi] sulla scheda gruppo e nuova scheda "Senza gruppo";
+  - RF-17: [Prossimi 90 giorni] con il filtro di gruppo mantenuto;
+  - RF-20: [◀️ mese] [mese ▶️] circolari;
+  - RF-22: [◀️ anno] e [anno ▶️] condizionati allo storico e all'anno corrente;
+  - RF-32 e BR-03: conteggio "Senza gruppo" (già mostrato, ora nel requisito) e sezione 🧑 Età con età attuale ed età media.
+- **Import, export e backup** (feature 004): nessuna modifica; il gruppo virtuale "Senza gruppo" non entra in export e backup.
+- **Trasversale** (feature 008): RNF-14 (principio dei pulsanti di passo successivo) e RNF-19 (icone ◀️ ▶️ ⬅️ ➕); i nuovi testi entrano nel punto unico dei testi (RNF-15) e nel suo inventario.
+
+### Modello dati
+- Nessuna nuova entità, nessun nuovo attributo, nessuna migration.
+- "Senza gruppo" si calcola dalle persone senza appartenenze; l'età dall'anno di nascita già presente.
+- Dati esistenti in produzione:
+  - nessuna conversione;
+  - le persone senza anno di nascita restano escluse dalla sezione Età e contate a parte;
+  - un eventuale gruppo reale di nome "Senza gruppo" resta invariato e distinto dalla voce virtuale;
+  - i messaggi già inviati (schede gruppo, liste, conferme) restano senza i nuovi pulsanti.
+
+### Ordine di realizzazione consigliato
+Un solo ciclo, perché nessuna modifica tocca il modello dati e ogni punto ha effort piccolo:
+1. **Gruppi**: RF-07, RF-19, V-09 ([⬅️ Tutti i gruppi], voce e scheda "Senza gruppo").
+2. **Statistiche**: RF-32, BR-03 (riusa il conteggio "Senza gruppo" del punto 1).
+3. **Pulsanti di passo successivo**: RNF-14, RNF-19, RF-20, RF-22, RF-17, RF-01.
 
 ## Impatto della versione 1.1
 
