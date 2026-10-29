@@ -5,6 +5,7 @@ import { addToGroup, count, insertGroup, insertPerson, rows } from "../helpers/d
 import { makeDeps, type TestDeps } from "../helpers/deps";
 import { buttons, cbOf, commandParts, labels } from "../helpers/fake-telegram";
 import { press, say } from "../helpers/send";
+import { T } from "../../src/texts";
 
 const tap = (deps: TestDeps, label: string) => press(deps, cbOf(deps.tg.lastKeyboard(), label));
 
@@ -91,7 +92,7 @@ describe("v1.1 RF-07, RF-19 — elenco e scheda gruppo", () => {
     const gid = await insertGroup("Amici");
     const deps = makeDeps();
     await press(deps, open(gid, "Amici"));
-    expect(deps.tg.lastText()).toBe("👥 Amici · 0 persone\n\nNel gruppo non ci sono persone.");
+    expect(deps.tg.lastText()).toBe(`${T.groupCardTitle("Amici", 0)}\n\n${T.groupCardEmpty}`);
     expect(labels(deps.tg.lastKeyboard())).toEqual(["✏️ Rinomina", "🗑 Elimina"]);
   });
 
@@ -119,7 +120,7 @@ describe("v1.1 RF-07, RF-19 — elenco e scheda gruppo", () => {
     await change(gid);
     const before = await groupNames();
     await press(deps, data);
-    expect(deps.tg.lastText()).toBe("Il gruppo non esiste più.\n\n👥 I tuoi gruppi");
+    expect(deps.tg.lastText()).toBe(`${T.groupGone}\n\n${T.groupsTitle}`);
     expect(labels(deps.tg.lastKeyboard())).toContain("➕ Nuovo gruppo");
     expect(await groupNames()).toEqual(before);
   });
@@ -127,7 +128,7 @@ describe("v1.1 RF-07, RF-19 — elenco e scheda gruppo", () => {
   it("FR-003 (#14): nessun gruppo → avviso e solo ➕ Nuovo gruppo", async () => {
     const deps = makeDeps();
     await say(deps, "/gruppi");
-    expect(deps.tg.lastText()).toBe("Non hai ancora nessun gruppo.");
+    expect(deps.tg.lastText()).toBe(T.noGroups);
     expect(buttons(deps.tg.lastKeyboard())).toEqual([["➕ Nuovo gruppo", "g2:n"]]);
   });
 
@@ -177,14 +178,14 @@ describe("v1.1 RF-07, FR-006a, FR-017 — Nuovo, Rinomina, Elimina", () => {
       await insertGroup("Famiglia");
       const deps = makeDeps();
       await press(deps, "g2:n");
-      expect(deps.tg.lastText()).toBe("Nome del nuovo gruppo?");
+      expect(deps.tg.lastText()).toBe(T.askNewGroupName);
       expect(labels(deps.tg.lastKeyboard())).toEqual(["Annulla"]);
       await say(deps, "famiglia");
-      expect(deps.tg.lastText()).toBe("Esiste già un gruppo con questo nome\n\nNome del nuovo gruppo?");
+      expect(deps.tg.lastText()).toBe(`${T.groupExists}\n\n${T.askNewGroupName}`);
       expect(await count("groups")).toBe(1);
       await say(deps, "Amici");
       expect(await count("groups")).toBe(2);
-      expect(deps.tg.lastText()).toBe("Gruppo Amici creato\n\n👥 I tuoi gruppi");
+      expect(deps.tg.lastText()).toBe(`${T.groupCreated("Amici")}\n\n${T.groupsTitle}`);
       expect(labels(deps.tg.lastKeyboard())).toEqual(["Amici (0)", "Famiglia (0)", "➕ Nuovo gruppo"]);
     });
 
@@ -200,7 +201,7 @@ describe("v1.1 RF-07, FR-006a, FR-017 — Nuovo, Rinomina, Elimina", () => {
       const deps = makeDeps();
       await press(deps, "g2:n");
       await say(deps, name);
-      expect(deps.tg.lastText()).toBe("Il nome del gruppo deve contenere almeno 2 lettere o cifre\n\nNome del nuovo gruppo?");
+      expect(deps.tg.lastText()).toBe(`${T.groupKeyTooShort}\n\n${T.askNewGroupName}`);
       expect(await count("groups")).toBe(0);
     });
 
@@ -219,11 +220,11 @@ describe("v1.1 RF-07, FR-006a, FR-017 — Nuovo, Rinomina, Elimina", () => {
       await press(deps, open(gid, "Lavoro"));
       const cardCount = deps.tg.messages().length;
       await tap(deps, "✏️ Rinomina");
-      expect(deps.tg.lastText()).toBe("Nuovo nome per il gruppo Lavoro?");
+      expect(deps.tg.lastText()).toBe(T.askRenameTo("Lavoro"));
       expect(labels(deps.tg.lastKeyboard())).toEqual(["Annulla"]);
       await say(deps, "Ufficio");
       expect(await groupNames()).toEqual(["Ufficio"]);
-      expect(deps.tg.lastText()?.split("\n").slice(0, 3)).toEqual(["Gruppo rinominato in Ufficio", "", "👥 Ufficio · 2 persone"]);
+      expect(deps.tg.lastText()?.split("\n").slice(0, 3)).toEqual([T.groupRenamed("Ufficio"), "", "👥 Ufficio · 2 persone"]);
       expect(buttons(deps.tg.lastKeyboard())).toEqual([
         ["✏️ Rinomina", rename(gid, "Ufficio")],
         ["🗑 Elimina", remove(gid, "Ufficio")],
@@ -250,20 +251,20 @@ describe("v1.1 RF-07, FR-006a, FR-017 — Nuovo, Rinomina, Elimina", () => {
       const deps = makeDeps();
       await press(deps, rename(gid, "lavoro"));
       await say(deps, "FAMIGLIA");
-      expect(deps.tg.lastText()).toBe("Esiste già un gruppo con questo nome\n\nNuovo nome per il gruppo lavoro?");
+      expect(deps.tg.lastText()).toBe(`${T.groupExists}\n\n${T.askRenameTo("lavoro")}`);
       await say(deps, "Lavoro");
       expect(await groupNames()).toEqual(["Famiglia", "Lavoro"]);
     });
 
     it.each([
-      ["🏖 X", "Il nome del gruppo deve contenere almeno 2 lettere o cifre"],
-      ["x".repeat(31), "Testo troppo lungo: massimo 30 caratteri"],
+      ["🏖 X", T.groupKeyTooShort],
+      ["x".repeat(31), T.tooLong(30)],
     ])("FR-006a, FR-010a: %j rifiutato con la stessa domanda", async (name, error) => {
       const gid = await insertGroup("Lavoro");
       const deps = makeDeps();
       await press(deps, rename(gid, "Lavoro"));
       await say(deps, name);
-      expect(deps.tg.lastText()).toBe(`${error}\n\nNuovo nome per il gruppo Lavoro?`);
+      expect(deps.tg.lastText()).toBe(`${error}\n\n${T.askRenameTo("Lavoro")}`);
       expect(await groupNames()).toEqual(["Lavoro"]);
     });
 
@@ -272,7 +273,7 @@ describe("v1.1 RF-07, FR-006a, FR-017 — Nuovo, Rinomina, Elimina", () => {
       const deps = makeDeps();
       await press(deps, rename(gid, "🏖"));
       await say(deps, "🏖🏖");
-      expect(deps.tg.lastText()).toContain("Il nome del gruppo deve contenere almeno 2 lettere o cifre");
+      expect(deps.tg.lastText()).toContain(T.groupKeyTooShort);
       await say(deps, "🏖 Mare");
       expect(await groupNames()).toEqual(["🏖 Mare"]);
     });
@@ -283,7 +284,7 @@ describe("v1.1 RF-07, FR-006a, FR-017 — Nuovo, Rinomina, Elimina", () => {
       await press(deps, rename(gid, "Lavoro"));
       await env.DB.prepare("UPDATE groups SET name = 'Ufficio', name_norm = 'ufficio' WHERE id = ?").bind(gid).run();
       await say(deps, "Azienda");
-      expect(deps.tg.lastText()).toBe("Il gruppo non esiste più.\n\n👥 I tuoi gruppi");
+      expect(deps.tg.lastText()).toBe(`${T.groupGone}\n\n${T.groupsTitle}`);
       expect(await groupNames()).toEqual(["Ufficio"]);
       expect(await count("conversation_state")).toBe(0);
     });
@@ -292,7 +293,7 @@ describe("v1.1 RF-07, FR-006a, FR-017 — Nuovo, Rinomina, Elimina", () => {
       const gid = await insertGroup("Lavoro");
       const deps = makeDeps();
       await press(deps, rename(gid, "Vecchio"));
-      expect(deps.tg.lastText()).toBe("Il gruppo non esiste più.\n\n👥 I tuoi gruppi");
+      expect(deps.tg.lastText()).toBe(`${T.groupGone}\n\n${T.groupsTitle}`);
       expect(await count("conversation_state")).toBe(0);
     });
 
@@ -301,7 +302,7 @@ describe("v1.1 RF-07, FR-006a, FR-017 — Nuovo, Rinomina, Elimina", () => {
       const deps = makeDeps();
       await press(deps, rename(gid, "Lavoro"));
       await tap(deps, "Annulla");
-      expect(deps.tg.lastText()).toBe("Operazione annullata");
+      expect(deps.tg.lastText()).toBe(T.cancelled);
       expect(await groupNames()).toEqual(["Lavoro"]);
     });
   });
@@ -313,13 +314,13 @@ describe("v1.1 RF-07, FR-006a, FR-017 — Nuovo, Rinomina, Elimina", () => {
       const deps = makeDeps();
       await press(deps, open(gid, "Famiglia"));
       await tap(deps, "🗑 Elimina");
-      expect(deps.tg.lastText()).toBe("Eliminare il gruppo Famiglia? 8 persone perderanno questa etichetta");
+      expect(deps.tg.lastText()).toBe(T.confirmDeleteGroup("Famiglia", 8));
       expect(labels(deps.tg.lastKeyboard())).toEqual(["Sì", "Annulla"]);
       await tap(deps, "Sì");
       expect(await groupNames()).toEqual(["Lavoro"]);
       expect(await count("persons")).toBe(8);
       expect(await count("person_groups")).toBe(0);
-      expect(deps.tg.lastText()).toBe("Gruppo Famiglia eliminato\n\n👥 I tuoi gruppi");
+      expect(deps.tg.lastText()).toBe(`${T.groupDeleted("Famiglia")}\n\n${T.groupsTitle}`);
       expect(labels(deps.tg.lastKeyboard())).toEqual(["Lavoro (0)", "➕ Nuovo gruppo"]);
     });
 
@@ -343,7 +344,7 @@ describe("v1.1 RF-07, FR-006a, FR-017 — Nuovo, Rinomina, Elimina", () => {
       const gid = await insertGroup("Famiglia");
       const deps = makeDeps();
       await press(deps, remove(gid, "famiglia"));
-      expect(deps.tg.lastText()).toBe("Il gruppo non esiste più.\n\n👥 I tuoi gruppi");
+      expect(deps.tg.lastText()).toBe(`${T.groupGone}\n\n${T.groupsTitle}`);
       expect(await count("groups")).toBe(1);
     });
 
@@ -353,7 +354,7 @@ describe("v1.1 RF-07, FR-006a, FR-017 — Nuovo, Rinomina, Elimina", () => {
       await press(deps, remove(gid, "Famiglia"));
       await env.DB.prepare("UPDATE groups SET name = 'Parenti', name_norm = 'parenti' WHERE id = ?").bind(gid).run();
       await tap(deps, "Sì");
-      expect(deps.tg.lastText()).toBe("Il gruppo non esiste più.\n\n👥 I tuoi gruppi");
+      expect(deps.tg.lastText()).toBe(`${T.groupGone}\n\n${T.groupsTitle}`);
       expect(await groupNames()).toEqual(["Parenti"]);
       expect(await count("conversation_state")).toBe(0);
     });
@@ -364,7 +365,7 @@ describe("v1.1 RF-07, FR-006a, FR-017 — Nuovo, Rinomina, Elimina", () => {
       await insertGroup("Famiglia");
       const deps = makeDeps();
       await press(deps, data);
-      expect(deps.tg.lastAnswer()).toBe("Questa azione non è più disponibile");
+      expect(deps.tg.lastAnswer()).toBe(T.actionUnavailable);
       expect(deps.tg.messages()).toHaveLength(0);
       expect(await groupNames()).toEqual(["Famiglia"]);
     });
@@ -374,7 +375,7 @@ describe("v1.1 RF-07, FR-006a, FR-017 — Nuovo, Rinomina, Elimina", () => {
       const flowId = await oldState("scelta", { action: "rinomina" });
       const deps = makeDeps();
       await press(deps, `f:${flowId}:sg:${gid}`);
-      expect(deps.tg.lastAnswer()).toBe("Questa azione non è più disponibile");
+      expect(deps.tg.lastAnswer()).toBe(T.actionUnavailable);
       expect(await groupNames()).toEqual(["Famiglia"]);
     });
 
@@ -383,7 +384,7 @@ describe("v1.1 RF-07, FR-006a, FR-017 — Nuovo, Rinomina, Elimina", () => {
       const flowId = await oldState("conferma", { action: "elimina", groupId: gid, groupName: "Famiglia" });
       const deps = makeDeps();
       await press(deps, `f:${flowId}:y`);
-      expect(deps.tg.lastAnswer()).toBe("Questa azione non è più disponibile");
+      expect(deps.tg.lastAnswer()).toBe(T.actionUnavailable);
       expect(await count("groups")).toBe(1);
     });
 
@@ -391,7 +392,7 @@ describe("v1.1 RF-07, FR-006a, FR-017 — Nuovo, Rinomina, Elimina", () => {
       await oldState("nome", { action: "nuovo" });
       const deps = makeDeps();
       await say(deps, "Amici");
-      expect(deps.tg.lastText()).toBe("Non ho capito. Scrivi /aiuto per l'elenco dei comandi");
+      expect(deps.tg.lastText()).toBe(T.notUnderstood);
       expect(await count("groups")).toBe(0);
       expect(await count("conversation_state")).toBe(0);
     });

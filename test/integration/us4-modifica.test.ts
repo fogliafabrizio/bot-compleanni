@@ -26,7 +26,7 @@ describe("US4: modifica per campo", () => {
     await insertPerson({ id: 1, fullName: "Marco Rossi", day: 14, month: 3, year: 1994 });
     const deps = makeDeps();
     await press(deps, "p:m:1");
-    expect(deps.tg.lastText()).toBe("Quale campo vuoi modificare?");
+    expect(deps.tg.lastText()).toBe(T.editWhichField);
     expect(labels(deps.tg.lastKeyboard())).toEqual([
       "Nome",
       "Nickname",
@@ -51,7 +51,8 @@ describe("US4: modifica per campo", () => {
     expect(after).toEqual({ ...before, instagram: "nuovo.user", updated_at: LATER.toISOString() });
     expect(urlOf(deps.tg.lastKeyboard(), "Instagram")).toBe("https://ig.me/m/nuovo.user");
     expect(deps.tg.lastText()).not.toContain("IG @");
-    expect(labels(deps.tg.lastKeyboard())).toEqual(["Instagram", "Telegram", "Modifica", "Elimina"]);
+    expect(deps.tg.lastText()?.startsWith(`${T.personUpdated("Marco Rossi")}\n\n${T.schedaTitle("Marco Rossi", null)}\n`)).toBe(true);
+    expect(labels(deps.tg.lastKeyboard())).toEqual(["Instagram", "Telegram", T.btnEdit, T.btnDelete]);
   });
 
   it("RF-04, FR-015, SC-005: US3-4 Telefono → Svuota in 3 interazioni", async () => {
@@ -90,7 +91,7 @@ describe("US4: modifica per campo", () => {
       const deps = makeDeps();
       await openEdit(deps, 1, "Data");
       await say(deps, "31/04");
-      expect(deps.tg.lastText()).toContain("Data non valida");
+      expect(deps.tg.lastText()).toContain(T.invalidDate);
       await say(deps, "15/03/1994");
       expect(deps.tg.lastText()).toBe("15 marzo 1994, giusto?");
       await tap(deps, "Sì");
@@ -114,7 +115,7 @@ describe("US4: modifica per campo", () => {
       const deps = makeDeps();
       await openEdit(deps, 2, "Nome");
       await say(deps, "marco rossi");
-      expect(deps.tg.lastText()).toContain("possibile duplicato");
+      expect(deps.tg.lastText()).toBe(T.possibleDuplicate("Marco Rossi", "14/03/1994"));
       expect((await person(2)).full_name).toBe("Luca Bianchi");
       await tap(deps, "Salva comunque");
       expect(await person(2)).toMatchObject({ full_name: "marco rossi", full_name_norm: "marco rossi" });
@@ -125,7 +126,7 @@ describe("US4: modifica per campo", () => {
       const deps = makeDeps();
       await openEdit(deps, 1, "Nome");
       await say(deps, "MARCO ROSSI");
-      expect(deps.tg.lastText()).not.toContain("possibile duplicato");
+      expect(deps.tg.lastText()).not.toBe(T.possibleDuplicate("Marco Rossi", "14/03/1994"));
       expect((await person(1)).full_name).toBe("MARCO ROSSI");
     });
 
@@ -136,7 +137,7 @@ describe("US4: modifica per campo", () => {
       await openEdit(deps, 2, "Data");
       await say(deps, "14/03");
       await tap(deps, "Sì");
-      expect(deps.tg.lastText()).toContain("possibile duplicato");
+      expect(deps.tg.lastText()).toBe(T.possibleDuplicate("Marco Rossi", "14/03/1994"));
       expect((await person(2)).birth_day).toBe(20);
     });
   });
@@ -161,6 +162,7 @@ describe("US4: modifica per campo", () => {
       );
       expect(names.map((n) => n.name)).toEqual(["Amici", "Lavoro"]);
       expect(deps.tg.lastText()).toContain("Gruppi: Amici, Lavoro");
+      expect(deps.tg.lastText()?.startsWith(`${T.personUpdated("Marco Rossi")}\n\n`)).toBe(true);
     });
 
     it("RF-06: Annulla nello step Gruppi non cambia nulla", async () => {
@@ -229,7 +231,7 @@ describe("US4: modifica per campo", () => {
     await openEdit(deps, 1, "Instagram");
     await env.DB.prepare("DELETE FROM persons WHERE id = 1").run();
     await say(deps, "nuovo");
-    expect(deps.tg.lastText()).toBe("Persona non trovata");
+    expect(deps.tg.lastText()).toBe(T.personNotFound);
     expect(await count("conversation_state")).toBe(0);
   });
 
@@ -241,7 +243,7 @@ describe("US4: modifica per campo", () => {
     await press(deps, cbOf(menu, "Priorità"));
     await tap(deps, "Alta");
     await press(deps, cbOf(menu, "Nome"));
-    expect(deps.tg.lastAnswer()).toBe("Questa azione non è più disponibile");
+    expect(deps.tg.lastAnswer()).toBe(T.actionUnavailable);
   });
 });
 
@@ -288,7 +290,7 @@ describe("RF-04, BR-25: telefono da contatto in Modifica", () => {
     const deps = makeDeps();
     await openEdit(deps, 1, "Instagram");
     await shareContact(deps, "393331234567");
-    expect(deps.tg.lastText()).toBe("Nuovo username Instagram?");
+    expect(deps.tg.lastText()).toBe(T.editAsk.i);
     expect(labels(deps.tg.lastKeyboard())).toEqual(["Svuota", "Annulla"]);
     expect((await stateRow())?.step).toBe("valore");
     expect(await person(1)).toEqual(before);
@@ -312,7 +314,7 @@ describe("RF-04, BR-25: telefono da contatto in Modifica", () => {
     await shareContact(deps, "393331234567");
     await env.DB.prepare("DELETE FROM persons WHERE id = 1").run();
     await tap(deps, "Sì");
-    expect(deps.tg.lastAnswer()).toBe("Persona non trovata");
+    expect(deps.tg.lastAnswer()).toBe(T.personNotFound);
     expect(await count("persons")).toBe(0);
   });
 
@@ -335,7 +337,7 @@ describe("RF-04, BR-25: telefono da contatto in Modifica", () => {
     const deps = makeDeps();
     await openEdit(deps, 1, "Telefono");
     await shareContact(deps);
-    expect(deps.tg.lastText()).toBe(`Questo contatto non ha un numero di telefono\n\n${T.editAsk.p}`);
+    expect(deps.tg.lastText()).toBe(`${T.contactWithoutPhone}\n\n${T.editAsk.p}`);
     await shareContact(deps, "12345");
     expect(deps.tg.lastText()).toBe(`${T.invalidPhone}\n\n${T.editAsk.p}`);
     expect((await stateRow())?.step).toBe("valore");
@@ -347,7 +349,7 @@ describe("RF-04, FR-012: domanda di Modifica → Telefono", () => {
     await insertPerson({ id: 1, fullName: "Marco Rossi", day: 14, month: 3 });
     const deps = makeDeps();
     await openEdit(deps, 1, "Telefono");
-    expect(deps.tg.lastText()).toBe("Nuovo telefono? Scrivilo con il prefisso (es. +39 333 1234567)\noppure condividi il contatto 📎");
+    expect(deps.tg.lastText()).toBe(T.editAsk.p);
     expect(labels(deps.tg.lastKeyboard())).toEqual(["Svuota", "Annulla"]);
   });
 });

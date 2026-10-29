@@ -4,6 +4,7 @@ import { addToGroup, count, insertGroup, insertPerson } from "../helpers/db";
 import { makeDeps } from "../helpers/deps";
 import { buttons, cbOf, commandParts, labels } from "../helpers/fake-telegram";
 import { press, say } from "../helpers/send";
+import { T } from "../../src/texts";
 
 // Ricerca morbida dei gruppi (feature 005, US1; quickstart §3 #1–#6). Oggi = mercoledì 28/10/2026.
 
@@ -69,7 +70,7 @@ describe("RF-19, BR-26, RNF-14: /gruppi <testo>", () => {
     const deps = makeDeps();
     await say(deps, "/gruppi xyz");
     expect(deps.tg.messages()).toHaveLength(1);
-    expect(deps.tg.lastText()).toBe("Nessun gruppo corrisponde a «xyz».\n\n👥 I tuoi gruppi");
+    expect(deps.tg.lastText()).toBe(`${T.groupNoMatch("xyz")}\n\n${T.groupsTitle}`);
     expect(labels(deps.tg.lastKeyboard())).toEqual(["Famiglia (1)", "Lavoro (0)", "➕ Nuovo gruppo"]);
   });
 

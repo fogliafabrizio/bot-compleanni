@@ -6,6 +6,7 @@ import { runAt, simulateRegularCron } from "../helpers/cron";
 import { makeCronDeps, type TestCronDeps } from "../helpers/deps";
 import { buttons, cbOf } from "../helpers/fake-telegram";
 import { press } from "../helpers/send";
+import { T } from "../../src/texts";
 
 const marco = { id: 1, fullName: "Marco Rossi", day: 14, month: 3, year: 1995, priority: "alta" as const };
 
@@ -69,7 +70,7 @@ describe("US3: pre-reminder", () => {
     const deps = makeCronDeps();
     await runAt(deps, 2027, 3, 14, 13);
     expect(deps.tg.messages().map((m) => m.text.split("\n")[0])).toEqual([
-      "🎂 Oggi è il compleanno di Oggi, compie 32 anni",
+      T.reminderTitle("Oggi", null, 32, false),
       "⏰ Ieri era il compleanno di Ieri. Hai fatto gli auguri?",
       "📅 Tra 1 giorno: compleanno di Domani (32 anni) — 15/03",
     ]);
@@ -81,11 +82,11 @@ describe("US3: pre-reminder", () => {
     await runAt(deps, 2027, 2, 27, 13);
     expect(deps.tg.lastText()).toBe("📅 Tra 1 giorno: compleanno di Marco Rossi (31 anni) — 29/02");
     await runAt(deps, 2027, 2, 28, 9);
-    expect(deps.tg.lastText()).toBe("🎂 Oggi è il compleanno di Marco Rossi, compie 31 anni (compleanno il 29/02)");
+    expect(deps.tg.lastText()).toBe(T.reminderTitle("Marco Rossi", null, 31, true));
     deps.tg.reset();
     await runDay(deps, 2028, 2, 28);
     expect(deps.tg.messages().filter((m) => m.text.startsWith("🎂"))).toHaveLength(0);
     await runAt(deps, 2028, 2, 29, 9);
-    expect(deps.tg.lastText()).toBe("🎂 Oggi è il compleanno di Marco Rossi, compie 32 anni");
+    expect(deps.tg.lastText()).toBe(T.reminderTitle("Marco Rossi", null, 32, false));
   });
 });

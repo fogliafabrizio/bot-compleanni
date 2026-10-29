@@ -5,6 +5,7 @@ import { runAt } from "../helpers/cron";
 import { makeCronDeps, makeDeps } from "../helpers/deps";
 import { buttons, cbOf, commandParts, labels, monoParts } from "../helpers/fake-telegram";
 import { press, say } from "../helpers/send";
+import { T } from "../../src/texts";
 
 // Oggi = mercoledì 28/10/2026, 11:00 a Roma (NOW).
 
@@ -28,9 +29,9 @@ describe("US1: /oggi", () => {
 
     const msgs = deps.tg.messages();
     expect(msgs.map((m) => m.text)).toEqual([
-      "🎂 Oggi è il compleanno di Anna Bianchi",
+      T.reminderTitle("Anna Bianchi", null, null, false),
       [
-        "🎂 Oggi è il compleanno di Marchino (Marco Rossi), compie 32 anni",
+        T.reminderTitle("Marchino", "Marco Rossi", 32, false),
         "Gruppi: Lavoro",
         "📱 +393331234567",
         "L'anno scorso: fatto ✅",
@@ -56,7 +57,7 @@ describe("US1: /oggi", () => {
     await insertOccurrence({ personId: id, year: 2026, effectiveDate: "2026-10-28", status: "fatto" });
     const deps = makeDeps();
     await say(deps, "/oggi");
-    expect(deps.tg.lastText()).toBe("🎂 Oggi è il compleanno di Marco Rossi\n📱 +393331234567\n\n✅ Fatto");
+    expect(deps.tg.lastText()).toBe(`${T.reminderTitle("Marco Rossi", null, null, false)}\n📱 +393331234567\n\n${T.outcomeDone}`);
     expect(labels(deps.tg.lastKeyboard())).toEqual(["WhatsApp", "Copia messaggio"]);
   });
 
@@ -69,7 +70,7 @@ describe("US1: /oggi", () => {
     await press(deps, `t:f:${occ.id}`, 555);
     expect((await occurrence(id)).status).toBe("fatto");
     const [edit] = deps.tg.textEdits();
-    expect(edit).toMatchObject({ messageId: 555, text: "🎂 Oggi è il compleanno di Marco Rossi\n\n✅ Fatto" });
+    expect(edit).toMatchObject({ messageId: 555, text: `${T.reminderTitle("Marco Rossi", null, null, false)}\n\n${T.outcomeDone}` });
     expect(labels(edit!.keyboard)).toEqual(["Copia messaggio"]);
     expect(deps.tg.callbackAnswers()).toEqual([{ method: "answerCallbackQuery", id: expect.any(String) }]);
 
@@ -91,7 +92,7 @@ describe("US1: /oggi", () => {
     expect(deps.tg.textEdits().at(-1)!.text.endsWith("\n\nSaltato")).toBe(true);
     deps.tg.reset();
     await press(deps, `t:f:${occ.id}`);
-    expect(deps.tg.lastAnswer()).toBe("Questa azione non è più disponibile");
+    expect(deps.tg.lastAnswer()).toBe(T.actionUnavailable);
     expect(deps.tg.textEdits()).toHaveLength(0);
     expect((await occurrence(id)).status).toBe("saltato");
   });
@@ -103,7 +104,7 @@ describe("US1: /oggi", () => {
     const occ = await occurrence(id);
     await env.DB.prepare("DELETE FROM persons WHERE id = ?").bind(id).run();
     await press(deps, `t:f:${occ.id}`);
-    expect(deps.tg.lastAnswer()).toBe("Persona non trovata");
+    expect(deps.tg.lastAnswer()).toBe(T.personNotFound);
   });
 
   it("contracts/callback-data.md di 003: t: durante un flusso guidato non lo annulla; azione sconosciuta non disponibile", async () => {
@@ -117,7 +118,7 @@ describe("US1: /oggi", () => {
     expect((await occurrence(id)).status).toBe("fatto");
     expect(await count("conversation_state")).toBe(1);
     await press(deps, "t:x:1");
-    expect(deps.tg.lastAnswer()).toBe("Questa azione non è più disponibile");
+    expect(deps.tg.lastAnswer()).toBe(T.actionUnavailable);
   });
 
   it("FR-007a: 12 compleanni oggi → 10 reminder + un messaggio lista con gli altri 2, senza tastiera", async () => {
@@ -130,7 +131,7 @@ describe("US1: /oggi", () => {
     expect(msgs[9]!.text).toContain("P10");
     const list = msgs[10]!;
     expect(list.keyboard).toBeUndefined();
-    expect(list.text.split("\n").slice(0, 2)).toEqual(["Altri compleanni di oggi:", ""]);
+    expect(list.text.split("\n").slice(0, 2)).toEqual([T.todayOthers, ""]);
     expect(monoParts(list).map((s) => s.trimEnd())).toEqual(["Mer 28/10  P11 (26)", "Mer 28/10  P12 (26)"]);
     expect(commandParts(list)).toHaveLength(2);
   });
@@ -143,7 +144,7 @@ describe("US1: /oggi", () => {
     await say(deps, "/oggi");
     const [msg] = deps.tg.messages();
     expect(deps.tg.messages()).toHaveLength(1);
-    expect(msg!.text).toBe(`Oggi non ci sono compleanni. Il prossimo:\n\nVen 30/10  Anna (28)  /p_${a}\nVen 30/10  Bruno      /p_${b}`);
+    expect(msg!.text).toBe(`${T.todayNone}\n\nVen 30/10  Anna (28)  /p_${a}\nVen 30/10  Bruno      /p_${b}`);
     expect(msg!.keyboard).toBeUndefined();
     expect(commandParts(msg!)).toEqual([`/p_${a}`, `/p_${b}`]);
     expect(await count("occurrences")).toBe(0);
@@ -153,7 +154,7 @@ describe("US1: /oggi", () => {
     const deps = makeDeps();
     await say(deps, "/oggi");
     expect(deps.tg.messages().map((m) => m.text)).toEqual([
-      "Oggi non ci sono compleanni e non hai ancora inserito nessuna persona.",
+      T.todayNoPersons,
     ]);
   });
 
@@ -170,7 +171,7 @@ describe("US1: /oggi", () => {
     const id = await insertPerson({ fullName: "Leo", day: 29, month: 2, year: 2004 });
     const deps = makeDeps({ now: new Date("2027-02-28T10:00:00.000Z") });
     await say(deps, "/oggi");
-    expect(deps.tg.lastText()).toBe("🎂 Oggi è il compleanno di Leo, compie 23 anni (compleanno il 29/02)");
+    expect(deps.tg.lastText()).toBe(T.reminderTitle("Leo", null, 23, true));
     const [o] = await rows<{ year: number; effective_date: string }>("SELECT year, effective_date FROM occurrences WHERE person_id = ?", id);
     expect(o).toEqual({ year: 2027, effective_date: "2027-02-28" });
     expect(buttons(deps.tg.lastKeyboard()).map(([, v]) => v)).toContain(`t:f:${(await rows<{ id: number }>("SELECT id FROM occurrences"))[0]!.id}`);

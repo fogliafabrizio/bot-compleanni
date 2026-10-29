@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { buildBackup, encodeBackup, parseBackup, type BackupData, type BackupV1 } from "../../src/domain/backup";
 import { syntheticBackup } from "../helpers/csv-fixtures";
+import { T } from "../../src/texts";
 
 const TODAY = { year: 2026, month: 10, day: 28 };
 const ISO = "2026-10-01T08:00:00.000Z";
@@ -75,11 +76,11 @@ describe("FR-018, SC-006: validazione", () => {
     ["testo non JSON", "ciao"],
     ["JSON troncato", '{"format":'],
   ])("SC-006: %s → JSON non valido", (_l, text) => {
-    expect(parseBackup(bytes(text), TODAY)).toEqual({ ok: false, reason: "Il file non è un JSON valido." });
+    expect(parseBackup(bytes(text), TODAY)).toEqual({ ok: false, reason: T.backupNotJson });
   });
 
   it("SC-006: byte non UTF-8 → JSON non valido", () => {
-    expect(parseBackup(new Uint8Array([0x7b, 0xe0, 0x7d]), TODAY)).toEqual({ ok: false, reason: "Il file non è un JSON valido." });
+    expect(parseBackup(new Uint8Array([0x7b, 0xe0, 0x7d]), TODAY)).toEqual({ ok: false, reason: T.backupNotJson });
   });
 
   it.each([
@@ -89,11 +90,11 @@ describe("FR-018, SC-006: validazione", () => {
     ["occurrences non lista", (b: BackupV1) => Object.assign(b, { occurrences: {} })],
     ["settings mancante", (b: BackupV1) => Object.assign(b, { settings: undefined })],
   ])("SC-006: %s → non è un backup di questo bot", (_l, mutate) => {
-    expect(reasonOf(mutate)).toBe("Il file non è un backup di questo bot.");
+    expect(reasonOf(mutate)).toBe(T.backupWrongFormat);
   });
 
   it("SC-006: version 2 → versione non supportata", () => {
-    expect(reasonOf((b) => Object.assign(b, { version: 2 }))).toBe("Versione del backup non supportata (2).");
+    expect(reasonOf((b) => Object.assign(b, { version: 2 }))).toBe(T.backupVersion("2"));
   });
 
   it.each([
@@ -106,45 +107,45 @@ describe("FR-018, SC-006: validazione", () => {
     ["custom_message", (b: BackupV1) => (b.persons[0]!.custom_message = "m".repeat(257))],
     ["birth_year", (b: BackupV1) => Object.assign(b.persons[0]!, { birth_year: "1990" })],
   ])("SC-006: persona con campo %s non valido", (field, mutate) => {
-    expect(reasonOf(mutate)).toBe(`Backup non valido: persona 3, campo ${field}.`);
+    expect(reasonOf(mutate)).toBe(T.backupInvalidField("persona", "3", field));
   });
 
   it("SC-006: gruppo con nome > 30", () => {
-    expect(reasonOf((b) => (b.groups[0]!.name = "g".repeat(31)))).toBe("Backup non valido: gruppo 5, campo name.");
+    expect(reasonOf((b) => (b.groups[0]!.name = "g".repeat(31)))).toBe(T.backupInvalidField("gruppo", "5", "name"));
   });
 
   it("SC-006: status sconosciuto ed effective_date non reale", () => {
-    expect(reasonOf((b) => Object.assign(b.occurrences[0]!, { status: "boh" }))).toBe("Backup non valido: occorrenza 9, campo status.");
+    expect(reasonOf((b) => Object.assign(b.occurrences[0]!, { status: "boh" }))).toBe(T.backupInvalidField("occorrenza", "9", "status"));
     expect(reasonOf((b) => (b.occurrences[0]!.effective_date = "2026-02-30"))).toBe(
-      "Backup non valido: occorrenza 9, campo effective_date.",
+      T.backupInvalidField("occorrenza", "9", "effective_date"),
     );
   });
 
   it("SC-006: id ripetuto", () => {
-    expect(reasonOf((b) => b.persons.push({ ...b.persons[0]!, full_name: "Altro" }))).toBe("Backup non valido: persona 3 ripetuta.");
-    expect(reasonOf((b) => b.groups.push({ id: 5, name: "Amici" }))).toBe("Backup non valido: gruppo 5 ripetuto.");
+    expect(reasonOf((b) => b.persons.push({ ...b.persons[0]!, full_name: "Altro" }))).toBe(T.backupDuplicateId("persona", "3"));
+    expect(reasonOf((b) => b.groups.push({ id: 5, name: "Amici" }))).toBe(T.backupDuplicateId("gruppo", "5"));
   });
 
   it("SC-006: gruppi Famiglia/famiglia", () => {
-    expect(reasonOf((b) => b.groups.push({ id: 6, name: "famiglia" }))).toBe("Backup non valido: gruppi con lo stesso nome.");
+    expect(reasonOf((b) => b.groups.push({ id: 6, name: "famiglia" }))).toBe(T.backupDuplicateGroupName);
   });
 
   it("SC-006: appartenenza verso gruppo inesistente, occorrenza verso persona inesistente", () => {
     expect(reasonOf((b) => b.person_groups.push({ person_id: 3, group_id: 77 }))).toBe(
-      "Backup non valido: riferimento a gruppo 77 inesistente.",
+      T.backupMissingRef("gruppo", "77"),
     );
-    expect(reasonOf((b) => (b.occurrences[0]!.person_id = 88))).toBe("Backup non valido: riferimento a persona 88 inesistente.");
+    expect(reasonOf((b) => (b.occurrences[0]!.person_id = 88))).toBe(T.backupMissingRef("persona", "88"));
   });
 
   it("SC-006: due occorrenze per la stessa persona e anno", () => {
     expect(reasonOf((b) => b.occurrences.push({ ...b.occurrences[0]!, id: 10 }))).toBe(
-      "Backup non valido: occorrenze ripetute per la persona 3.",
+      T.backupDuplicateOccurrence("3"),
     );
   });
 
   it("SC-006: default_message non valido", () => {
     expect(reasonOf((b) => (b.settings.default_message = "m".repeat(300)))).toBe(
-      "Backup non valido: impostazioni, campo default_message.",
+      T.backupInvalidSetting("default_message"),
     );
   });
 

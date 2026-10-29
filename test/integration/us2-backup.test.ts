@@ -7,6 +7,7 @@ import { localInstant } from "../helpers/cron";
 import { SEED_ISO, seedFullData } from "../helpers/seed";
 import { makeCronDeps, makeDeps } from "../helpers/deps";
 import { say } from "../helpers/send";
+import { T } from "../../src/texts";
 
 const ISO = SEED_ISO;
 
@@ -17,7 +18,7 @@ describe("US2: /backup (RF-26, FR-017)", () => {
     await say(deps, "/backup");
     const [doc] = deps.tg.documents();
     expect(doc).toMatchObject({ chatId: OWNER_ID, name: "compleanni-backup-2026-10-28.json", mimeType: "application/json" });
-    expect(doc!.caption).toBe("Backup: 3 persone, 2 gruppi, 3 occorrenze. Per ripristinarlo usa /ripristina.");
+    expect(doc!.caption).toBe(T.backupCaption(3, 2, 3));
     expect(doc!.text.startsWith("{")).toBe(true);
     const b = JSON.parse(doc!.text) as Record<string, unknown>;
     expect(b).toEqual({
@@ -101,7 +102,7 @@ describe("US2: /backup (RF-26, FR-017)", () => {
     const deps = makeDeps();
     await say(deps, "/backup");
     const [doc] = deps.tg.documents();
-    expect(doc!.caption).toBe("Backup: 0 persone, 0 gruppi, 0 occorrenze. Per ripristinarlo usa /ripristina.");
+    expect(doc!.caption).toBe(T.backupCaption(0, 0, 0));
     expect(JSON.parse(doc!.text)).toMatchObject({ persons: [], groups: [], person_groups: [], occurrences: [], settings: { default_message: null } });
   });
 });

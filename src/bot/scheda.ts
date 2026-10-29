@@ -12,12 +12,12 @@ import { contactLinks, type ContactFields } from "./promemoria";
 // Scheda persona (AFU §5.6, contracts/comandi.md, research R-16).
 
 function schedaLines(p: PersonFields, groupNames: readonly string[], today: LocalDate): string[] {
-  const lines = [p.nickname ? T.schedaNickname(p.fullName, p.nickname) : p.fullName];
+  const lines = [T.schedaTitle(p.fullName, p.nickname)];
 
   const next = nextBirthday(p.birthDay, p.birthMonth, today);
   const when =
     p.birthYear === null ? T.schedaNoAge(next.daysUntil) : T.schedaAge(next.year - p.birthYear, next.daysUntil);
-  lines.push(`${formatShort({ day: p.birthDay, month: p.birthMonth, year: p.birthYear })} · ${when}`);
+  lines.push(T.schedaDate(formatShort({ day: p.birthDay, month: p.birthMonth, year: p.birthYear }), when));
 
   const sorted = sortNames(groupNames);
   lines.push(
@@ -63,7 +63,8 @@ export function schedaKeyboard(personId: number, contacts: ContactFields, hasPen
   ]);
 }
 
-export async function showScheda(ctx: Ctx, personId: number, prefix?: string): Promise<void> {
+// `confirm` (FR-008 di 008): conferma col nome della persona, nello stesso messaggio della scheda.
+export async function showScheda(ctx: Ctx, personId: number, confirm?: (name: string) => string): Promise<void> {
   const { db } = ctx.deps;
   const today = toLocal(ctx.deps.now());
   const data = schedaFromResults(await db.batch(schedaStatements(db, personId, pendingWindow(today))));
@@ -72,7 +73,8 @@ export async function showScheda(ctx: Ctx, personId: number, prefix?: string): P
     return;
   }
   const text = renderScheda(data.person, data.groups, data.outcomes, today);
-  await reply(ctx, prefix ? `${prefix}\n\n${text}` : text, schedaKeyboard(personId, data.person, data.pending !== null));
+  const full = confirm ? `${confirm(data.person.nickname ?? data.person.fullName)}\n\n${text}` : text;
+  await reply(ctx, full, schedaKeyboard(personId, data.person, data.pending !== null));
 }
 
 // "Segna fatto" (p:f, FR-017, FR-018, BR-08): una batch con l'UPDATE e la rilettura della scheda.

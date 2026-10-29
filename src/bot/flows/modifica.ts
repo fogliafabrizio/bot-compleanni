@@ -98,7 +98,7 @@ async function savePatch(ctx: Ctx, state: ConversationState, patch: Partial<Pers
     await answerCallback(ctx, T.actionUnavailable);
     return;
   }
-  await showScheda(ctx, personId);
+  await showScheda(ctx, personId, T.personUpdated);
 }
 
 // FR-016a: nome o data che rendono la persona un duplicato di un'altra.
@@ -257,7 +257,7 @@ registerFlow({
           await answerCallback(ctx, T.actionUnavailable);
           return;
         }
-        await showScheda(ctx, d.personId);
+        await showScheda(ctx, d.personId, T.personUpdated);
       },
     }),
     gruppo_nuovo: newGroupStep({ backStep: "gruppi", maxLength: TEXT_LIMITS.groupName }),

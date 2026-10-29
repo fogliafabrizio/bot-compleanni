@@ -4,6 +4,7 @@ import { runAt } from "../helpers/cron";
 import { makeCronDeps, type TestCronDeps } from "../helpers/deps";
 import { cbOf, copyOf, labels, urlOf } from "../helpers/fake-telegram";
 import { press, say } from "../helpers/send";
+import { T } from "../../src/texts";
 
 // Oggi = 14/03/2027 (ora solare): 09:00 locali = 08:00 UTC.
 const at = (deps: TestCronDeps, hour: number) => runAt(deps, 2027, 3, 14, hour);
@@ -39,7 +40,7 @@ describe("US1: reminder del giorno", () => {
     expect(msgs[1]!.text).toContain("Anna Bianchi");
     expect(cbOf(msgs[0]!.keyboard, "Fatto ✅")).not.toBe(cbOf(msgs[1]!.keyboard, "Fatto ✅"));
     // §5.3: un messaggio con tutti i dati.
-    expect(msgs[0]!.text).toBe("🎂 Oggi è il compleanno di Marchino (Marco Rossi), compie 32 anni");
+    expect(msgs[0]!.text).toBe(T.reminderTitle("Marchino", "Marco Rossi", 32, false));
   });
 
   it("RF-10, BR-09: esito precedente non confermato → nessuna riga L'anno scorso; fatto → riga presente", async () => {
@@ -60,7 +61,7 @@ describe("US1: reminder del giorno", () => {
     const deps = makeCronDeps();
     await at(deps, 9);
     expect(deps.tg.lastText()).toBe(
-      ["🎂 Oggi è il compleanno di Marchino (Marco Rossi), compie 32 anni", "Gruppi: Beach tennis", "📱 +393331234567"].join("\n"),
+      [T.reminderTitle("Marchino", "Marco Rossi", 32, false), "Gruppi: Beach tennis", "📱 +393331234567"].join("\n"),
     );
   });
 
@@ -171,7 +172,7 @@ describe("US1: reminder del giorno", () => {
     await press(deps, cbOf(m13!.keyboard, "Fatto ✅"), 101);
     expect((await occStatus(1))?.status).toBe("saltato");
     expect(deps.tg.textEdits()).toHaveLength(0);
-    expect(deps.tg.lastAnswer()).toBe("Questa azione non è più disponibile");
+    expect(deps.tg.lastAnswer()).toBe(T.actionUnavailable);
   });
 
   it("FR-018c: Fatto dopo l'eliminazione della persona → Persona non trovata", async () => {
@@ -181,7 +182,7 @@ describe("US1: reminder del giorno", () => {
     const cb = cbOf(deps.tg.lastKeyboard(), "Fatto ✅");
     await deps.db.prepare("DELETE FROM persons WHERE id = 1").run();
     await press(deps, cb, 100);
-    expect(deps.tg.lastAnswer()).toBe("Persona non trovata");
+    expect(deps.tg.lastAnswer()).toBe(T.personNotFound);
     expect(deps.tg.textEdits()).toHaveLength(0);
   });
 
@@ -192,15 +193,15 @@ describe("US1: reminder del giorno", () => {
     const cb = cbOf(deps.tg.lastKeyboard(), "Salta quest'anno").replace("o:s:", "o:f:");
     await press(deps, cb, 100);
     expect((await occStatus(1))?.status).toBe("aperta");
-    expect(deps.tg.lastAnswer()).toBe("Questa azione non è più disponibile");
+    expect(deps.tg.lastAnswer()).toBe(T.actionUnavailable);
   });
 
   it("contracts/callback-data.md: azione o: sconosciuta → Questa azione non è più disponibile", async () => {
     const deps = makeCronDeps();
     await press(deps, "o:x:1");
-    expect(deps.tg.lastAnswer()).toBe("Questa azione non è più disponibile");
+    expect(deps.tg.lastAnswer()).toBe(T.actionUnavailable);
     await press(deps, "o:f");
-    expect(deps.tg.lastAnswer()).toBe("Questa azione non è più disponibile");
+    expect(deps.tg.lastAnswer()).toBe(T.actionUnavailable);
   });
 
   it("R-11: un tocco o: durante /nuovo non annulla il flusso", async () => {
@@ -213,7 +214,7 @@ describe("US1: reminder del giorno", () => {
     expect(await count("conversation_state")).toBe(1);
     expect((await occStatus(1))?.status).toBe("fatto");
     await say(deps, "Anna Bianchi");
-    expect(deps.tg.lastText()).toBe("Nickname? (come lo chiami nei messaggi)");
+    expect(deps.tg.lastText()).toBe(T.askNickname);
   });
 
   it("principio II: un tocco Fatto costa 3 subrequest", async () => {

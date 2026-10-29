@@ -39,7 +39,7 @@ describe("RF-24, R-01, R-13: documenti ricevuti", () => {
     expect(T.fileTooBigTelegram).toContain("20 MB");
     await sendFile(deps, "a.csv", "x", 2 * MB);
     expect(deps.tg.lastText()).toBe(T.fileTooBig);
-    expect(T.fileTooBig).toBe("Il file è troppo grande (massimo 1 MB).");
+    expect(T.fileTooBig).toMatch(/ 1 MB\.$/);
     expect(getFiles(deps)).toEqual([]);
   });
 
@@ -63,31 +63,31 @@ describe("RF-24, R-01, R-13: documenti ricevuti", () => {
   it("BR-22: CSV non UTF-8 → rifiuto con l'invito a salvare come CSV UTF-8", async () => {
     const deps = makeDeps();
     await sendFile(deps, "a.csv", new Uint8Array([...new TextEncoder().encode("nome;data\nNicol"), 0xf2, 0x3b, 0x31]));
-    expect(deps.tg.lastText()).toBe('Non riesco a leggere il file: salvalo da Excel come "CSV UTF-8" e rimandalo.');
+    expect(deps.tg.lastText()).toBe(T.csvNotUtf8);
   });
 
   it("BR-18: intestazione non valida → colonne attese", async () => {
     const deps = makeDeps();
     await sendFile(deps, "a.csv", "nome;email\nMarco;m@x\n");
     expect(deps.tg.lastText()).toBe(
-      "Intestazione non valida. Colonne attese: nome; nickname; data; telefono; instagram; telegram; gruppi; priorita; messaggio (obbligatorie: nome e data).",
+      T.csvInvalidHeader,
     );
   });
 
   it("FR-009: file vuoto e sole intestazioni (anche con righe vuote) → nessuna riga da importare", async () => {
     const deps = makeDeps();
     await sendFile(deps, "a.csv", "");
-    expect(deps.tg.lastText()).toBe("Il file non contiene righe da importare.");
+    expect(deps.tg.lastText()).toBe(T.csvEmpty);
     await sendFile(deps, "a.csv", csvOf([]));
-    expect(deps.tg.lastText()).toBe("Il file non contiene righe da importare.");
+    expect(deps.tg.lastText()).toBe(T.csvEmpty);
     await sendFile(deps, "a.csv", `${csvOf([])};;\r\n\r\n`);
-    expect(deps.tg.lastText()).toBe("Il file non contiene righe da importare.");
+    expect(deps.tg.lastText()).toBe(T.csvEmpty);
   });
 
   it("FR-008a: 501 righe → rifiuto con massimo 500; 500 righe → anteprima", async () => {
     const deps = makeDeps();
     await sendFile(deps, "a.csv", csvOf(syntheticRows(501)));
-    expect(deps.tg.lastText()).toBe("Il file ha più di 500 righe: dividilo in più file da al massimo 500 righe.");
+    expect(deps.tg.lastText()).toBe(T.csvTooManyRows);
     await sendFile(deps, "a.csv", csvOf(syntheticRows(500)));
     expect(deps.tg.messages().at(-1)!.text).not.toContain("più di 500");
     expect(await flow()).toBe("import");
@@ -99,7 +99,7 @@ describe("RF-24, R-01, R-13: documenti ricevuti", () => {
     deps.tg.reset();
     await sendFile(deps, "a.csv", csvOf(syntheticRows(2)));
     expect(deps.tg.messages()).toHaveLength(1);
-    expect(deps.tg.lastText()).toContain("Anteprima import");
+    expect(deps.tg.lastText()).toContain(T.previewTitle);
     expect(await flow()).toBe("import");
   });
 

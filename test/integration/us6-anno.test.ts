@@ -3,6 +3,7 @@ import { insertOccurrence, insertPerson } from "../helpers/db";
 import { makeDeps } from "../helpers/deps";
 import { commandParts, monoParts } from "../helpers/fake-telegram";
 import { say } from "../helpers/send";
+import { T } from "../../src/texts";
 
 // Oggi = mercoledì 28/10/2026.
 
@@ -35,7 +36,7 @@ describe("US6: /anno", () => {
     expect(deps.tg.messages()).toHaveLength(1);
     expect(msg!.keyboard).toBeUndefined();
     expect(msg!.text.split("\n")).toEqual([
-      "Riepilogo 2025",
+      T.yearHeader(2025),
       "",
       "Fatto: 40",
       "Saltato: 3",
@@ -80,7 +81,7 @@ describe("US6: /anno", () => {
     const deps = makeDeps();
     await say(deps, "/anno");
     expect(deps.tg.lastText()).toBe(
-      ["Riepilogo 2026", "", "Fatto: 0", "Saltato: 0", "Non confermato: 0", "", "Saltati:", "nessuno", "", "Saltati per 2 o più anni di fila:", "nessuno"].join(
+      [T.yearHeader(2026), "", "Fatto: 0", "Saltato: 0", "Non confermato: 0", "", "Saltati:", "nessuno", "", "Saltati per 2 o più anni di fila:", "nessuno"].join(
         "\n",
       ),
     );
@@ -90,6 +91,6 @@ describe("US6: /anno", () => {
   it.each(["2027", "1850", "20x5"])("FR-019: /anno %s → anno non valido", async (y) => {
     const deps = makeDeps();
     await say(deps, `/anno ${y}`);
-    expect(deps.tg.messages().map((m) => m.text)).toEqual(["Anno non valido: scrivi un anno tra 1900 e 2026"]);
+    expect(deps.tg.messages().map((m) => m.text)).toEqual([T.yearInvalid(1900, 2026)]);
   });
 });

@@ -6,6 +6,7 @@ import { localInstant, runAt, simulateRegularCron } from "../helpers/cron";
 import { makeCronDeps, type TestCronDeps } from "../helpers/deps";
 import { cbOf, labels } from "../helpers/fake-telegram";
 import { press } from "../helpers/send";
+import { T } from "../../src/texts";
 
 // D = 13/03/2027, D+1 = 14/03/2027.
 const marco = { id: 1, fullName: "Marco Rossi", nickname: "Marchino", day: 13, month: 3, year: 1995, priority: "media" as const };
@@ -104,7 +105,7 @@ describe("US2: recupero ed esito finale", () => {
       deps.setNow(localInstant(2027, 3, 21, 22)); // 8 giorni dopo D, sera
       await press(deps, `o:f:${rec}`, 100);
       expect((await status())?.status).toBe(closed);
-      expect(deps.tg.lastAnswer()).toBe("Questa azione non è più disponibile");
+      expect(deps.tg.lastAnswer()).toBe(T.actionUnavailable);
       deps.setNow(localInstant(2027, 3, 20, 23)); // D+7, ultima ora
       await press(deps, `o:f:${rec}`, 100);
       expect((await status())?.status).toBe("fatto");
@@ -118,7 +119,7 @@ describe("US2: recupero ed esito finale", () => {
     const deps = makeCronDeps({ now: localInstant(2027, 3, 14, 15) });
     await press(deps, `o:s:${rec}`, 100);
     expect((await status())?.status).toBe("fatto");
-    expect(deps.tg.lastAnswer()).toBe("Questa azione non è più disponibile");
+    expect(deps.tg.lastAnswer()).toBe(T.actionUnavailable);
     expect(deps.tg.textEdits()).toHaveLength(0);
   });
 
@@ -129,7 +130,7 @@ describe("US2: recupero ed esito finale", () => {
     const deps = makeCronDeps({ now: localInstant(2027, 3, 14, 15) });
     await press(deps, `o:f:${giorno}`, 100);
     expect((await status())?.status).toBe("saltato");
-    expect(deps.tg.lastAnswer()).toBe("Questa azione non è più disponibile");
+    expect(deps.tg.lastAnswer()).toBe(T.actionUnavailable);
   });
 
   it("BR-11: persona inserita il giorno D dopo l'ultimo slot del profilo → nessun recupero", async () => {

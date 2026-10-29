@@ -42,28 +42,28 @@ const line1 = (text: string) => text.split("\n")[0];
 
 describe("RF-10, §5.3: testo del reminder del giorno", () => {
   it("RF-10: nickname diverso dal nome ed età", () => {
-    expect(line1(renderGiorno(data()).text)).toBe("🎂 Oggi è il compleanno di Marchino (Marco Rossi), compie 32 anni");
+    expect(line1(renderGiorno(data()).text)).toBe(T.reminderTitle("Marchino", "Marco Rossi", 32, false));
   });
 
   it("RF-10: senza nickname solo il nome; nickname uguale al nome non ripetuto", () => {
     expect(line1(renderGiorno(data({ person: { nickname: null } })).text)).toBe(
-      "🎂 Oggi è il compleanno di Marco Rossi, compie 32 anni",
+      T.reminderTitle("Marco Rossi", null, 32, false),
     );
     expect(line1(renderGiorno(data({ person: { nickname: "Marco Rossi" } })).text)).toBe(
-      "🎂 Oggi è il compleanno di Marco Rossi, compie 32 anni",
+      T.reminderTitle("Marco Rossi", null, 32, false),
     );
   });
 
   it("BR-03: senza anno di nascita nessuna età", () => {
     expect(line1(renderGiorno(data({ person: { birthYear: null } })).text)).toBe(
-      "🎂 Oggi è il compleanno di Marchino (Marco Rossi)",
+      T.reminderTitle("Marchino", "Marco Rossi", null, false),
     );
   });
 
   it("BR-04: nato il 29/02, anno non bisestile → nota in fondo alla prima riga", () => {
     const d = data({ person: { birthDay: 29, birthMonth: 2, birthYear: 1996 } });
     expect(line1(renderGiorno(d).text)).toBe(
-      "🎂 Oggi è il compleanno di Marchino (Marco Rossi), compie 31 anni (compleanno il 29/02)",
+      T.reminderTitle("Marchino", "Marco Rossi", 31, true),
     );
     expect(line1(renderGiorno({ ...d, year: 2028 }).text)).not.toContain("29/02");
   });
@@ -71,7 +71,7 @@ describe("RF-10, §5.3: testo del reminder del giorno", () => {
   it("RF-10: righe Gruppi (alfabetiche), telefono e L'anno scorso solo con il dato", () => {
     const full = renderGiorno(data({ groups: ["Lavoro", "beach tennis"], person: { phone: "+393331234567" }, lastYear: "fatto" }));
     expect(full.text.split("\n")).toEqual([
-      "🎂 Oggi è il compleanno di Marchino (Marco Rossi), compie 32 anni",
+      T.reminderTitle("Marchino", "Marco Rossi", 32, false),
       "Gruppi: beach tennis, Lavoro",
       "📱 +393331234567",
       "L'anno scorso: fatto ✅",

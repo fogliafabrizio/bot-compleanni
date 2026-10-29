@@ -4,6 +4,7 @@ import { addToGroup, insertGroup, insertPerson } from "../helpers/db";
 import { makeDeps } from "../helpers/deps";
 import { buttons, commandParts, labels, monoParts } from "../helpers/fake-telegram";
 import { say } from "../helpers/send";
+import { T } from "../../src/texts";
 
 // Oggi = mercoledì 28/10/2026.
 
@@ -34,7 +35,7 @@ describe("US5: /gruppo (alias di /gruppi, v1.1 RF-19, BR-26)", () => {
     await insertGroup("Famiglia");
     const deps = makeDeps();
     await say(deps, "/gruppo calcetto");
-    expect(deps.tg.lastText()).toBe("Nessun gruppo corrisponde a «calcetto».\n\n👥 I tuoi gruppi");
+    expect(deps.tg.lastText()).toBe(`${T.groupNoMatch("calcetto")}\n\n${T.groupsTitle}`);
     expect(labels(deps.tg.lastKeyboard())).toEqual(["Famiglia (0)", "Lavoro (0)", "➕ Nuovo gruppo"]);
     await say(deps, "/gruppo");
     expect(deps.tg.lastText()).toBe("👥 I tuoi gruppi");
@@ -43,7 +44,7 @@ describe("US5: /gruppo (alias di /gruppi, v1.1 RF-19, BR-26)", () => {
   it("FR-003: senza gruppi /gruppo indica che non ce ne sono", async () => {
     const deps = makeDeps();
     await say(deps, "/gruppo");
-    expect(deps.tg.lastText()).toBe("Non hai ancora nessun gruppo.");
+    expect(deps.tg.lastText()).toBe(T.noGroups);
     expect(labels(deps.tg.lastKeyboard())).toEqual(["➕ Nuovo gruppo"]);
   });
 
@@ -51,7 +52,7 @@ describe("US5: /gruppo (alias di /gruppi, v1.1 RF-19, BR-26)", () => {
     await insertGroup("Lavoro");
     const deps = makeDeps();
     await say(deps, "/gruppo lavoro");
-    expect(deps.tg.lastText()).toBe("👥 Lavoro · 0 persone\n\nNel gruppo non ci sono persone.");
+    expect(deps.tg.lastText()).toBe(`${T.groupCardTitle("Lavoro", 0)}\n\n${T.groupCardEmpty}`);
   });
 });
 
@@ -63,7 +64,7 @@ describe("US5: /mese", () => {
     const deps = makeDeps();
     await say(deps, "/mese marzo");
     const first = deps.tg.lastText()!;
-    expect(first.split("\n")).toEqual(["Compleanni di marzo 2027", "", `Mar 02/03  Zeno (37)  /p_${z}`, `Dom 14/03  Anna       /p_${a}`]);
+    expect(first.split("\n")).toEqual([T.monthHeader("marzo", 2027), "", `Mar 02/03  Zeno (37)  /p_${z}`, `Dom 14/03  Anna       /p_${a}`]);
     await say(deps, "/mese Marzo");
     expect(deps.tg.lastText()).toBe(first);
     await say(deps, "/mese 3");
@@ -76,14 +77,14 @@ describe("US5: /mese", () => {
     const deps = makeDeps();
     await say(deps, "/mese");
     const msg = deps.tg.messages()[0]!;
-    expect(msg.text.split("\n")[0]).toBe("Compleanni di ottobre 2026");
+    expect(msg.text.split("\n")[0]).toBe(T.monthHeader("ottobre", 2026));
     expect(monoParts(msg).map((s) => s.trimEnd())).toEqual(["Lun 05/10  Sara (36)", "Ven 30/10  Ugo (36)"]);
   });
 
   it.each(["marzzo", "13", "0"])("FR-015: /mese %s → mese non riconosciuto", async (m) => {
     const deps = makeDeps();
     await say(deps, `/mese ${m}`);
-    expect(deps.tg.lastText()).toBe("Mese non riconosciuto: scrivilo per nome (es. marzo) o per numero da 1 a 12");
+    expect(deps.tg.lastText()).toBe(T.monthInvalid);
   });
 
   it("BR-04: /mese febbraio con un nato il 29/02 → 29/02 con il giorno della settimana del 28/02/2027", async () => {
@@ -97,6 +98,6 @@ describe("US5: /mese", () => {
     await insertPerson({ fullName: "Anna", day: 14, month: 3 });
     const deps = makeDeps();
     await say(deps, "/mese giugno");
-    expect(deps.tg.lastText()).toBe("Nessun compleanno a giugno");
+    expect(deps.tg.lastText()).toBe(T.monthNone("giugno"));
   });
 });

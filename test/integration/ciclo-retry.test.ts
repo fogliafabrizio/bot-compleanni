@@ -4,6 +4,7 @@ import { localInstant, runAt } from "../helpers/cron";
 import { makeCronDeps, type TestCronDeps } from "../helpers/deps";
 import { runHourly } from "../../src/cron/hourly";
 import { localDayStartUtc } from "../../src/time";
+import { T } from "../../src/texts";
 
 interface DeliveryRow {
   status: string;
@@ -59,8 +60,8 @@ describe("N-03, N-04, RNF-10, RNF-12: retry e isolamento degli errori", () => {
     const r = await runAt(deps, 2027, 3, 14, 9);
     expect(r).toMatchObject({ claimed: 3, sent: 2, failed: 1 });
     expect(deps.tg.messages().map((m) => m.text.split(",")[0])).toEqual([
-      "🎂 Oggi è il compleanno di Anna Bianchi",
-      "🎂 Oggi è il compleanno di Luca Verdi",
+      T.reminderTitle("Anna Bianchi", null, null, false),
+      T.reminderTitle("Luca Verdi", null, null, false),
     ]);
   });
 
@@ -86,7 +87,7 @@ describe("N-03, N-04, RNF-10, RNF-12: retry e isolamento degli errori", () => {
     const r10 = await runAt(deps, 2027, 3, 14, 10);
     expect(r10).toMatchObject({ claimed: 5, sent: 5 });
     expect(deps.tg.messages().map((m) => m.text)).toEqual(
-      [41, 42, 43, 44, 45].map((i) => `🎂 Oggi è il compleanno di Persona ${i}`),
+      [41, 42, 43, 44, 45].map((i) => T.reminderTitle(`Persona ${i}`, null, null, false)),
     );
     expect(await count("deliveries", "status = 'inviato'")).toBe(45);
   });

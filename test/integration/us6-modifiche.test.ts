@@ -4,6 +4,7 @@ import { localInstant, runAt } from "../helpers/cron";
 import { makeCronDeps, type TestCronDeps } from "../helpers/deps";
 import { cbOf } from "../helpers/fake-telegram";
 import { press, say } from "../helpers/send";
+import { T } from "../../src/texts";
 
 const tap = (deps: TestCronDeps, label: string) => press(deps, cbOf(deps.tg.lastKeyboard(), label));
 
@@ -35,15 +36,15 @@ describe("US6: modifiche a ridosso del compleanno", () => {
     deps.setNow(new Date(localInstant(2027, 3, 14, 10).getTime() + 30 * 60_000));
     await say(deps, "/nuovo");
     await say(deps, "Marco Rossi");
-    await tap(deps, "Salta");
+    await tap(deps, T.btnSkip);
     await say(deps, "14/03/1995");
     await tap(deps, "Sì");
-    await tap(deps, "Salta");
-    await tap(deps, "Salta");
-    await tap(deps, "Salta");
+    await tap(deps, T.btnSkip);
+    await tap(deps, T.btnSkip);
+    await tap(deps, T.btnSkip);
     await tap(deps, "Fine");
     await tap(deps, "Media ✓");
-    await tap(deps, "Salta");
+    await tap(deps, T.btnSkip);
     await tap(deps, "Salva");
     expect(await count("persons")).toBe(1);
     expect(await giornoHours(deps, 2027, 3, 14, [11, 12, 13, 14, 18, 21])).toEqual([13, 18]);

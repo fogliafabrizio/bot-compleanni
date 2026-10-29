@@ -52,7 +52,7 @@ describe("US2: /ripristina (RF-26, RNF-05, FR-018…FR-021)", () => {
     await insertGroup("Vecchio");
     const deps = makeDeps();
     await say(deps, "/ripristina");
-    expect(deps.tg.lastText()).toBe("Inviami il file JSON di backup da ripristinare.");
+    expect(deps.tg.lastText()).toBe(T.restoreAsk);
     expect(labels(deps.tg.lastKeyboard())).toEqual(["Annulla"]);
 
     await say(deps, "ciao");
@@ -63,7 +63,7 @@ describe("US2: /ripristina (RF-26, RNF-05, FR-018…FR-021)", () => {
     const b = syntheticBackup({ persons: 301, occurrencesPerPerson: 4, createdAt: "2026-10-31T23:30:00.000Z" });
     await sendFile(deps, "backup.json", JSON.stringify(b));
     expect(deps.tg.lastText()).toBe(
-      "Backup del 01/11/2026: 301 persone, 2 gruppi, 1.204 occorrenze.\nDati attuali che verranno sostituiti: 1 persone, 1 gruppi, 0 occorrenze.",
+      T.restoreConfirm1("01/11/2026", { persons: 301, groups: 2, occurrences: 1204 }, { persons: 1, groups: 1, occurrences: 0 }),
     );
     expect(labels(deps.tg.lastKeyboard())).toEqual(["Continua", "Annulla"]);
 
@@ -75,7 +75,7 @@ describe("US2: /ripristina (RF-26, RNF-05, FR-018…FR-021)", () => {
     expect(await count("persons")).toBe(1);
 
     await press(deps, cbOf(deps.tg.lastKeyboard(), T.btnRestore), MSG_ID + 1);
-    expect(deps.tg.lastText()).toBe("Ripristino completato: 301 persone, 2 gruppi, 1.204 occorrenze.\nMessaggio di auguri standard: quello iniziale");
+    expect(deps.tg.lastText()).toBe(T.restoreDone({ persons: 301, groups: 2, occurrences: 1204 }, false));
     expect(deps.tg.edits().at(-1)).toMatchObject({ messageId: MSG_ID + 1, keyboard: { inline_keyboard: [] } });
     expect(await count("persons")).toBe(301);
     expect(await count("groups")).toBe(2);
@@ -104,7 +104,7 @@ describe("US2: /ripristina (RF-26, RNF-05, FR-018…FR-021)", () => {
     await env.DB.prepare("UPDATE settings SET value = 'Altro {nome}' WHERE key = 'default_message'").run();
 
     await restore(deps, file);
-    expect(deps.tg.lastText()).toBe("Ripristino completato: 3 persone, 2 gruppi, 3 occorrenze.\nMessaggio di auguri standard: personalizzato");
+    expect(deps.tg.lastText()).toBe(T.restoreDone({ persons: 3, groups: 2, occurrences: 3 }, true));
     expect(await snapshot()).toEqual(before);
     expect(await count("deliveries")).toBe(0);
     expect((await rows<{ value: string }>("SELECT value FROM settings WHERE key = 'auto_backup'"))[0]?.value).toBe("2026-10:inviato");
@@ -157,9 +157,9 @@ describe("US2: /ripristina (RF-26, RNF-05, FR-018…FR-021)", () => {
     const bad = syntheticBackup({ persons: 2, occurrencesPerPerson: 1 });
     bad.version = 2 as 1;
     await sendFile(deps, "backup.json", JSON.stringify(bad));
-    expect(deps.tg.lastText()).toContain("Versione del backup non supportata (2).");
+    expect(deps.tg.lastText()).toContain(T.backupVersion("2"));
     await sendFile(deps, "backup.json", "non è json");
-    expect(deps.tg.lastText()).toContain("Il file non è un JSON valido.");
+    expect(deps.tg.lastText()).toContain(T.backupNotJson);
     expect(await flowStep()).toBe("file");
     expect(await count("persons")).toBe(1);
     await sendFile(deps, "backup.json", JSON.stringify(syntheticBackup({ persons: 2, occurrencesPerPerson: 1 })));
@@ -264,7 +264,7 @@ describe("§8, FR-003, FR-022, SC-005: ripristino e dati tecnici", () => {
     expect((JSON.parse(BACKUP_OK) as { version: number }).version).toBe(BACKUP_FORMAT_VERSION);
     const deps = makeDeps();
     await restore(deps, BACKUP_OK);
-    expect(deps.tg.lastText()).toBe("Ripristino completato: 2 persone, 1 gruppi, 1 occorrenze.\nMessaggio di auguri standard: quello iniziale");
+    expect(deps.tg.lastText()).toBe(T.restoreDone({ persons: 2, groups: 1, occurrences: 1 }, false));
     expect(await count("persons")).toBe(2);
   });
 });

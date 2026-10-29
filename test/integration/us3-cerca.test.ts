@@ -3,6 +3,7 @@ import { insertPerson } from "../helpers/db";
 import { makeDeps } from "../helpers/deps";
 import { commandParts } from "../helpers/fake-telegram";
 import { say } from "../helpers/send";
+import { T } from "../../src/texts";
 
 // Oggi = mercoledì 28/10/2026.
 
@@ -25,7 +26,7 @@ describe("US3: /cerca", () => {
     const deps = makeDeps();
     await say(deps, "/cerca a");
     const msg = deps.tg.messages()[0]!;
-    expect(msg.text.split("\n").slice(0, 2)).toEqual(["Risultati per «a»", ""]);
+    expect(msg.text.split("\n").slice(0, 2)).toEqual([T.searchHeader("a"), ""]);
     expect(commandParts(msg)).toEqual([`/p_${b}`, `/p_${a}`]);
     expect(msg.keyboard).toBeUndefined();
   });
@@ -36,15 +37,15 @@ describe("US3: /cerca", () => {
     const nicolo2 = await insertPerson({ fullName: "Nicolo Neri", day: 2, month: 2 });
     const deps = makeDeps();
     await say(deps, "/cerca MARCHINO");
-    expect(deps.tg.lastText()!.split("\n")[0]).toBe('Marco Rossi — "Marchino"');
+    expect(deps.tg.lastText()!.split("\n")[0]).toBe(T.schedaTitle("Marco Rossi", "Marchino"));
     await say(deps, "/cerca rossi");
-    expect(deps.tg.lastText()!.split("\n")[0]).toBe('Marco Rossi — "Marchino"');
+    expect(deps.tg.lastText()!.split("\n")[0]).toBe(T.schedaTitle("Marco Rossi", "Marchino"));
     await say(deps, "/cerca nicolo");
     expect(commandParts(deps.tg.messages().at(-1)!)).toEqual([`/p_${nicolo}`, `/p_${nicolo2}`]);
     await say(deps, "/cerca NICOLÒ");
     expect(commandParts(deps.tg.messages().at(-1)!)).toEqual([`/p_${nicolo}`, `/p_${nicolo2}`]);
     await say(deps, "/cerca verdi");
-    expect(deps.tg.lastText()!.split("\n")[0]).toBe("Nicolò Verdi");
+    expect(deps.tg.lastText()!.split("\n")[0]).toBe(T.schedaTitle("Nicolò Verdi", null));
     expect(marco).toBeGreaterThan(0);
   });
 
@@ -52,7 +53,7 @@ describe("US3: /cerca", () => {
     await insertPerson({ fullName: "Marco Rossi", day: 14, month: 3 });
     const deps = makeDeps();
     await say(deps, "/cerca zzz");
-    expect(deps.tg.lastText()).toBe("Nessun risultato per «zzz»");
+    expect(deps.tg.lastText()).toBe(T.searchNone("zzz"));
     await say(deps, "/cerca");
     expect(deps.tg.lastText()).toBe("Scrivi /cerca seguito da una parte del nome o del nickname, es. /cerca marco");
     await say(deps, "/cerca    ");

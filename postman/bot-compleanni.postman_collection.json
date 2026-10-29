@@ -1,8 +1,8 @@
 {
   "info": {
     "name": "Bot compleanni — test locale completo",
-    "description": "Versione 2.3.0. Test del webhook in locale (`wrangler dev`), feature 001–007: sicurezza, comandi, viste, esiti dei promemoria, flussi guidati (/nuovo e modifica anche con il contatto condiviso, elimina, gruppi, /messaggio), import CSV, export, backup e ripristino, /stato e /statistiche.\n\nIl Worker risponde sempre 200 vuoto: la risposta del bot arriva **nella chat Telegram del proprietario** (il Worker locale usa la Bot API reale con il token di `.dev.vars`). I test controllano anche il D1 locale tramite `postman/helper.mjs` (porta 8788): stato del flusso e campi salvati.\n\nAvvio: `scripts/smoke-postman.ps1`, poi Runner sull'intera collection (o cartella per cartella, **in ordine**). Istruzioni e limiti in `postman/README.md`.",
-    "version": "2.3.0",
+    "description": "Versione 2.4.0. Test del webhook in locale (`wrangler dev`), feature 001–008: sicurezza, comandi, viste, esiti dei promemoria, flussi guidati (/nuovo e modifica anche con il contatto condiviso, elimina, gruppi, /messaggio), import CSV, export, backup e ripristino, /stato e /statistiche, testi secondo la guida di stile (008: le descrizioni «Atteso» riportano i testi con le emoji).\n\nIl Worker risponde sempre 200 vuoto: la risposta del bot arriva **nella chat Telegram del proprietario** (il Worker locale usa la Bot API reale con il token di `.dev.vars`). I test controllano anche il D1 locale tramite `postman/helper.mjs` (porta 8788): stato del flusso e campi salvati.\n\nAvvio: `scripts/smoke-postman.ps1`, poi Runner sull'intera collection (o cartella per cartella, **in ordine**). Istruzioni e limiti in `postman/README.md`.",
+    "version": "2.4.0",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "event": [
@@ -566,7 +566,7 @@
                 "webhook"
               ]
             },
-            "description": "Atteso: messaggio di benvenuto con i pulsanti **Aggiungi persona** e **Comandi**."
+            "description": "Atteso: messaggio di benvenuto `👋 Ciao! Sono il tuo bot dei compleanni: …` con i pulsanti **Aggiungi persona** e **Comandi**."
           }
         },
         {
@@ -658,7 +658,7 @@
                 "webhook"
               ]
             },
-            "description": "Atteso: elenco comandi con `/gruppi [nome] — elenco gruppi a pulsanti; con un nome cerca il gruppo e apre la scheda` e **nessuna** riga `/gruppo` (RF-19, AFU §5.1). Le righe `/oggi`, `/prossimi [giorni] [gruppo]`, `/cerca <testo>`, `/mese [mese]`, `/scaduti — ultimi 7 giorni non fatti`, `/anno [anno]` stanno **prima** di `/annulla`. *(v1.1, 007)* Subito dopo `/anno [anno] — riepilogo dell'anno`: `/statistiche — statistiche della rubrica e andamento` e `/stato — salute di cron, invii, backup e webhook` (§5.1, FR-016)."
+            "description": "Atteso: `📖 Ecco cosa posso fare:` ed elenco comandi con `/gruppi [nome] — elenco gruppi a pulsanti; con un nome cerca il gruppo e apre la scheda` e **nessuna** riga `/gruppo` (RF-19, AFU §5.1). Le righe `/oggi`, `/prossimi [giorni] [gruppo]`, `/cerca <testo>`, `/mese [mese]`, `/scaduti — ultimi 7 giorni non fatti`, `/anno [anno]` stanno **prima** di `/annulla`. *(v1.1, 007)* Subito dopo `/anno [anno] — riepilogo dell'anno`: `/statistiche — statistiche della rubrica e andamento` e `/stato — salute di cron, invii, backup e webhook` (§5.1, FR-016)."
           }
         },
         {
@@ -750,7 +750,7 @@
                 "webhook"
               ]
             },
-            "description": "Atteso: `Non ho capito. Scrivi /aiuto per l'elenco dei comandi`."
+            "description": "Atteso: `❌ Non ho capito. Scrivi /aiuto per vedere cosa so fare.`."
           }
         },
         {
@@ -802,7 +802,7 @@
                 "webhook"
               ]
             },
-            "description": "FR-011 di 006: un contatto senza flusso attivo non crea persone. Atteso: `Non ho capito. Scrivi /aiuto per l'elenco dei comandi`."
+            "description": "FR-011 di 006: un contatto senza flusso attivo non crea persone. Atteso: `❌ Non ho capito. Scrivi /aiuto per vedere cosa so fare.`."
           }
         },
         {
@@ -848,7 +848,7 @@
                 "webhook"
               ]
             },
-            "description": "Atteso: `Non ho capito. …`."
+            "description": "Atteso: `❌ Non ho capito. …`."
           }
         },
         {
@@ -894,7 +894,7 @@
                 "webhook"
               ]
             },
-            "description": "Atteso: `Nessuna operazione da annullare`."
+            "description": "Atteso: `Non c'è nessuna operazione da annullare.`."
           }
         },
         {
@@ -992,7 +992,7 @@
                 "webhook"
               ]
             },
-            "description": "Atteso: messaggio reminder `🎂 Oggi è il compleanno di Marchino (Marco Rossi), compie N anni`, righe `Gruppi: Smoke Lavoro`, `📱 +393331234567`, `L'anno scorso: fatto ✅`. Pulsanti: WhatsApp, Copia messaggio, **Fatto ✅**, **Salta quest'anno**.\n\nSe nel DB locale hai altre persone nate oggi, arriva un messaggio per ciascuna (ordine per nome).\n\n**Non toccare** i pulsanti in chat: i tocchi dall'app vanno al Worker di produzione, non a quello locale. Usa la richiesta successiva."
+            "description": "Atteso: messaggio reminder `🎂 Oggi è il compleanno di Marchino (Marco Rossi), compie N anni!`, righe `Gruppi: Smoke Lavoro`, `📱 +393331234567`, `L'anno scorso: fatto ✅`. Pulsanti: WhatsApp, Copia messaggio, **Fatto ✅**, **Salta quest'anno**.\n\nSe nel DB locale hai altre persone nate oggi, arriva un messaggio per ciascuna (ordine per nome).\n\n**Non toccare** i pulsanti in chat: i tocchi dall'app vanno al Worker di produzione, non a quello locale. Usa la richiesta successiva."
           }
         },
         {
@@ -1038,7 +1038,7 @@
                 "webhook"
               ]
             },
-            "description": "Effetto atteso: occorrenza 9101 → `fatto`.\n\n**Nota sui pulsanti da Postman**: `callback_query.id` e `message_id` sono finti, quindi le chiamate a Telegram `editMessageText`/`answerCallbackQuery` falliscono e in chat arriva **\"Si è verificato un errore, riprova\"** (nel terminale di wrangler: `handler_error` con `error_code` 400). È normale: la scrittura su D1 avviene **prima** e si verifica con la richiesta successiva."
+            "description": "Effetto atteso: occorrenza 9101 → `fatto`.\n\n**Nota sui pulsanti da Postman**: `callback_query.id` e `message_id` sono finti, quindi le chiamate a Telegram `editMessageText`/`answerCallbackQuery` falliscono e in chat arriva **\"❌ Qualcosa è andato storto. Riprova tra poco.\"** (nel terminale di wrangler: `handler_error` con `error_code` 400). È normale: la scrittura su D1 avviene **prima** e si verifica con la richiesta successiva."
           }
         },
         {
@@ -1130,7 +1130,7 @@
                 "webhook"
               ]
             },
-            "description": "Effetto atteso: nessuno (l'occorrenza non è più aperta → \"Questa azione non è più disponibile\", ma il popup fallisce per lo stesso motivo dei pulsanti).\n\n**Nota sui pulsanti da Postman**: `callback_query.id` e `message_id` sono finti, quindi le chiamate a Telegram `editMessageText`/`answerCallbackQuery` falliscono e in chat arriva **\"Si è verificato un errore, riprova\"** (nel terminale di wrangler: `handler_error` con `error_code` 400). È normale: la scrittura su D1 avviene **prima** e si verifica con la richiesta successiva."
+            "description": "Effetto atteso: nessuno (l'occorrenza non è più aperta → \"❌ Questa azione non è più disponibile.\", ma il popup fallisce per lo stesso motivo dei pulsanti).\n\n**Nota sui pulsanti da Postman**: `callback_query.id` e `message_id` sono finti, quindi le chiamate a Telegram `editMessageText`/`answerCallbackQuery` falliscono e in chat arriva **\"❌ Qualcosa è andato storto. Riprova tra poco.\"** (nel terminale di wrangler: `handler_error` con `error_code` 400). È normale: la scrittura su D1 avviene **prima** e si verifica con la richiesta successiva."
           }
         }
       ]
@@ -1181,7 +1181,7 @@
                 "webhook"
               ]
             },
-            "description": "Atteso: `Prossimi 30 giorni`, riga vuota, poi righe in **monospazio** e colonne allineate: Marco (oggi) in cima, Anna (oggi+5, senza età). **Nicolò (oggi+40) assente.** Ogni `/p_<id>` è toccabile (fuori dal monospazio) e nessuna tastiera."
+            "description": "Atteso: `📆 Prossimi 30 giorni`, riga vuota, poi righe in **monospazio** e colonne allineate: Marco (oggi) in cima, Anna (oggi+5, senza età). **Nicolò (oggi+40) assente.** Ogni `/p_<id>` è toccabile (fuori dal monospazio) e nessuna tastiera."
           }
         },
         {
@@ -1227,7 +1227,7 @@
                 "webhook"
               ]
             },
-            "description": "Atteso: `Prossimi 7 giorni (Smoke Famiglia)` con la sola Anna."
+            "description": "Atteso: `📆 Prossimi 7 giorni (Smoke Famiglia)` con la sola Anna."
           }
         },
         {
@@ -1273,7 +1273,7 @@
                 "webhook"
               ]
             },
-            "description": "Atteso: `Prossimi 30 giorni (Smoke Famiglia)`: gruppo trovato anche in maiuscolo, giorni di default."
+            "description": "Atteso: `📆 Prossimi 30 giorni (Smoke Famiglia)`: gruppo trovato anche in maiuscolo, giorni di default."
           }
         },
         {
@@ -1319,7 +1319,7 @@
                 "webhook"
               ]
             },
-            "description": "Atteso: `Prossimo giorno` con solo chi compie gli anni oggi (Marco)."
+            "description": "Atteso: `📆 Prossimo giorno` con solo chi compie gli anni oggi (Marco)."
           }
         },
         {
@@ -1467,7 +1467,7 @@
                 "webhook"
               ]
             },
-            "description": "Atteso (FR-011): `Prossimi 7 giorni (👨‍👩‍👧 Smoke Casa)` con la sola Anna (oggi+5). L'hash `1ol49qr` è `nameHash(\"👨‍👩‍👧 Smoke Casa\")`, verificato anche dai test unitari.\n\n_Pulsante da Postman: dopo la risposta arriva anche \"Si è verificato un errore, riprova\" (answerCallbackQuery con id finto). È atteso, vedi README._"
+            "description": "Atteso (FR-011): `📆 Prossimi 7 giorni (👨‍👩‍👧 Smoke Casa)` con la sola Anna (oggi+5). L'hash `1ol49qr` è `nameHash(\"👨‍👩‍👧 Smoke Casa\")`, verificato anche dai test unitari.\n\n_Pulsante da Postman: dopo la risposta arriva anche \"❌ Qualcosa è andato storto. Riprova tra poco.\" (answerCallbackQuery con id finto). È atteso, vedi README._"
           }
         },
         {
@@ -1518,7 +1518,7 @@
                 "webhook"
               ]
             },
-            "description": "Atteso (RF-17 v1.1): `Nessun gruppo corrisponde a «inesistente».`, riga vuota, `👥 I tuoi gruppi` e i gruppi come **pulsanti** (`g2:o`, aprono la scheda) più **➕ Nuovo gruppo**."
+            "description": "Atteso (RF-17 v1.1): `🔍 Nessun gruppo corrisponde a «inesistente».`, riga vuota, `👥 I tuoi gruppi` e i gruppi come **pulsanti** (`g2:o`, aprono la scheda) più **➕ Nuovo gruppo**."
           }
         },
         {
@@ -1564,7 +1564,7 @@
                 "webhook"
               ]
             },
-            "description": "Atteso: `Il numero di giorni deve essere tra 1 e 366`, nessuna lista."
+            "description": "Atteso: `❌ Il numero di giorni deve essere tra 1 e 366.`, nessuna lista."
           }
         },
         {
@@ -1610,7 +1610,7 @@
                 "webhook"
               ]
             },
-            "description": "Atteso: `Il numero di giorni deve essere tra 1 e 366`."
+            "description": "Atteso: `❌ Il numero di giorni deve essere tra 1 e 366.`."
           }
         }
       ]
@@ -1661,7 +1661,7 @@
                 "webhook"
               ]
             },
-            "description": "Atteso (se nel DB c'è un solo Nicolò): direttamente la **scheda** `Nicolò Verdi` con Modifica/Elimina, identica a `/p_9003`. Prova accenti: `nicolo` trova `Nicolò`."
+            "description": "Atteso (se nel DB c'è un solo Nicolò): direttamente la **scheda** `👤 Nicolò Verdi` con ✏️ Modifica/🗑 Elimina, identica a `/p_9003`. Prova accenti: `nicolo` trova `Nicolò`."
           }
         },
         {
@@ -1753,7 +1753,7 @@
                 "webhook"
               ]
             },
-            "description": "Atteso: scheda `Marco Rossi — \"Marchino\"` (ricerca sul nickname)."
+            "description": "Atteso: scheda `👤 Marco Rossi — \"Marchino\"` (ricerca sul nickname)."
           }
         },
         {
@@ -1799,7 +1799,7 @@
                 "webhook"
               ]
             },
-            "description": "Atteso: `Risultati per «i»` + righe ordinate per prossimo compleanno, senza tastiera."
+            "description": "Atteso: `🔍 Risultati per «i»` + righe ordinate per prossimo compleanno, senza tastiera."
           }
         },
         {
@@ -1845,7 +1845,7 @@
                 "webhook"
               ]
             },
-            "description": "Atteso: `Nessun risultato per «zzz»`."
+            "description": "Atteso: `🔍 Nessun risultato per «zzz»`."
           }
         },
         {
@@ -2100,7 +2100,7 @@
                 "webhook"
               ]
             },
-            "description": "Atteso: `Nessun gruppo corrisponde a «pippo».`, riga vuota, `👥 I tuoi gruppi` e i gruppi come pulsanti più **➕ Nuovo gruppo**."
+            "description": "Atteso: `🔍 Nessun gruppo corrisponde a «pippo».`, riga vuota, `👥 I tuoi gruppi` e i gruppi come pulsanti più **➕ Nuovo gruppo**."
           }
         },
         {
@@ -2203,7 +2203,7 @@
                 "webhook"
               ]
             },
-            "description": "Atteso: `Compleanni di <mese corrente> <anno corrente>` con le persone del mese ordinate per giorno (Marco, e Luca/Sara/Paolo se il loro giorno cade nello stesso mese)."
+            "description": "Atteso: `🗓 Compleanni di <mese corrente> <anno corrente>` con le persone del mese ordinate per giorno (Marco, e Luca/Sara/Paolo se il loro giorno cade nello stesso mese)."
           }
         },
         {
@@ -2249,7 +2249,7 @@
                 "webhook"
               ]
             },
-            "description": "Atteso: `Compleanni di marzo <anno>`: anno corrente se marzo non è ancora passato, altrimenti il prossimo. Oppure `Nessun compleanno a marzo`."
+            "description": "Atteso: `🗓 Compleanni di marzo <anno>`: anno corrente se marzo non è ancora passato, altrimenti il prossimo. Oppure `🗓 Nessun compleanno a marzo`."
           }
         },
         {
@@ -2341,7 +2341,7 @@
                 "webhook"
               ]
             },
-            "description": "Atteso: `Mese non riconosciuto: scrivilo per nome (es. marzo) o per numero da 1 a 12`."
+            "description": "Atteso: `❌ Mese non riconosciuto: scrivilo per nome (es. marzo) o per numero da 1 a 12.`."
           }
         },
         {
@@ -2439,7 +2439,7 @@
                 "webhook"
               ]
             },
-            "description": "Atteso (con i soli dati di prova e dopo la cartella 02): `Riepilogo <anno>`, `Fatto: 1` (Marco), `Saltato: 1` (Luca), `Non confermato: 1` (Paolo); Sara aperta non conteggiata. Sezione `Saltati:` con Luca; `Saltati per 2 o più anni di fila:` con Luca."
+            "description": "Atteso (con i soli dati di prova e dopo la cartella 02): `🗂 Riepilogo <anno>`, `Fatto: 1` (Marco), `Saltato: 1` (Luca), `Non confermato: 1` (Paolo); Sara aperta non conteggiata. Sezione `Saltati:` con Luca; `Saltati per 2 o più anni di fila:` con Luca."
           }
         },
         {
@@ -2494,7 +2494,7 @@
                 "webhook"
               ]
             },
-            "description": "Atteso: `Riepilogo <anno−1>` con `Fatto: 1` (Marco) e `Saltato: 1` (Luca); serie `nessuno`."
+            "description": "Atteso: `🗂 Riepilogo <anno−1>` con `Fatto: 1` (Marco) e `Saltato: 1` (Luca); serie `nessuno`."
           }
         },
         {
@@ -2549,7 +2549,7 @@
                 "webhook"
               ]
             },
-            "description": "Atteso: `Anno non valido: scrivi un anno tra 1900 e <anno corrente>`."
+            "description": "Atteso: `❌ Anno non valido: scrivi un anno tra 1900 e <anno corrente>.`."
           }
         },
         {
@@ -2830,7 +2830,7 @@
                 "webhook"
               ]
             },
-            "description": "Atteso: `Ultimi 7 giorni, non fatti` con, in ordine di data: Paolo (−5) `non confermato`, Luca (−3) `saltato`, Sara (−2) `in attesa`. Esito in monospazio, allineato. Marco (oggi) assente."
+            "description": "Atteso: `⏳ Ultimi 7 giorni, non fatti` con, in ordine di data: Paolo (−5) `non confermato`, Luca (−3) `saltato`, Sara (−2) `in attesa`. Esito in monospazio, allineato. Marco (oggi) assente."
           }
         },
         {
@@ -2876,7 +2876,7 @@
                 "webhook"
               ]
             },
-            "description": "Atteso: scheda di Luca Neri con `Storico: <anno> saltato · <anno−1> saltato` e tastiera `[Segna fatto]` sopra `[Modifica] [Elimina]`."
+            "description": "Atteso: scheda di Luca Neri con `Storico: <anno> saltato · <anno−1> saltato` e tastiera `[Segna fatto]` sopra `[✏️ Modifica] [🗑 Elimina]`."
           }
         },
         {
@@ -2922,7 +2922,7 @@
                 "webhook"
               ]
             },
-            "description": "Effetto atteso: occorrenza 9103 → `fatto`.\n\n**Nota sui pulsanti da Postman**: `callback_query.id` e `message_id` sono finti, quindi le chiamate a Telegram `editMessageText`/`answerCallbackQuery` falliscono e in chat arriva **\"Si è verificato un errore, riprova\"** (nel terminale di wrangler: `handler_error` con `error_code` 400). È normale: la scrittura su D1 avviene **prima** e si verifica con la richiesta successiva."
+            "description": "Effetto atteso: occorrenza 9103 → `fatto`.\n\n**Nota sui pulsanti da Postman**: `callback_query.id` e `message_id` sono finti, quindi le chiamate a Telegram `editMessageText`/`answerCallbackQuery` falliscono e in chat arriva **\"❌ Qualcosa è andato storto. Riprova tra poco.\"** (nel terminale di wrangler: `handler_error` con `error_code` 400). È normale: la scrittura su D1 avviene **prima** e si verifica con la richiesta successiva."
           }
         },
         {
@@ -2968,7 +2968,7 @@
                 "webhook"
               ]
             },
-            "description": "Atteso: `Storico: <anno> fatto · <anno−1> saltato` e solo `[Modifica] [Elimina]`."
+            "description": "Atteso: `Storico: <anno> fatto · <anno−1> saltato` e solo `[✏️ Modifica] [🗑 Elimina]`."
           }
         },
         {
@@ -3067,7 +3067,7 @@
     },
     {
       "name": "10 · Esiti dei promemoria (o:f / o:s)",
-      "description": "RF-12, BR-07, BR-08 senza passare dal cron: il seed crea gli invii 9301 (recupero di Sara), 9302 (recupero di Paolo), 9303 (pre-reminder di Sara). Senza `message` nel callback il bot non modifica messaggi: l'effetto si controlla sul DB (tab *Test results*).\n\n_Pulsante da Postman: dopo la risposta arriva anche \"Si è verificato un errore, riprova\" (answerCallbackQuery con id finto). È atteso, vedi README._",
+      "description": "RF-12, BR-07, BR-08 senza passare dal cron: il seed crea gli invii 9301 (recupero di Sara), 9302 (recupero di Paolo), 9303 (pre-reminder di Sara). Senza `message` nel callback il bot non modifica messaggi: l'effetto si controlla sul DB (tab *Test results*).\n\n_Pulsante da Postman: dopo la risposta arriva anche \"❌ Qualcosa è andato storto. Riprova tra poco.\" (answerCallbackQuery con id finto). È atteso, vedi README._",
       "item": [
         {
           "name": "Fatto su un pre-reminder (o:f:9303) → nessun effetto",
@@ -3423,7 +3423,7 @@
                 "webhook"
               ]
             },
-            "description": "Dopo 09 e questa cartella Luca, Sara e Paolo sono *fatto*: atteso `Nessun compleanno in sospeso negli ultimi 7 giorni`."
+            "description": "Dopo 09 e questa cartella Luca, Sara e Paolo sono *fatto*: atteso `⏳ Nessun compleanno in sospeso negli ultimi 7 giorni`."
           }
         },
         {
@@ -3464,7 +3464,7 @@
     },
     {
       "name": "11 · Scheda e pulsanti senza stato",
-      "description": "RF-03, FR-018c, callback s:/p:.\n\n_Pulsante da Postman: dopo la risposta arriva anche \"Si è verificato un errore, riprova\" (answerCallbackQuery con id finto). È atteso, vedi README._",
+      "description": "RF-03, FR-018c, callback s:/p:.\n\n_Pulsante da Postman: dopo la risposta arriva anche \"❌ Qualcosa è andato storto. Riprova tra poco.\" (answerCallbackQuery con id finto). È atteso, vedi README._",
       "item": [
         {
           "name": "/p_9001 → scheda di Marco",
@@ -3509,7 +3509,7 @@
                 "webhook"
               ]
             },
-            "description": "Atteso: `Marco Rossi — \"Marchino\"`, data, età, priorità media, gruppo Smoke Lavoro, `📱 +393331234567`, storico; **nessun** `IG @`/`TG @` nel testo (FR-001 di 006). Pulsanti: riga **WhatsApp** (link `https://wa.me/393331234567` **senza** `?text=`, D-27), poi **Modifica**, **Elimina**; niente **Copia messaggio** né **Segna fatto** (il compleanno è oggi)."
+            "description": "Atteso: `👤 Marco Rossi — \"Marchino\"`, data, età, priorità media, gruppo Smoke Lavoro, `📱 +393331234567`, storico; **nessun** `IG @`/`TG @` nel testo (FR-001 di 006). Pulsanti: riga **WhatsApp** (link `https://wa.me/393331234567` **senza** `?text=`, D-27), poi **✏️ Modifica**, **🗑 Elimina**; niente **Copia messaggio** né **Segna fatto** (il compleanno è oggi)."
           }
         },
         {
@@ -3555,7 +3555,7 @@
                 "webhook"
               ]
             },
-            "description": "Anna Bianchi: `compleanno tra 5 giorni`, senza età. Nessun contatto: nessuna riga 📱 e la tastiera parte da **Modifica**, **Elimina** (RF-03 v1.1)."
+            "description": "Anna Bianchi: `compleanno tra 5 giorni`, senza età. Nessun contatto: nessuna riga 📱 e la tastiera parte da **✏️ Modifica**, **🗑 Elimina** (RF-03 v1.1)."
           }
         },
         {
@@ -3601,7 +3601,7 @@
                 "webhook"
               ]
             },
-            "description": "Atteso: `Persona non trovata`."
+            "description": "Atteso: `❌ Non trovo questa persona: forse è stata eliminata.`."
           }
         },
         {
@@ -3698,7 +3698,7 @@
                 "webhook"
               ]
             },
-            "description": "Atteso: `Nome completo?`. Avvia il flusso `nuovo`."
+            "description": "Atteso: `👤 Come si chiama? Nome e cognome`. Avvia il flusso `nuovo`."
           }
         },
         {
@@ -3749,7 +3749,7 @@
                 "webhook"
               ]
             },
-            "description": "Atteso: `Operazione annullata`."
+            "description": "Atteso: `Ok, ho annullato.`."
           }
         },
         {
@@ -3846,7 +3846,7 @@
                 "webhook"
               ]
             },
-            "description": "Atteso: `Eliminare Paolo Blu? Perderai anche lo storico` con **Sì** / **Annulla**."
+            "description": "Atteso: `⚠️ Vuoi eliminare Paolo Blu? Perderai anche il suo storico.` con **Sì** / **Annulla**."
           }
         },
         {
@@ -3900,7 +3900,7 @@
                 "webhook"
               ]
             },
-            "description": "Atteso: `Operazione annullata`."
+            "description": "Atteso: `Ok, ho annullato.`."
           }
         },
         {
@@ -3958,7 +3958,7 @@
     },
     {
       "name": "12 · /nuovo completo",
-      "description": "RF-01, RF-02, RF-08, FR-008, FR-023: tutti gli step del flusso, con errori e correzioni. Crea **Giulia Postman** e il gruppo **Postman Gruppo**. I pulsanti usano `{{flowId}}`, letto dal DB prima di ogni richiesta (script di collection).\n\n_Pulsante da Postman: dopo la risposta arriva anche \"Si è verificato un errore, riprova\" (answerCallbackQuery con id finto). È atteso, vedi README._",
+      "description": "RF-01, RF-02, RF-08, FR-008, FR-023: tutti gli step del flusso, con errori e correzioni. Crea **Giulia Postman** e il gruppo **Postman Gruppo**. I pulsanti usano `{{flowId}}`, letto dal DB prima di ogni richiesta (script di collection).\n\n_Pulsante da Postman: dopo la risposta arriva anche \"❌ Qualcosa è andato storto. Riprova tra poco.\" (answerCallbackQuery con id finto). È atteso, vedi README._",
       "item": [
         {
           "name": "/nuovo",
@@ -4008,7 +4008,7 @@
                 "webhook"
               ]
             },
-            "description": "Atteso: `Nome completo?` con **Annulla**."
+            "description": "Atteso: `👤 Come si chiama? Nome e cognome` con **Annulla**."
           }
         },
         {
@@ -4059,7 +4059,7 @@
                 "webhook"
               ]
             },
-            "description": "Atteso: `Il valore non può essere vuoto` e di nuovo `Nome completo?`."
+            "description": "Atteso: `❌ Il valore non può essere vuoto.` e di nuovo `👤 Come si chiama? Nome e cognome`."
           }
         },
         {
@@ -4110,7 +4110,7 @@
                 "webhook"
               ]
             },
-            "description": "Atteso: `Testo troppo lungo: massimo 60 caratteri` + domanda."
+            "description": "Atteso: `❌ Testo troppo lungo: al massimo 60 caratteri.` + domanda."
           }
         },
         {
@@ -4161,7 +4161,7 @@
                 "webhook"
               ]
             },
-            "description": "Atteso: `Nickname? …` con **Salta**."
+            "description": "Atteso: `💬 Come lo chiami nei messaggi? (nickname)` con **⏭ Salta**."
           }
         },
         {
@@ -4212,7 +4212,7 @@
                 "webhook"
               ]
             },
-            "description": "Atteso: `Data di nascita? …`."
+            "description": "Atteso: `🎂 Quando è nato? …`."
           }
         },
         {
@@ -4263,7 +4263,7 @@
                 "webhook"
               ]
             },
-            "description": "Atteso: `Data non valida. …` + domanda."
+            "description": "Atteso: `❌ Data non valida. …` + domanda."
           }
         },
         {
@@ -4314,7 +4314,7 @@
                 "webhook"
               ]
             },
-            "description": "Atteso: `Data non valida. …`."
+            "description": "Atteso: `❌ Data non valida. …`."
           }
         },
         {
@@ -4467,7 +4467,7 @@
                 "webhook"
               ]
             },
-            "description": "Atteso: di nuovo `Data di nascita? …`."
+            "description": "Atteso: di nuovo `🎂 Quando è nato? …`."
           }
         },
         {
@@ -4569,7 +4569,7 @@
                 "webhook"
               ]
             },
-            "description": "Atteso: `📱 Telefono? Scrivilo con il prefisso (es. +39 333 1234567)` / `oppure condividi il contatto 📎` con **Salta**."
+            "description": "Atteso: `📱 Telefono? Scrivilo con il prefisso (es. +39 333 1234567)` / `oppure condividi il contatto 📎` con **⏭ Salta**."
           }
         },
         {
@@ -4621,7 +4621,7 @@
                 "webhook"
               ]
             },
-            "description": "FR-009 di 006. Atteso: `Questo contatto non ha un numero di telefono` + `📱 Telefono? Scrivilo con il prefisso (es. +39 333 1234567)` / `oppure condividi il contatto 📎` con **Salta**."
+            "description": "FR-009 di 006. Atteso: `❌ Questo contatto non ha un numero di telefono: scrivilo tu.` + `📱 Telefono? Scrivilo con il prefisso (es. +39 333 1234567)` / `oppure condividi il contatto 📎` con **⏭ Salta**."
           }
         },
         {
@@ -4673,7 +4673,7 @@
                 "webhook"
               ]
             },
-            "description": "BR-25 → BR-15: meno di 9 cifre. Atteso: `Numero non valido. Scrivilo con il prefisso, es. +39 333 1234567` + `📱 Telefono? Scrivilo con il prefisso (es. +39 333 1234567)` / `oppure condividi il contatto 📎`."
+            "description": "BR-25 → BR-15: meno di 9 cifre. Atteso: `❌ Numero non valido. Scrivilo con il prefisso, es. +39 333 1234567` + `📱 Telefono? Scrivilo con il prefisso (es. +39 333 1234567)` / `oppure condividi il contatto 📎`."
           }
         },
         {
@@ -4724,7 +4724,7 @@
                 "webhook"
               ]
             },
-            "description": "Atteso: `Numero non valido. …` + domanda."
+            "description": "Atteso: `❌ Numero non valido. …` + domanda."
           }
         },
         {
@@ -4828,7 +4828,7 @@
                 "webhook"
               ]
             },
-            "description": "D-24: il numero proposto non si usa. Atteso: `📱 Telefono? Scrivilo con il prefisso (es. +39 333 1234567)` / `oppure condividi il contatto 📎` con **Salta**."
+            "description": "D-24: il numero proposto non si usa. Atteso: `📱 Telefono? Scrivilo con il prefisso (es. +39 333 1234567)` / `oppure condividi il contatto 📎` con **⏭ Salta**."
           }
         },
         {
@@ -4933,7 +4933,7 @@
                 "webhook"
               ]
             },
-            "description": "Atteso: `Username Instagram?`. Il numero confermato entra nei dati del flusso."
+            "description": "Atteso: `📸 Username Instagram?`. Il numero confermato entra nei dati del flusso."
           }
         },
         {
@@ -4984,7 +4984,7 @@
                 "webhook"
               ]
             },
-            "description": "La @ iniziale si toglie. Atteso: `Username Telegram?`."
+            "description": "La @ iniziale si toglie. Atteso: `✈️ Username Telegram?`."
           }
         },
         {
@@ -5035,7 +5035,7 @@
                 "webhook"
               ]
             },
-            "description": "Atteso: `Gruppi?` con i gruppi esistenti (☐), **➕ Nuovo gruppo**, **Fine**."
+            "description": "Atteso: `👥 Gruppi?` con i gruppi esistenti (☐), **➕ Nuovo gruppo**, **Fine**."
           }
         },
         {
@@ -5086,7 +5086,7 @@
                 "webhook"
               ]
             },
-            "description": "Senza messaggio da modificare il bot rimanda `Gruppi?` con **☑ Smoke Famiglia**."
+            "description": "Senza messaggio da modificare il bot rimanda `👥 Gruppi?` con **☑ Smoke Famiglia**."
           }
         },
         {
@@ -5188,7 +5188,7 @@
                 "webhook"
               ]
             },
-            "description": "Atteso: `Nome del nuovo gruppo?`."
+            "description": "Atteso: `👥 Come si chiama il nuovo gruppo?`."
           }
         },
         {
@@ -5239,7 +5239,7 @@
                 "webhook"
               ]
             },
-            "description": "BR-17 senza maiuscole: `Esiste già un gruppo con questo nome` + domanda."
+            "description": "BR-17 senza maiuscole: `❌ Hai già un gruppo con questo nome: scegline un altro.` + domanda."
           }
         },
         {
@@ -5293,7 +5293,7 @@
                 "webhook"
               ]
             },
-            "description": "Torna a `Gruppi?` con **☑ Postman Gruppo** (in attesa, creato solo al salvataggio)."
+            "description": "Torna a `👥 Gruppi?` con **☑ Postman Gruppo** (in attesa, creato solo al salvataggio)."
           }
         },
         {
@@ -5344,7 +5344,7 @@
                 "webhook"
               ]
             },
-            "description": "Atteso: `Gruppi?` con **☐ Postman Gruppo**."
+            "description": "Atteso: `👥 Gruppi?` con **☐ Postman Gruppo**."
           }
         },
         {
@@ -5446,7 +5446,7 @@
                 "webhook"
               ]
             },
-            "description": "Atteso: `Priorità?` con **Alta** / **Media ✓** / **Bassa**."
+            "description": "Atteso: `⭐ Priorità?` con **Alta** / **Media ✓** / **Bassa**."
           }
         },
         {
@@ -5548,7 +5548,7 @@
                 "webhook"
               ]
             },
-            "description": "Atteso: `Messaggio di auguri personalizzato? …` con **Salta**."
+            "description": "Atteso: `✍️ Messaggio di auguri personalizzato? …` con **⏭ Salta**."
           }
         },
         {
@@ -5599,7 +5599,7 @@
                 "webhook"
               ]
             },
-            "description": "FR-035: `Il messaggio può avere al massimo 256 caratteri (ogni {nome} conta 60).` + domanda."
+            "description": "FR-035: `❌ Il messaggio può avere al massimo 256 caratteri (ogni {nome} conta 60).` + domanda."
           }
         },
         {
@@ -5651,7 +5651,7 @@
                 "webhook"
               ]
             },
-            "description": "Atteso: riepilogo con tutti i campi e **Salva** / **Annulla**."
+            "description": "Atteso: `📋 Riepilogo:` con tutti i campi e **Salva** / **Annulla**."
           }
         },
         {
@@ -5713,7 +5713,7 @@
                 "webhook"
               ]
             },
-            "description": "Atteso: la scheda di Giulia Postman (15/06/1992, priorità alta, gruppi Postman Gruppo e Smoke Famiglia, 📱 +393339876543, messaggio personalizzato), **senza** `IG @` nel testo (FR-001 di 006). Pulsanti: riga **WhatsApp** (senza `?text=`) e **Instagram** (`https://ig.me/m/giulia.postman`), poi **Modifica**, **Elimina**."
+            "description": "Atteso: `🎉 Fatto! … è in rubrica.`, riga vuota e la scheda di Giulia Postman (15/06/1992, priorità alta, gruppi Postman Gruppo e Smoke Famiglia, 📱 +393339876543, messaggio personalizzato), **senza** `IG @` nel testo (FR-001 di 006). Pulsanti: riga **WhatsApp** (senza `?text=`) e **Instagram** (`https://ig.me/m/giulia.postman`), poi **✏️ Modifica**, **🗑 Elimina**."
           }
         },
         {
@@ -5773,7 +5773,7 @@
     },
     {
       "name": "13 · Duplicati e interruzioni",
-      "description": "BR-14 (possibile duplicato), FR-018 (un comando annulla il flusso), RF-06 (/annulla).\n\n_Pulsante da Postman: dopo la risposta arriva anche \"Si è verificato un errore, riprova\" (answerCallbackQuery con id finto). È atteso, vedi README._",
+      "description": "BR-14 (possibile duplicato), FR-018 (un comando annulla il flusso), RF-06 (/annulla).\n\n_Pulsante da Postman: dopo la risposta arriva anche \"❌ Qualcosa è andato storto. Riprova tra poco.\" (answerCallbackQuery con id finto). È atteso, vedi README._",
       "item": [
         {
           "name": "/nuovo",
@@ -5823,7 +5823,7 @@
                 "webhook"
               ]
             },
-            "description": "Atteso: `Nome completo?`."
+            "description": "Atteso: `👤 Come si chiama? Nome e cognome`."
           }
         },
         {
@@ -5874,7 +5874,7 @@
                 "webhook"
               ]
             },
-            "description": "Atteso: `Nickname? …`."
+            "description": "Atteso: `💬 Come lo chiami nei messaggi? (nickname)`."
           }
         },
         {
@@ -5925,7 +5925,7 @@
                 "webhook"
               ]
             },
-            "description": "Il flusso **non** si interrompe: `Non ho capito. …` + domanda del nickname."
+            "description": "Il flusso **non** si interrompe: `❌ Non ho capito. …` + domanda del nickname."
           }
         },
         {
@@ -6384,7 +6384,7 @@
                 "webhook"
               ]
             },
-            "description": "Atteso: riepilogo."
+            "description": "Atteso: `📋 Riepilogo:`."
           }
         },
         {
@@ -6493,7 +6493,7 @@
                 "webhook"
               ]
             },
-            "description": "Atteso: scheda della nuova Giulia (senza anno)."
+            "description": "Atteso: `🎉 Fatto! … è in rubrica.`, riga vuota e la scheda della nuova Giulia (senza anno)."
           }
         },
         {
@@ -6544,7 +6544,7 @@
                 "webhook"
               ]
             },
-            "description": "Atteso: `Nome completo?`."
+            "description": "Atteso: `👤 Come si chiama? Nome e cognome`."
           }
         },
         {
@@ -6646,7 +6646,7 @@
                 "webhook"
               ]
             },
-            "description": "Atteso: `Nome completo?`."
+            "description": "Atteso: `👤 Come si chiama? Nome e cognome`."
           }
         },
         {
@@ -6748,7 +6748,7 @@
                 "webhook"
               ]
             },
-            "description": "Atteso: `Nome completo?`."
+            "description": "Atteso: `👤 Come si chiama? Nome e cognome`."
           }
         },
         {
@@ -6952,7 +6952,7 @@
                 "webhook"
               ]
             },
-            "description": "Atteso: `Operazione annullata`."
+            "description": "Atteso: `Ok, ho annullato.`."
           }
         },
         {
@@ -7003,14 +7003,14 @@
                 "webhook"
               ]
             },
-            "description": "Atteso: `Nessuna operazione da annullare`."
+            "description": "Atteso: `Non c'è nessuna operazione da annullare.`."
           }
         }
       ]
     },
     {
       "name": "14 · Modifica (p:m)",
-      "description": "RF-04, FR-015, FR-016, BR-13 sulla Giulia creata in 12. Ogni modifica parte dalla scheda e termina con la scheda aggiornata.\n\n_Pulsante da Postman: dopo la risposta arriva anche \"Si è verificato un errore, riprova\" (answerCallbackQuery con id finto). È atteso, vedi README._",
+      "description": "RF-04, FR-015, FR-016, BR-13 sulla Giulia creata in 12. Ogni modifica parte dalla scheda e termina con la scheda aggiornata.\n\n_Pulsante da Postman: dopo la risposta arriva anche \"❌ Qualcosa è andato storto. Riprova tra poco.\" (answerCallbackQuery con id finto). È atteso, vedi README._",
       "item": [
         {
           "name": "/p_{{giuliaId}} → scheda",
@@ -7055,7 +7055,7 @@
                 "webhook"
               ]
             },
-            "description": "Atteso: scheda di Giulia Postman con **Modifica** / **Elimina**."
+            "description": "Atteso: scheda di Giulia Postman con **✏️ Modifica** / **🗑 Elimina**."
           }
         },
         {
@@ -7106,7 +7106,7 @@
                 "webhook"
               ]
             },
-            "description": "Atteso: `Quale campo vuoi modificare?`."
+            "description": "Atteso: `✏️ Quale campo vuoi modificare?`."
           }
         },
         {
@@ -7208,7 +7208,7 @@
                 "webhook"
               ]
             },
-            "description": "Atteso: `Nuovo nome completo?` (senza Svuota)."
+            "description": "Atteso: `👤 Nuovo nome completo?` (senza Svuota)."
           }
         },
         {
@@ -7262,7 +7262,7 @@
                 "webhook"
               ]
             },
-            "description": "Atteso: scheda con il nuovo nome."
+            "description": "Atteso: `✅ Ho aggiornato ….`, riga vuota e la scheda con il nuovo nome."
           }
         },
         {
@@ -7313,7 +7313,7 @@
                 "webhook"
               ]
             },
-            "description": "Atteso: `Quale campo vuoi modificare?` con i 9 campi."
+            "description": "Atteso: `✏️ Quale campo vuoi modificare?` con i 9 campi."
           }
         },
         {
@@ -7418,7 +7418,7 @@
                 "webhook"
               ]
             },
-            "description": "Atteso: scheda `Giulia Postman Bis — \"Giuly\"`."
+            "description": "Atteso: `✅ Ho aggiornato ….` e la scheda `👤 Giulia Postman Bis — \"Giuly\"`."
           }
         },
         {
@@ -7469,7 +7469,7 @@
                 "webhook"
               ]
             },
-            "description": "Atteso: `Quale campo vuoi modificare?` con i 9 campi."
+            "description": "Atteso: `✏️ Quale campo vuoi modificare?` con i 9 campi."
           }
         },
         {
@@ -7625,7 +7625,7 @@
                 "webhook"
               ]
             },
-            "description": "Atteso: `Quale campo vuoi modificare?` con i 9 campi."
+            "description": "Atteso: `✏️ Quale campo vuoi modificare?` con i 9 campi."
           }
         },
         {
@@ -7781,7 +7781,7 @@
                 "webhook"
               ]
             },
-            "description": "Atteso: scheda con la nuova data."
+            "description": "Atteso: `✅ Ho aggiornato ….` e la scheda con la nuova data."
           }
         },
         {
@@ -7832,7 +7832,7 @@
                 "webhook"
               ]
             },
-            "description": "Atteso: `Quale campo vuoi modificare?` con i 9 campi."
+            "description": "Atteso: `✏️ Quale campo vuoi modificare?` con i 9 campi."
           }
         },
         {
@@ -7883,7 +7883,7 @@
                 "webhook"
               ]
             },
-            "description": "Atteso: `Nuovo telefono? Scrivilo con il prefisso (es. +39 333 1234567)` / `oppure condividi il contatto 📎` con **Svuota** / **Annulla** (FR-012 di 006)."
+            "description": "Atteso: `📱 Nuovo telefono? Scrivilo con il prefisso (es. +39 333 1234567)` / `oppure condividi il contatto 📎` con **Svuota** / **Annulla** (FR-012 di 006)."
           }
         },
         {
@@ -7988,7 +7988,7 @@
                 "webhook"
               ]
             },
-            "description": "Atteso: `Quale campo vuoi modificare?` con i 9 campi."
+            "description": "Atteso: `✏️ Quale campo vuoi modificare?` con i 9 campi."
           }
         },
         {
@@ -8039,7 +8039,7 @@
                 "webhook"
               ]
             },
-            "description": "Atteso: `Nuovo telefono? Scrivilo con il prefisso (es. +39 333 1234567)` / `oppure condividi il contatto 📎` con **Svuota** / **Annulla** (FR-012 di 006)."
+            "description": "Atteso: `📱 Nuovo telefono? Scrivilo con il prefisso (es. +39 333 1234567)` / `oppure condividi il contatto 📎` con **Svuota** / **Annulla** (FR-012 di 006)."
           }
         },
         {
@@ -8195,7 +8195,7 @@
                 "webhook"
               ]
             },
-            "description": "Atteso: `Quale campo vuoi modificare?` con i 9 campi."
+            "description": "Atteso: `✏️ Quale campo vuoi modificare?` con i 9 campi."
           }
         },
         {
@@ -8351,7 +8351,7 @@
                 "webhook"
               ]
             },
-            "description": "Atteso: `Quale campo vuoi modificare?` con i 9 campi."
+            "description": "Atteso: `✏️ Quale campo vuoi modificare?` con i 9 campi."
           }
         },
         {
@@ -8507,7 +8507,7 @@
                 "webhook"
               ]
             },
-            "description": "Atteso: `Quale campo vuoi modificare?` con i 9 campi."
+            "description": "Atteso: `✏️ Quale campo vuoi modificare?` con i 9 campi."
           }
         },
         {
@@ -8663,7 +8663,7 @@
                 "webhook"
               ]
             },
-            "description": "Atteso: `Quale campo vuoi modificare?` con i 9 campi."
+            "description": "Atteso: `✏️ Quale campo vuoi modificare?` con i 9 campi."
           }
         },
         {
@@ -8819,7 +8819,7 @@
                 "webhook"
               ]
             },
-            "description": "Atteso: `Quale campo vuoi modificare?` con i 9 campi."
+            "description": "Atteso: `✏️ Quale campo vuoi modificare?` con i 9 campi."
           }
         },
         {
@@ -9026,7 +9026,7 @@
                 "webhook"
               ]
             },
-            "description": "Atteso: scheda con gruppi Postman Gruppo, Smoke Lavoro."
+            "description": "Atteso: `✅ Ho aggiornato ….` e la scheda con gruppi Postman Gruppo, Smoke Lavoro."
           }
         },
         {
@@ -9077,7 +9077,7 @@
                 "webhook"
               ]
             },
-            "description": "Atteso: `Quale campo vuoi modificare?` con i 9 campi."
+            "description": "Atteso: `✏️ Quale campo vuoi modificare?` con i 9 campi."
           }
         },
         {
@@ -9189,7 +9189,7 @@
     },
     {
       "name": "15 · Elimina (p:x)",
-      "description": "RF-05, RNF-05: conferma esplicita. Elimina il duplicato creato in 13.\n\n_Pulsante da Postman: dopo la risposta arriva anche \"Si è verificato un errore, riprova\" (answerCallbackQuery con id finto). È atteso, vedi README._",
+      "description": "RF-05, RNF-05: conferma esplicita. Elimina il duplicato creato in 13.\n\n_Pulsante da Postman: dopo la risposta arriva anche \"❌ Qualcosa è andato storto. Riprova tra poco.\" (answerCallbackQuery con id finto). È atteso, vedi README._",
       "item": [
         {
           "name": "Elimina (p:x) il duplicato",
@@ -9239,7 +9239,7 @@
                 "webhook"
               ]
             },
-            "description": "Atteso: `Eliminare giulia postman? Perderai anche lo storico` con **Sì** / **Annulla**."
+            "description": "Atteso: `⚠️ Vuoi eliminare giulia postman? Perderai anche il suo storico.` con **Sì** / **Annulla**."
           }
         },
         {
@@ -9344,7 +9344,7 @@
                 "webhook"
               ]
             },
-            "description": "Atteso: `Persona eliminata`."
+            "description": "Atteso: `✅ Ho eliminato giulia postman.`."
           }
         },
         {
@@ -9390,7 +9390,7 @@
                 "webhook"
               ]
             },
-            "description": "Atteso: `Persona non trovata`."
+            "description": "Atteso: `❌ Non trovo questa persona: forse è stata eliminata.`."
           }
         },
         {
@@ -9448,7 +9448,7 @@
     },
     {
       "name": "16 · Gruppi (/gruppi, g2:*)",
-      "description": "RF-07, RF-19, FR-005, FR-006a, FR-017, BR-17 (feature 005): Nuovo dall'elenco, Rinomina ed Elimina dalla scheda.\n\n_Pulsante da Postman: dopo la risposta arriva anche \"Si è verificato un errore, riprova\" (answerCallbackQuery con id finto). È atteso, vedi README._",
+      "description": "RF-07, RF-19, FR-005, FR-006a, FR-017, BR-17 (feature 005): Nuovo dall'elenco, Rinomina ed Elimina dalla scheda.\n\n_Pulsante da Postman: dopo la risposta arriva anche \"❌ Qualcosa è andato storto. Riprova tra poco.\" (answerCallbackQuery con id finto). È atteso, vedi README._",
       "item": [
         {
           "name": "/gruppi",
@@ -9549,7 +9549,7 @@
                 "webhook"
               ]
             },
-            "description": "Atteso: `Nome del nuovo gruppo?` + [Annulla]."
+            "description": "Atteso: `👥 Come si chiama il nuovo gruppo?` + [Annulla]."
           }
         },
         {
@@ -9600,7 +9600,7 @@
                 "webhook"
               ]
             },
-            "description": "Atteso: `Esiste già un gruppo con questo nome` + domanda."
+            "description": "Atteso: `❌ Hai già un gruppo con questo nome: scegline un altro.` + domanda."
           }
         },
         {
@@ -9651,7 +9651,7 @@
                 "webhook"
               ]
             },
-            "description": "Atteso: `Testo troppo lungo: massimo 30 caratteri` + domanda."
+            "description": "Atteso: `❌ Testo troppo lungo: al massimo 30 caratteri.` + domanda."
           }
         },
         {
@@ -9703,7 +9703,7 @@
                 "webhook"
               ]
             },
-            "description": "Atteso: `Il nome del gruppo deve contenere almeno 2 lettere o cifre` + domanda."
+            "description": "Atteso: `❌ Il nome del gruppo deve avere almeno 2 lettere o cifre.` + domanda."
           }
         },
         {
@@ -9758,7 +9758,7 @@
                 "webhook"
               ]
             },
-            "description": "Atteso: `Gruppo Postman Amici creato`, riga vuota, elenco a pulsanti."
+            "description": "Atteso: `✅ Ho creato il gruppo Postman Amici.`, riga vuota, elenco a pulsanti."
           }
         },
         {
@@ -9809,7 +9809,7 @@
                 "webhook"
               ]
             },
-            "description": "Atteso (FR-002): nuovo messaggio `👥 Postman Amici · 0 persone`, riga vuota, `Nel gruppo non ci sono persone.` e i pulsanti **✏️ Rinomina** **🗑 Elimina**."
+            "description": "Atteso (FR-002): nuovo messaggio `👥 Postman Amici · 0 persone`, riga vuota, `Nel gruppo non c'è ancora nessuno.` e i pulsanti **✏️ Rinomina** **🗑 Elimina**."
           }
         },
         {
@@ -9860,7 +9860,7 @@
                 "webhook"
               ]
             },
-            "description": "Atteso (FR-009): `Nuovo nome per il gruppo Postman Amici?` + [Annulla], senza «Quale gruppo?»."
+            "description": "Atteso (FR-009): `👥 Nuovo nome per il gruppo Postman Amici?` + [Annulla], senza «Quale gruppo?»."
           }
         },
         {
@@ -9914,7 +9914,7 @@
                 "webhook"
               ]
             },
-            "description": "BR-17: il solo cambio di maiuscole è ammesso. Atteso: `Gruppo rinominato in POSTMAN AMICI`, riga vuota e la scheda aggiornata in un **nuovo** messaggio."
+            "description": "BR-17: il solo cambio di maiuscole è ammesso. Atteso: `✅ Ho rinominato il gruppo in POSTMAN AMICI.`, riga vuota e la scheda aggiornata in un **nuovo** messaggio."
           }
         },
         {
@@ -9968,7 +9968,7 @@
                 "webhook"
               ]
             },
-            "description": "Il pulsante della scheda di prima porta l'hash di «Postman Amici»: il nome ora è «POSTMAN AMICI». Atteso: `Il gruppo non esiste più.`, riga vuota, elenco a pulsanti. Nessuna modifica."
+            "description": "Il pulsante della scheda di prima porta l'hash di «Postman Amici»: il nome ora è «POSTMAN AMICI». Atteso: `❌ Questo gruppo non esiste più.`, riga vuota, elenco a pulsanti. Nessuna modifica."
           }
         },
         {
@@ -10019,7 +10019,7 @@
                 "webhook"
               ]
             },
-            "description": "Atteso: `Nuovo nome per il gruppo POSTMAN AMICI?`."
+            "description": "Atteso: `👥 Nuovo nome per il gruppo POSTMAN AMICI?`."
           }
         },
         {
@@ -10073,7 +10073,7 @@
                 "webhook"
               ]
             },
-            "description": "Atteso: `Gruppo rinominato in Postman Amici Cari` + scheda aggiornata."
+            "description": "Atteso: `✅ Ho rinominato il gruppo in Postman Amici Cari.` + scheda aggiornata."
           }
         },
         {
@@ -10124,7 +10124,7 @@
                 "webhook"
               ]
             },
-            "description": "Atteso (FR-010): `Eliminare il gruppo Postman Gruppo? 1 persona perderà questa etichetta` + [Sì] [Annulla]."
+            "description": "Atteso (FR-010): `⚠️ Vuoi eliminare il gruppo Postman Gruppo? 1 persona perderà questa etichetta` + [Sì] [Annulla]."
           }
         },
         {
@@ -10181,7 +10181,7 @@
                 "webhook"
               ]
             },
-            "description": "Atteso: `Gruppo Postman Gruppo eliminato`, riga vuota, elenco a pulsanti. Giulia resta."
+            "description": "Atteso: `✅ Ho eliminato il gruppo Postman Gruppo.`, riga vuota, elenco a pulsanti. Giulia resta."
           }
         },
         {
@@ -10232,7 +10232,7 @@
                 "webhook"
               ]
             },
-            "description": "Atteso: `Eliminare il gruppo Postman Amici Cari? Nessuna persona ha questa etichetta`."
+            "description": "Atteso: `⚠️ Vuoi eliminare il gruppo Postman Amici Cari? Nessuna persona ha questa etichetta`."
           }
         },
         {
@@ -10286,7 +10286,7 @@
                 "webhook"
               ]
             },
-            "description": "Atteso: `Gruppo Postman Amici Cari eliminato` + elenco."
+            "description": "Atteso: `✅ Ho eliminato il gruppo Postman Amici Cari.` + elenco."
           }
         },
         {
@@ -10337,7 +10337,7 @@
                 "webhook"
               ]
             },
-            "description": "Pulsante di `/gruppi` di prima del rilascio. Atteso: popup \"Questa azione non è più disponibile\" (non visibile da Postman, vedi README), nessun messaggio, nessuna modifica."
+            "description": "Pulsante di `/gruppi` di prima del rilascio. Atteso: popup \"❌ Questa azione non è più disponibile.\" (non visibile da Postman, vedi README), nessun messaggio, nessuna modifica."
           }
         },
         {
@@ -10389,14 +10389,14 @@
                 "webhook"
               ]
             },
-            "description": "«Quale gruppo?» di prima del rilascio: lo step `scelta` non esiste più. Atteso: \"Questa azione non è più disponibile\", nessuna modifica."
+            "description": "«Quale gruppo?» di prima del rilascio: lo step `scelta` non esiste più. Atteso: \"❌ Questa azione non è più disponibile.\", nessuna modifica."
           }
         }
       ]
     },
     {
       "name": "17 · /messaggio",
-      "description": "RF-15, FR-032, FR-035. Alla fine rimette il messaggio standard.\n\n_Pulsante da Postman: dopo la risposta arriva anche \"Si è verificato un errore, riprova\" (answerCallbackQuery con id finto). È atteso, vedi README._",
+      "description": "RF-15, FR-032, FR-035. Alla fine rimette il messaggio standard.\n\n_Pulsante da Postman: dopo la risposta arriva anche \"❌ Qualcosa è andato storto. Riprova tra poco.\" (answerCallbackQuery con id finto). È atteso, vedi README._",
       "item": [
         {
           "name": "/messaggio",
@@ -10446,7 +10446,7 @@
                 "webhook"
               ]
             },
-            "description": "Atteso: `Messaggio attuale: «…»` e la richiesta del nuovo testo, con **Annulla**."
+            "description": "Atteso: `✍️ Messaggio attuale: «…»` e la richiesta del nuovo testo, con **Annulla**."
           }
         },
         {
@@ -10497,7 +10497,7 @@
                 "webhook"
               ]
             },
-            "description": "Atteso: `Il messaggio può avere al massimo 256 caratteri …` + domanda."
+            "description": "Atteso: `❌ Il messaggio può avere al massimo 256 caratteri …` + domanda."
           }
         },
         {
@@ -10548,7 +10548,7 @@
                 "webhook"
               ]
             },
-            "description": "Atteso: `Anteprima: «Buon compleanno Marco! 🎂»` con **Conferma** / **Annulla**."
+            "description": "Atteso: `✍️ Anteprima: «Buon compleanno Marco! 🎂»` con **Conferma** / **Annulla**."
           }
         },
         {
@@ -10602,7 +10602,7 @@
                 "webhook"
               ]
             },
-            "description": "Atteso: `Messaggio di auguri aggiornato`."
+            "description": "Atteso: `✅ Ho aggiornato il messaggio di auguri.`."
           }
         },
         {
@@ -10899,7 +10899,7 @@
                 "webhook"
               ]
             },
-            "description": "Atteso: CSV con una riga per persona (`Export di N persone.`)."
+            "description": "Atteso: CSV con una riga per persona (`📤 Ecco l'export: N persone.`)."
           }
         },
         {
@@ -10945,14 +10945,14 @@
                 "webhook"
               ]
             },
-            "description": "Atteso: `compleanni-backup-AAAA-MM-GG.json` con didascalia `Backup: N persone, M gruppi, K occorrenze. …`. Nel JSON `settings` contiene **solo** `default_message`: le chiavi tecniche (`cron_last_run`, `auto_backup_last`, `auto_backup`, `bot_commands`) non entrano nel backup (§8, FR-002)."
+            "description": "Atteso: `compleanni-backup-AAAA-MM-GG.json` con didascalia `💾 Backup: N persone, M gruppi, K occorrenze. …`. Nel JSON `settings` contiene **solo** `default_message`: le chiavi tecniche (`cron_last_run`, `auto_backup_last`, `auto_backup`, `bot_commands`) non entrano nel backup (§8, FR-002)."
           }
         }
       ]
     },
     {
       "name": "19 · Import CSV",
-      "description": "RF-24, BR-18…BR-23. L'helper invia prima il file vero nella chat (didascalia `📎 File di prova Postman: …`), poi Postman manda al Worker l'update con il suo `file_id`. File in `postman/fixtures/`.\n\n_Pulsante da Postman: dopo la risposta arriva anche \"Si è verificato un errore, riprova\" (answerCallbackQuery con id finto). È atteso, vedi README._",
+      "description": "RF-24, BR-18…BR-23. L'helper invia prima il file vero nella chat (didascalia `📎 File di prova Postman: …`), poi Postman manda al Worker l'update con il suo `file_id`. File in `postman/fixtures/`.\n\n_Pulsante da Postman: dopo la risposta arriva anche \"❌ Qualcosa è andato storto. Riprova tra poco.\" (answerCallbackQuery con id finto). È atteso, vedi README._",
       "item": [
         {
           "name": "import-ok.csv → anteprima",
@@ -11017,7 +11017,7 @@
                 "webhook"
               ]
             },
-            "description": "Atteso: `Anteprima import` — `2 persone nuove`, `Riga d'esempio ignorata`, `1 duplicato (saltato): • riga 5: franco postman 29/02/1988`, `2 errori:` (riga 6: data, telefono, priorità; riga 7: nome mancante), `Gruppi da creare: Postman CSV`. Pulsanti **Importa** / **Annulla**."
+            "description": "Atteso: `📥 Anteprima import` — `2 persone nuove`, `Riga d'esempio ignorata`, `1 duplicato (saltato): • riga 5: franco postman 29/02/1988`, `⚠️ 2 errori:` (riga 6: data, telefono, priorità; riga 7: nome mancante), `Gruppi da creare: Postman CSV`. Pulsanti **Importa** / **Annulla**."
           }
         },
         {
@@ -11080,7 +11080,7 @@
                 "webhook"
               ]
             },
-            "description": "Atteso: `Importate 2 persone, creato 1 gruppo.`"
+            "description": "Atteso: `🎉 Importate 2 persone, creato 1 gruppo.`"
           }
         },
         {
@@ -11266,7 +11266,7 @@
                 "webhook"
               ]
             },
-            "description": "Atteso: `Operazione annullata`. Ivo non viene importato."
+            "description": "Atteso: `Ok, ho annullato.`. Ivo non viene importato."
           }
         },
         {
@@ -11327,7 +11327,7 @@
                 "webhook"
               ]
             },
-            "description": "Atteso: `Intestazione non valida. Colonne attese: …`."
+            "description": "Atteso: `❌ Intestazione non valida. Colonne attese: …`."
           }
         },
         {
@@ -11388,7 +11388,7 @@
                 "webhook"
               ]
             },
-            "description": "Atteso: `Il file non contiene righe da importare.`"
+            "description": "Atteso: `❌ Il file non contiene righe da importare.`"
           }
         },
         {
@@ -11449,7 +11449,7 @@
                 "webhook"
               ]
             },
-            "description": "Atteso: `Non riesco a leggere il file: salvalo da Excel come \"CSV UTF-8\" e rimandalo.`"
+            "description": "Atteso: `❌ Non riesco a leggere il file: salvalo da Excel come \"CSV UTF-8\" e rimandalo.`"
           }
         },
         {
@@ -11622,7 +11622,7 @@
                 "webhook"
               ]
             },
-            "description": "V-07: rifiutato senza scaricarlo. Atteso: `Il file è troppo grande: Telegram consente ai bot di ricevere file fino a 20 MB.`"
+            "description": "V-07: rifiutato senza scaricarlo. Atteso: `❌ Il file è troppo grande: Telegram mi lascia ricevere file fino a 20 MB.`"
           }
         },
         {
@@ -11721,7 +11721,7 @@
     },
     {
       "name": "20 · /ripristina",
-      "description": "RF-26, RNF-05, FR-018…FR-021. ⚠️ **Il ripristino sostituisce TUTTO il D1 locale** con `backup-ok.json` (Rita e Bruno Postman, gruppo Postman Backup): anche i tuoi dati locali non di prova vengono cancellati. La cartella 21 rimette i dati di prova.\n\n_Pulsante da Postman: dopo la risposta arriva anche \"Si è verificato un errore, riprova\" (answerCallbackQuery con id finto). È atteso, vedi README._",
+      "description": "RF-26, RNF-05, FR-018…FR-021. ⚠️ **Il ripristino sostituisce TUTTO il D1 locale** con `backup-ok.json` (Rita e Bruno Postman, gruppo Postman Backup): anche i tuoi dati locali non di prova vengono cancellati. La cartella 21 rimette i dati di prova.\n\n_Pulsante da Postman: dopo la risposta arriva anche \"❌ Qualcosa è andato storto. Riprova tra poco.\" (answerCallbackQuery con id finto). È atteso, vedi README._",
       "item": [
         {
           "name": "/ripristina",
@@ -11771,7 +11771,7 @@
                 "webhook"
               ]
             },
-            "description": "Atteso: `Inviami il file JSON di backup da ripristinare.` con **Annulla**."
+            "description": "Atteso: `💾 Inviami il file JSON di backup da ripristinare.` con **Annulla**."
           }
         },
         {
@@ -11822,7 +11822,7 @@
                 "webhook"
               ]
             },
-            "description": "Atteso: `Attendo un file JSON di backup. Usa /annulla per interrompere.` + domanda."
+            "description": "Atteso: `💾 Aspetto il file JSON di backup. Usa /annulla per interrompere.` + domanda."
           }
         },
         {
@@ -11873,7 +11873,7 @@
                 "webhook"
               ]
             },
-            "description": "Atteso: `Attendo un file JSON di backup. …`."
+            "description": "Atteso: `💾 Aspetto il file JSON di backup. …`."
           }
         },
         {
@@ -11939,7 +11939,7 @@
                 "webhook"
               ]
             },
-            "description": "Atteso: `Attendo un file JSON di backup. …`."
+            "description": "Atteso: `💾 Aspetto il file JSON di backup. …`."
           }
         },
         {
@@ -12005,7 +12005,7 @@
                 "webhook"
               ]
             },
-            "description": "Atteso: `Il file non è un JSON valido.` + domanda."
+            "description": "Atteso: `❌ Il file non è un JSON valido: mandami il file .json del backup.` + domanda."
           }
         },
         {
@@ -12071,7 +12071,7 @@
                 "webhook"
               ]
             },
-            "description": "Atteso: `Versione del backup non supportata (2).`"
+            "description": "Atteso: `❌ Versione del backup non supportata (2).`"
           }
         },
         {
@@ -12137,7 +12137,7 @@
                 "webhook"
               ]
             },
-            "description": "Atteso: `Backup non valido: riferimento a persona 9599 inesistente.`"
+            "description": "Atteso: `❌ Backup non valido: riferimento a persona 9599 inesistente.`"
           }
         },
         {
@@ -12203,7 +12203,7 @@
                 "webhook"
               ]
             },
-            "description": "Atteso: `Backup del 01/10/2026: 2 persone, 1 gruppi, 1 occorrenze.` e `Dati attuali che verranno sostituiti: …`, con **Continua** / **Annulla**."
+            "description": "Atteso: `⚠️ Backup del 01/10/2026: 2 persone, 1 gruppi, 1 occorrenze.` e `Dati attuali che verranno sostituiti: …`, con **Continua** / **Annulla**."
           }
         },
         {
@@ -12314,7 +12314,7 @@
                 "webhook"
               ]
             },
-            "description": "Atteso: `Ripristino completato: 2 persone, 1 gruppi, 1 occorrenze.` e `Messaggio di auguri standard: quello iniziale`."
+            "description": "Atteso: `✅ Ripristino completato: 2 persone, 1 gruppi, 1 occorrenze.` e `Messaggio di auguri standard: quello iniziale`."
           }
         },
         {
@@ -12360,7 +12360,7 @@
                 "webhook"
               ]
             },
-            "description": "Atteso: `Rita Postman — \"Rita\"`, 14/03/1985, priorità alta, gruppo Postman Backup, TG @ritapostman, messaggio `Auguri {nome}!`, storico 2026 fatto."
+            "description": "Atteso: `👤 Rita Postman — \"Rita\"`, 14/03/1985, priorità alta, gruppo Postman Backup, TG @ritapostman, messaggio `Auguri {nome}!`, storico 2026 fatto."
           }
         },
         {
@@ -12406,7 +12406,7 @@
                 "webhook"
               ]
             },
-            "description": "Atteso: `Bruno Postman`, 29/02 senza anno, IG @bruno.pm."
+            "description": "Atteso: `👤 Bruno Postman`, 29/02 senza anno, IG @bruno.pm."
           }
         }
       ]

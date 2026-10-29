@@ -6,6 +6,7 @@ import { OWNER_ID } from "../helpers/constants";
 import { localInstant, runAt, runScheduledAt } from "../helpers/cron";
 import { insertDelivery, insertOccurrence, insertPerson, rows } from "../helpers/db";
 import { makeCronDeps, type TestCronDeps } from "../helpers/deps";
+import { T } from "../../src/texts";
 
 // I test di N-06 controllano da sé l'ora registrata (nessun cron regolare simulato).
 const MANUAL = { regular: false };
@@ -150,7 +151,7 @@ describe("N-06: avviso di buco", () => {
     deps.tg.failWhen(isAlert, 429);
     const r = await runAt(deps, 2026, 10, 29, 9, MANUAL);
     expect(r).toMatchObject({ gapAlert: "failed", sent: 1 });
-    expect(deps.tg.messages().map((m) => m.text.split(",")[0])).toEqual(["🎂 Oggi è il compleanno di Marco Rossi"]);
+    expect(deps.tg.messages().map((m) => m.text.split(",")[0])).toEqual([T.reminderTitle("Marco Rossi", null, null, false)]);
     expect(await lastRun()).toBe(localInstant(2026, 10, 29, 9).toISOString());
     expect(lines.map((l) => JSON.parse(l) as { code: string }).filter((l) => l.code === "gap_alert")).toEqual([
       { code: "gap_alert", sent: false, error_code: 429 },

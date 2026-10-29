@@ -6,6 +6,7 @@ import { count, totalRows } from "../helpers/db";
 import { makeDeps } from "../helpers/deps";
 import { send } from "../helpers/send";
 import { callbackUpdate, documentUpdate, textUpdate, webhookRequest } from "../helpers/updates";
+import { T } from "../../src/texts";
 
 describe("US1: accesso riservato al proprietario", () => {
   describe("RNF-03: token segreto del webhook", () => {
@@ -128,7 +129,7 @@ describe("US1: accesso riservato al proprietario", () => {
       const res = await send(deps, textUpdate(OWNER_ID, "/nuovo"));
       expect(res.status).toBe(200);
       expect(deps.tg.messages()).toHaveLength(1);
-      expect(deps.tg.lastText()).toBe("Si è verificato un errore, riprova");
+      expect(deps.tg.lastText()).toBe(T.genericError);
     });
   });
 });

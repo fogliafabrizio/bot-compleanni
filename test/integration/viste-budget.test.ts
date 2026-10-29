@@ -7,6 +7,7 @@ import { makeDeps, type TestDeps } from "../helpers/deps";
 import { commandParts } from "../helpers/fake-telegram";
 import { press, say } from "../helpers/send";
 import { NOW } from "../helpers/constants";
+import { T } from "../../src/texts";
 
 // Oggi = mercoledì 28/10/2026. 200 persone (RNF-16) con compleanni sparsi su tutto l'anno.
 
@@ -82,7 +83,7 @@ describe("principio II, RNF-14, RNF-16, SC-002, SC-005: budget delle viste", () 
     deps.counter.batches = [];
     const m = await measure(deps, () => say(deps, "/prossimi 366 tutti"));
     expectCompleteList(deps, 200, 5);
-    expect(deps.tg.messages()[0]!.text.split("\n")[0]).toBe("Prossimi 366 giorni (👨‍👩‍👧 Tutti)");
+    expect(deps.tg.messages()[0]!.text.split("\n")[0]).toBe(T.upcomingHeader(366, "👨‍👩‍👧 Tutti"));
     expect(deps.counter.batches).toHaveLength(1);
     expect(m).toEqual({ d1: 2, tg: 5 });
   });

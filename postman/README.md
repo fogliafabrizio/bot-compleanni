@@ -86,10 +86,11 @@ compaiono anche nelle liste: le attese valgono per i soli dati di prova.
 
 ## Limiti noti
 
-- **Ogni pulsante da Postman produce anche "Si è verificato un errore, riprova"** in chat.
+- **Ogni pulsante da Postman produce anche "❌ Qualcosa è andato storto. Riprova tra poco."** in chat.
   `callback_query.id` è finto, quindi `answerCallbackQuery` fallisce. L'azione è già stata eseguita:
   i test sul D1 lo confermano. Nel terminale di wrangler compare `handler_error` con `error_code`
-  400. Per lo stesso motivo il popup del pulsante (es. "Persona non trovata") non si vede.
+  400. Per lo stesso motivo il popup del pulsante (es. "❌ Non trovo questa persona: forse è stata
+  eliminata.") non si vede.
 - I callback delle cartelle 10–20 non hanno `message`, quindi il bot non modifica il messaggio
   premuto: risponde con un messaggio nuovo (es. `Gruppi?` aggiornato). Quelli di 03 e 09 hanno un
   `message_id` finto e `editMessageText` fallisce. Le modifiche ai messaggi si provano solo su
@@ -115,6 +116,10 @@ compaiono anche nelle liste: le attese valgono per i soli dati di prova.
 
 ## Changelog
 
+- **2.4.0** (2026-10-29): feature 008 (guida di stile RNF-19), solo descrizioni "Atteso": i testi
+  attesi riportano le emoji di sezione, le icone delle domande, "⏭ Salta", "✏️ Modifica"/"🗑 Elimina",
+  le conferme 🎉/✅, gli avvisi ⚠️ e gli errori ❌. Nessuna richiesta, `callback_data`, `pm.test` o
+  fixture modificata; seed invariato.
 - **2.3.0** (2026-10-29): feature 007 (stato e statistiche), 243 richieste. Nuova cartella
   "08b · /stato e /statistiche (RF-31, RF-32, N-06)" tra la 08 e la 09 (senza rinumerare le altre):
   /stato, "Cron ora → cron_last_run" con controllo su D1, /stato dopo il cron, /statistiche. Attese

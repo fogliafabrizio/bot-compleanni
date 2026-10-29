@@ -42,7 +42,7 @@ registerFlow({
           await answerCallback(ctx, T.actionUnavailable);
           return;
         }
-        await reply(ctx, T.personDeleted);
+        await reply(ctx, T.personDeleted(data(state).name));
       },
     },
   },

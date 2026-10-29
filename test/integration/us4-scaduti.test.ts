@@ -5,6 +5,7 @@ import { runAt } from "../helpers/cron";
 import { makeCronDeps, makeDeps } from "../helpers/deps";
 import { buttons, commandParts, monoParts } from "../helpers/fake-telegram";
 import { press, say } from "../helpers/send";
+import { T } from "../../src/texts";
 
 // Oggi = mercoledì 28/10/2026; finestra di /scaduti 21/10…27/10.
 
@@ -28,7 +29,7 @@ describe("US4: /scaduti e Segna fatto", () => {
     const deps = makeDeps();
     await say(deps, "/scaduti");
     const msg = deps.tg.messages()[0]!;
-    expect(msg.text.split("\n").slice(0, 2)).toEqual(["Ultimi 7 giorni, non fatti", ""]);
+    expect(msg.text.split("\n").slice(0, 2)).toEqual([T.overdueHeader(7), ""]);
     expect(monoParts(msg)).toEqual([
       "Gio 22/10  Sara        non confermato",
       "Dom 25/10  Marco (32)  saltato       ",
@@ -41,7 +42,7 @@ describe("US4: /scaduti e Segna fatto", () => {
   it("RF-21: nessuna occorrenza in sospeso", async () => {
     const deps = makeDeps();
     await say(deps, "/scaduti");
-    expect(deps.tg.lastText()).toBe("Nessun compleanno in sospeso negli ultimi 7 giorni");
+    expect(deps.tg.lastText()).toBe(T.overdueNone(7));
   });
 
   it("RF-21, BR-08: scheda con Segna fatto sopra Modifica/Elimina; il tocco chiude in fatto e aggiorna la scheda", async () => {
@@ -50,7 +51,7 @@ describe("US4: /scaduti e Segna fatto", () => {
     const deps = makeDeps();
     await say(deps, `/p_${id}`);
     const kb = deps.tg.lastKeyboard()!;
-    expect(kb.inline_keyboard.map((r) => r.map((b) => b.text))).toEqual([["Segna fatto"], ["Modifica", "Elimina"]]);
+    expect(kb.inline_keyboard.map((r) => r.map((b) => b.text))).toEqual([["Segna fatto"], [T.btnEdit, T.btnDelete]]);
     expect(buttons(kb)[0]).toEqual(["Segna fatto", `p:f:${id}`]);
     expect(deps.tg.lastText()!.split("\n").at(-1)).toBe("Storico: 2026 saltato");
 
@@ -61,8 +62,8 @@ describe("US4: /scaduti e Segna fatto", () => {
     expect(edit!.messageId).toBe(321);
     expect(edit!.text.split("\n").at(-1)).toBe("Storico: 2026 fatto");
     expect(buttons(edit!.keyboard)).toEqual([
-      ["Modifica", `p:m:${id}`],
-      ["Elimina", `p:x:${id}`],
+      [T.btnEdit, `p:m:${id}`],
+      [T.btnDelete, `p:x:${id}`],
     ]);
     expect(deps.tg.callbackAnswers()).toEqual([{ method: "answerCallbackQuery", id: expect.any(String) }]);
     expect(deps.tg.messages()).toHaveLength(0);
@@ -76,7 +77,7 @@ describe("US4: /scaduti e Segna fatto", () => {
     const deps = makeDeps();
     for (const id of [a, b]) {
       await say(deps, `/p_${id}`);
-      expect(buttons(deps.tg.lastKeyboard()).map(([t]) => t)).toEqual(["Modifica", "Elimina"]);
+      expect(buttons(deps.tg.lastKeyboard()).map(([t]) => t)).toEqual([T.btnEdit, T.btnDelete]);
     }
   });
 
@@ -102,17 +103,17 @@ describe("US4: /scaduti e Segna fatto", () => {
     const deps = makeDeps();
     await env.DB.prepare("UPDATE occurrences SET effective_date = '2026-10-20' WHERE id = ?").bind(occ).run();
     await press(deps, `p:f:${id}`);
-    expect(deps.tg.lastAnswer()).toBe("Questa azione non è più disponibile");
+    expect(deps.tg.lastAnswer()).toBe(T.actionUnavailable);
     expect(await statusOf(occ)).toBe("saltato");
     await env.DB.prepare("UPDATE occurrences SET effective_date = '2026-10-25', status = 'fatto' WHERE id = ?").bind(occ).run();
     await press(deps, `p:f:${id}`);
-    expect(deps.tg.lastAnswer()).toBe("Questa azione non è più disponibile");
+    expect(deps.tg.lastAnswer()).toBe(T.actionUnavailable);
     expect(deps.tg.textEdits()).toHaveLength(0);
   });
 
   it("FR-018c di 001: Segna fatto di una persona eliminata → Persona non trovata", async () => {
     const deps = makeDeps();
     await press(deps, "p:f:999");
-    expect(deps.tg.lastAnswer()).toBe("Persona non trovata");
+    expect(deps.tg.lastAnswer()).toBe(T.personNotFound);
   });
 });

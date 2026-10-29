@@ -6,6 +6,7 @@ import { runAt } from "../helpers/cron";
 import { makeCronDeps, makeDeps, type TestDeps } from "../helpers/deps";
 import { cbOf, copyOf, labels, urlOf } from "../helpers/fake-telegram";
 import { press, say } from "../helpers/send";
+import { T } from "../../src/texts";
 
 const tap = (deps: TestDeps, label: string) => press(deps, cbOf(deps.tg.lastKeyboard(), label));
 
@@ -37,15 +38,15 @@ describe("US4: messaggio di auguri", () => {
     const deps = makeDeps();
     await say(deps, "/messaggio");
     expect(deps.tg.lastText()).toBe(
-      "Messaggio attuale: «Tanti auguri {nome}! 🎉»\nScrivi il nuovo messaggio di auguri. Usa {nome} per il nome.",
+      T.greetingAsk("Tanti auguri {nome}! 🎉"),
     );
     expect(labels(deps.tg.lastKeyboard())).toEqual(["Annulla"]);
     await say(deps, "  Buon compleanno {nome}!  ");
-    expect(deps.tg.lastText()).toBe("Anteprima: «Buon compleanno Marco!»\nConfermi?");
+    expect(deps.tg.lastText()).toBe(T.greetingPreview("Buon compleanno Marco!"));
     expect(labels(deps.tg.lastKeyboard())).toEqual(["Conferma", "Annulla"]);
     expect(await settings()).toEqual([]);
     await tap(deps, "Conferma");
-    expect(deps.tg.lastText()).toBe("Messaggio di auguri aggiornato");
+    expect(deps.tg.lastText()).toBe(T.greetingSaved);
     expect(await settings()).toEqual([{ key: "default_message", value: "Buon compleanno {nome}!" }]);
     expect(await count("conversation_state")).toBe(0);
     // Il nuovo default compare nella domanda successiva e nei reminder.
@@ -58,7 +59,7 @@ describe("US4: messaggio di auguri", () => {
     await say(deps, "/messaggio");
     await say(deps, "Ciao {nome}");
     await tap(deps, "Annulla");
-    expect(deps.tg.lastText()).toBe("Operazione annullata");
+    expect(deps.tg.lastText()).toBe(T.cancelled);
     expect(await settings()).toEqual([]);
   });
 
@@ -76,9 +77,13 @@ describe("US4: messaggio di auguri", () => {
     const deps = makeDeps();
     await say(deps, "/messaggio");
     await say(deps, `{nome}${"x".repeat(197)}`);
-    expect(deps.tg.lastText()).toMatch(/^Il messaggio può avere al massimo 256 caratteri \(ogni \{nome\} conta 60\)\.\n\nMessaggio attuale/);
+    expect(deps.tg.lastText()).toBe(`${T.greetingTooLong(256, 60)}
+
+${T.greetingAsk("Tanti auguri {nome}! 🎉")}`);
     await say(deps, "   ");
-    expect(deps.tg.lastText()).toMatch(/^Il valore non può essere vuoto\n\nMessaggio attuale/);
+    expect(deps.tg.lastText()).toBe(`${T.emptyValue}
+
+${T.greetingAsk("Tanti auguri {nome}! 🎉")}`);
     const [state] = await rows<{ step: string }>("SELECT step FROM conversation_state");
     expect(state?.step).toBe("testo");
   });
@@ -88,7 +93,7 @@ describe("US4: messaggio di auguri", () => {
     await say(deps, "/messaggio");
     await say(deps, "Ciao {nome}");
     await say(deps, "Sì");
-    expect(deps.tg.lastText()).toBe("Anteprima: «Ciao Marco»\nConfermi?");
+    expect(deps.tg.lastText()).toBe(T.greetingPreview("Ciao Marco"));
     expect(labels(deps.tg.lastKeyboard())).toEqual(["Conferma", "Annulla"]);
     expect(await settings()).toEqual([]);
   });
@@ -97,7 +102,7 @@ describe("US4: messaggio di auguri", () => {
     const deps = makeDeps();
     await say(deps, "/messaggio");
     await say(deps, "/annulla");
-    expect(deps.tg.lastText()).toBe("Operazione annullata");
+    expect(deps.tg.lastText()).toBe(T.cancelled);
     await say(deps, "/messaggio");
     await say(deps, "/aiuto");
     expect(await count("conversation_state")).toBe(0);
@@ -106,7 +111,7 @@ describe("US4: messaggio di auguri", () => {
     const confirm = cbOf(deps.tg.lastKeyboard(), "Conferma");
     deps.setNow(addHours(NOW, 25));
     await press(deps, confirm);
-    expect(deps.tg.lastAnswer()).toBe("Questa azione non è più disponibile");
+    expect(deps.tg.lastAnswer()).toBe(T.actionUnavailable);
     expect(await settings()).toEqual([]);
   });
 
@@ -116,7 +121,7 @@ describe("US4: messaggio di auguri", () => {
     await say(deps, "Ciao {nome}");
     const confirm = cbOf(deps.tg.lastKeyboard(), "Conferma");
     await Promise.all([press(deps, confirm), press(deps, confirm)]);
-    expect(deps.tg.messages().filter((m) => m.text === "Messaggio di auguri aggiornato")).toHaveLength(1);
+    expect(deps.tg.messages().filter((m) => m.text === T.greetingSaved)).toHaveLength(1);
     expect(await settings()).toHaveLength(1);
   });
 

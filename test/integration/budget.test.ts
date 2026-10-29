@@ -4,6 +4,7 @@ import { addToGroup, count, insertGroup, insertPerson } from "../helpers/db";
 import { makeDeps, type TestDeps } from "../helpers/deps";
 import { cbOf } from "../helpers/fake-telegram";
 import { press, say } from "../helpers/send";
+import { T } from "../../src/texts";
 
 const tap = (deps: TestDeps, label: string) => press(deps, cbOf(deps.tg.lastKeyboard(), label));
 
@@ -25,12 +26,12 @@ describe("principio II, RNF-17: budget per update", () => {
     const deps = makeDeps();
     await say(deps, "/nuovo");
     await say(deps, "Marco Rossi");
-    await tap(deps, "Salta");
+    await tap(deps, T.btnSkip);
     await say(deps, "14/03/1994");
     await tap(deps, "Sì");
-    await tap(deps, "Salta");
-    await tap(deps, "Salta");
-    await tap(deps, "Salta");
+    await tap(deps, T.btnSkip);
+    await tap(deps, T.btnSkip);
+    await tap(deps, T.btnSkip);
     await tap(deps, "☐ Famiglia");
     await press(deps, cbOf(deps.tg.edits().at(-1)!.keyboard, "☐ Lavoro"));
     await press(deps, cbOf(deps.tg.edits().at(-1)!.keyboard, "➕ Nuovo gruppo"));
@@ -39,7 +40,7 @@ describe("principio II, RNF-17: budget per update", () => {
     await say(deps, "Calcetto");
     await tap(deps, "Fine");
     await tap(deps, "Media ✓");
-    await tap(deps, "Salta");
+    await tap(deps, T.btnSkip);
     const save = cbOf(deps.tg.lastKeyboard(), "Salva");
     const m = await measure(deps, () => press(deps, save));
     expect(await count("persons")).toBe(2);

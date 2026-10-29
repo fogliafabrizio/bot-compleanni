@@ -40,7 +40,7 @@ describe("US3: backup automatico mensile (RF-27, contracts/backup-mensile.md)", 
     const docs = deps.tg.documents();
     expect(docs).toHaveLength(1);
     expect(docs[0]).toMatchObject({ chatId: OWNER_ID, name, mimeType: "application/json" });
-    expect(docs[0]!.caption).toBe("Backup: 1 persone, 0 gruppi, 0 occorrenze. Per ripristinarlo usa /ripristina.");
+    expect(docs[0]!.caption).toBe(T.backupCaption(1, 0, 0));
     expect(await autoBackup()).toBe(`${month}:inviato`);
   });
 
@@ -89,7 +89,7 @@ describe("US3: backup automatico mensile (RF-27, contracts/backup-mensile.md)", 
     await setAutoBackup("2026-11:inviato");
     const deps = makeCronDeps();
     expect(await monthlyAt(deps, 2026, 12, 1, 9)).toEqual({ sent: true });
-    expect(deps.tg.documents()[0]!.caption).toBe("Backup: 0 persone, 0 gruppi, 0 occorrenze. Per ripristinarlo usa /ripristina.");
+    expect(deps.tg.documents()[0]!.caption).toBe(T.backupCaption(0, 0, 0));
     expect(await autoBackup()).toBe("2026-12:inviato");
   });
 

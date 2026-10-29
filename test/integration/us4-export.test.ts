@@ -60,7 +60,7 @@ describe("US4: /export (RF-25, FR-016)", () => {
     const text = await exportText(deps);
     const [doc] = deps.tg.documents();
     expect(doc).toMatchObject({ chatId: OWNER_ID, name: "compleanni-export-2026-10-28.csv", mimeType: "text/csv; charset=utf-8" });
-    expect(doc!.caption).toBe("Export di 3 persone.");
+    expect(doc!.caption).toBe(T.exportCaption(3));
     expect(text).toBe(
       [
         `${BOM}${HEADER}`,
@@ -78,7 +78,7 @@ describe("US4: /export (RF-25, FR-016)", () => {
     const deps = makeDeps();
     expect(await exportText(deps)).toBe(`${BOM}${HEADER}\r\n`);
     expect(deps.tg.documents()[0]!.caption).toBe(T.exportCaption(0));
-    expect(T.exportCaption(0)).toBe("Export di 0 persone.");
+    expect(T.exportCaption(0)).toMatch(/ 0 persone\.$/);
   });
 
   it("SC-004: export → svuota → reimport: tutte nuove, zero errori, persone e gruppi identici", async () => {
@@ -88,9 +88,9 @@ describe("US4: /export (RF-25, FR-016)", () => {
     const file = await exportText(deps);
     await env.DB.batch([env.DB.prepare("DELETE FROM persons"), env.DB.prepare("DELETE FROM groups")]);
     await sendFile(deps, "compleanni-export-2026-10-28.csv", file);
-    expect(deps.tg.lastText()).toBe("Anteprima import\n3 persone nuove\nGruppi da creare: amici, Famiglia, Università");
+    expect(deps.tg.lastText()).toBe(`${T.previewTitle}\n3 persone nuove\nGruppi da creare: amici, Famiglia, Università`);
     await press(deps, cbOf(deps.tg.lastKeyboard(), T.btnImport));
-    expect(deps.tg.lastText()).toBe("Importate 3 persone, creati 3 gruppi.");
+    expect(deps.tg.lastText()).toBe(T.imported(3, 3));
     expect(await domain()).toEqual(before);
   });
 

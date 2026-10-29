@@ -4,6 +4,7 @@ import { addToGroup, count, insertGroup, insertPerson, rows } from "../helpers/d
 import { makeDeps, type TestDeps } from "../helpers/deps";
 import { cbOf, labels } from "../helpers/fake-telegram";
 import { press, say } from "../helpers/send";
+import { T } from "../../src/texts";
 
 const tap = (deps: TestDeps, label: string) => press(deps, cbOf(deps.tg.lastKeyboard(), label));
 
@@ -25,7 +26,7 @@ describe("US5: eliminazione persona", () => {
     await seed();
     const deps = makeDeps();
     await press(deps, "p:x:1");
-    expect(deps.tg.lastText()).toBe("Eliminare Marco Rossi? Perderai anche lo storico");
+    expect(deps.tg.lastText()).toBe(T.confirmDeletePerson("Marco Rossi"));
     expect(labels(deps.tg.lastKeyboard())).toEqual(["Sì", "Annulla"]);
     await tap(deps, "Sì");
     expect(await count("persons")).toBe(0);
@@ -33,7 +34,7 @@ describe("US5: eliminazione persona", () => {
     expect(await count("occurrences")).toBe(0);
     expect(await count("deliveries")).toBe(0);
     expect(await count("groups")).toBe(1);
-    expect(deps.tg.lastText()).toBe("Persona eliminata");
+    expect(deps.tg.lastText()).toBe(T.personDeleted("Marco Rossi"));
   });
 
   it("RF-05: Annulla non cambia nulla", async () => {
@@ -41,7 +42,7 @@ describe("US5: eliminazione persona", () => {
     const deps = makeDeps();
     await press(deps, "p:x:1");
     await tap(deps, "Annulla");
-    expect(deps.tg.lastText()).toBe("Operazione annullata");
+    expect(deps.tg.lastText()).toBe(T.cancelled);
     expect(await count("persons")).toBe(1);
     expect(await count("person_groups")).toBe(1);
     expect(await count("occurrences")).toBe(1);
@@ -55,11 +56,11 @@ describe("US5: eliminazione persona", () => {
     const yes = cbOf(deps.tg.lastKeyboard(), "Sì");
     await press(deps, yes);
     await press(deps, yes);
-    expect(deps.tg.lastAnswer()).toBe("Questa azione non è più disponibile");
+    expect(deps.tg.lastAnswer()).toBe(T.actionUnavailable);
     await press(deps, "p:x:1");
-    expect(deps.tg.lastAnswer()).toBe("Persona non trovata");
+    expect(deps.tg.lastAnswer()).toBe(T.personNotFound);
     await say(deps, "/p_1");
-    expect(deps.tg.lastText()).toBe("Persona non trovata");
+    expect(deps.tg.lastText()).toBe(T.personNotFound);
   });
 
   it("R-13: dopo l'eliminazione una nuova persona non riceve lo stesso id", async () => {

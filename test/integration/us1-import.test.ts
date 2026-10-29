@@ -51,11 +51,11 @@ describe("US1: import CSV con anteprima (RF-24, §5.8)", () => {
     const deps = makeDeps();
     await sendFile(deps, "agenda.csv", csvOf(data));
     const text = deps.tg.messages().map((m) => m.text).join("\n");
-    expect(text).toContain("Anteprima import\n104 persone nuove");
+    expect(text).toContain(`${T.previewTitle}\n104 persone nuove`);
     expect(text).toContain("5 duplicati (saltati):");
     for (const l of lines.duplicates) expect(text).toContain(`• riga ${l}: `);
     expect(text).toContain("• riga 109: ESISTENTE 1 01/12/1980");
-    expect(text).toContain("3 errori:");
+    expect(text).toContain(T.previewErrors(3));
     expect(text).toContain('• riga 12: data "31/04/1990" non valida');
     expect(text).toContain('• riga 40: data "30/02" non valida');
     expect(text).toContain('• riga 51: data "1/13/2000" non valida');
@@ -71,7 +71,7 @@ describe("US1: import CSV con anteprima (RF-24, §5.8)", () => {
     const deps = makeDeps();
     await sendFile(deps, "agenda.csv", csvOf(data));
     await importPress(deps);
-    expect(deps.tg.lastText()).toBe("Importate 104 persone, creati 2 gruppi.");
+    expect(deps.tg.lastText()).toBe(T.imported(104, 2));
     expect(deps.tg.edits().at(-1)).toMatchObject({ chatId: OWNER_ID, messageId: MSG_ID, keyboard: { inline_keyboard: [] } });
     expect(await count("persons")).toBe(107);
     expect(await count("groups")).toBe(3);
@@ -152,7 +152,7 @@ describe("US1: import CSV con anteprima (RF-24, §5.8)", () => {
     await sendFile(deps, "a.csv", csvOf([[...CSV_EXAMPLE_ROW], r("Anna", "01/02")]));
     expect(deps.tg.lastText()).toContain("1 persona nuova\nRiga d'esempio ignorata");
     await importPress(deps);
-    expect(deps.tg.lastText()).toBe("Importate 1 persona, creati 0 gruppi.");
+    expect(deps.tg.lastText()).toBe(T.imported(1, 0));
     expect(await count("persons")).toBe(1);
     expect(await count("groups")).toBe(0);
   });
@@ -162,7 +162,7 @@ describe("US1: import CSV con anteprima (RF-24, §5.8)", () => {
     const deps = makeDeps();
     await sendFile(deps, "a.csv", csvOf([r("Anna", "01/02/1990"), r("", "01/01")]));
     expect(deps.tg.lastText()).toBe(
-      ["Anteprima import", "0 persone nuove", "1 duplicato (saltato):", "• riga 2: Anna 01/02/1990", "1 errore:", "• riga 3: nome mancante"].join("\n"),
+      [T.previewTitle, "0 persone nuove", "1 duplicato (saltato):", "• riga 2: Anna 01/02/1990", T.previewErrors(1), "• riga 3: nome mancante"].join("\n"),
     );
     expect(deps.tg.lastKeyboard()).toBeUndefined();
     expect(await count("conversation_state")).toBe(0);
@@ -173,7 +173,7 @@ describe("US1: import CSV con anteprima (RF-24, §5.8)", () => {
     await sendFile(deps, "a.csv", csvOf([r("Anna", "01/02", { [GRUPPI]: "Solo Anna" }), r("Bruno", "03/04", { [GRUPPI]: "Comune" })]));
     await insertPerson({ fullName: "anna", day: 1, month: 2, year: 1990 });
     await importPress(deps);
-    expect(deps.tg.lastText()).toBe("1 riga è diventata un duplicato ed è stata saltata.\nImportate 1 persona, creato 1 gruppo.");
+    expect(deps.tg.lastText()).toBe(`${T.becameDuplicates(1)}\n${T.imported(1, 1)}`);
     expect((await rows<{ name: string }>("SELECT name FROM groups")).map((g) => g.name)).toEqual(["Comune"]);
   });
 
@@ -228,7 +228,7 @@ describe("US1: import CSV con anteprima (RF-24, §5.8)", () => {
     const msgs = deps.tg.messages();
     expect(msgs.length).toBe(PREVIEW_MAX_MESSAGES);
     for (const m of msgs) expect(m.text.length).toBeLessThanOrEqual(MESSAGE_MAX_LENGTH);
-    expect(msgs[0]!.text.startsWith("Anteprima import\n250 persone nuove\n250 errori:")).toBe(true);
+    expect(msgs[0]!.text.startsWith(`${T.previewTitle}\n250 persone nuove\n${T.previewErrors(250)}`)).toBe(true);
     expect(msgs.at(-1)!.text).toMatch(/…e altre \d+ righe non mostrate \(correggi il file e rimandalo\)\.$/);
     expect(labels(msgs.at(-1)!.keyboard)).toEqual(["Importa", "Annulla"]);
   });
@@ -239,7 +239,7 @@ describe("US1: import CSV con anteprima (RF-24, §5.8)", () => {
     await sendFile(deps, "a.csv", csvOf([r("Anna", "01/02", { [GRUPPI]: "Calcetto|amici|Università" }), r("", "x")]));
     deps.tg.reset();
     await say(deps, "ciao");
-    expect(deps.tg.lastText()).toBe("Anteprima in attesa: 1 nuove, 0 duplicati, 1 errori. Gruppi da creare: Calcetto, Università.");
+    expect(deps.tg.lastText()).toBe(T.previewShort(1, 0, 1, "Calcetto, Università"));
     expect(labels(deps.tg.lastKeyboard())).toEqual(["Importa", "Annulla"]);
   });
 

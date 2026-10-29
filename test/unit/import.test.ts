@@ -251,17 +251,17 @@ describe("contracts/flussi.md: testo dell'anteprima", () => {
       [{ fullNameNorm: "marco rossi", birthDay: 14, birthMonth: 3, birthYear: null }],
     );
     expect(previewText(p)).toEqual([
-      "Anteprima import",
+      T.previewTitle,
       "1 persona nuova",
       "1 duplicato (saltato):",
       "• riga 3: Marco Rossi 14/03",
-      "2 errori:",
+      T.previewErrors(2),
       '• riga 4: data "31/04" non valida',
       "• riga 5: nome mancante",
       "Gruppi da creare: Calcetto, Università",
     ]);
     expect(previewText(preview([row({ nome: "A", data: "01/01" }), row({ nome: "B", data: "02/01" })]))).toEqual([
-      "Anteprima import",
+      T.previewTitle,
       "2 persone nuove",
     ]);
   });
@@ -279,10 +279,10 @@ describe("contracts/flussi.md: testo dell'anteprima", () => {
   it("contracts/flussi.md: riepilogo breve", () => {
     const p = preview([row({ nome: "A", data: "01/01", gruppi: "Calcetto|Università" }), row({ nome: "", data: "x" })]);
     expect(shortSummary(importState(p).preview)).toBe(
-      "Anteprima in attesa: 1 nuove, 0 duplicati, 1 errori. Gruppi da creare: Calcetto, Università.",
+      T.previewShort(1, 0, 1, "Calcetto, Università"),
     );
     expect(shortSummary(importState(preview([row({ nome: "A", data: "01/01" })])).preview)).toBe(
-      "Anteprima in attesa: 1 nuove, 0 duplicati, 0 errori.",
+      T.previewShort(1, 0, 0, ""),
     );
   });
 });

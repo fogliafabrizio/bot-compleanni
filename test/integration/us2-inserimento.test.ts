@@ -17,19 +17,19 @@ async function toGroups(deps: TestDeps, name = "Marco Rossi", date = "14/03/1994
   await say(deps, "/nuovo");
   await say(deps, name);
   if (nickname) await say(deps, nickname);
-  else await tap(deps, "Salta");
+  else await tap(deps, T.btnSkip);
   await say(deps, date);
   await tap(deps, "Sì");
-  await tap(deps, "Salta"); // telefono
-  await tap(deps, "Salta"); // instagram
-  await tap(deps, "Salta"); // telegram
+  await tap(deps, T.btnSkip); // telefono
+  await tap(deps, T.btnSkip); // instagram
+  await tap(deps, T.btnSkip); // telegram
 }
 
 // Dallo step Gruppi fino al riepilogo con i valori di default.
 async function groupsToSummary(deps: TestDeps) {
   await tap(deps, "Fine");
   await tap(deps, "Media ✓");
-  await tap(deps, "Salta"); // messaggio
+  await tap(deps, T.btnSkip); // messaggio
 }
 
 async function stateRow() {
@@ -40,15 +40,15 @@ describe("US2: inserimento guidato", () => {
   it("RF-01, AFU §5.2: flusso completo fino alla scheda", async () => {
     const deps = makeDeps();
     await say(deps, "/nuovo");
-    expect(deps.tg.lastText()).toBe("Nome completo?");
+    expect(deps.tg.lastText()).toBe(T.askFullName);
     expect(labels(kb(deps))).toEqual(["Annulla"]);
 
     await say(deps, "Marco Rossi");
-    expect(deps.tg.lastText()).toBe("Nickname? (come lo chiami nei messaggi)");
-    expect(labels(kb(deps))).toEqual(["Salta"]);
+    expect(deps.tg.lastText()).toBe(T.askNickname);
+    expect(labels(kb(deps))).toEqual([T.btnSkip]);
 
     await say(deps, "Marchino");
-    expect(deps.tg.lastText()).toBe("Data di nascita? Formato gg/mm/aaaa, oppure gg/mm se non sai l'anno");
+    expect(deps.tg.lastText()).toBe(T.askBirthDate);
 
     await say(deps, "14/03/1994");
     expect(deps.tg.lastText()).toBe("14 marzo 1994, giusto?");
@@ -56,24 +56,24 @@ describe("US2: inserimento guidato", () => {
 
     await tap(deps, "Sì");
     expect(deps.tg.lastText()).toBe(T.askPhone);
-    expect(labels(kb(deps))).toEqual(["Salta"]);
-    await tap(deps, "Salta");
-    expect(deps.tg.lastText()).toBe("Username Instagram?");
-    await tap(deps, "Salta");
-    expect(deps.tg.lastText()).toBe("Username Telegram?");
-    await tap(deps, "Salta");
-    expect(deps.tg.lastText()).toBe("Gruppi?");
+    expect(labels(kb(deps))).toEqual([T.btnSkip]);
+    await tap(deps, T.btnSkip);
+    expect(deps.tg.lastText()).toBe(T.askInstagram);
+    await tap(deps, T.btnSkip);
+    expect(deps.tg.lastText()).toBe(T.askTelegram);
+    await tap(deps, T.btnSkip);
+    expect(deps.tg.lastText()).toBe(T.askGroups);
     expect(labels(kb(deps))).toEqual(["➕ Nuovo gruppo", "Fine"]);
 
     await tap(deps, "Fine");
-    expect(deps.tg.lastText()).toBe("Priorità?");
+    expect(deps.tg.lastText()).toBe(T.askPriority);
     expect(labels(kb(deps))).toEqual(["Alta", "Media ✓", "Bassa"]);
 
     await tap(deps, "Media ✓");
-    expect(deps.tg.lastText()).toBe("Messaggio di auguri personalizzato? Se salti uso quello standard.");
-    await tap(deps, "Salta");
-    expect(deps.tg.lastText()).toContain("Riepilogo:");
-    expect(deps.tg.lastText()).toContain('Marco Rossi — "Marchino"');
+    expect(deps.tg.lastText()).toBe(T.askMessage);
+    await tap(deps, T.btnSkip);
+    expect(deps.tg.lastText()).toContain(T.summaryTitle);
+    expect(deps.tg.lastText()).toContain(T.schedaTitle("Marco Rossi", "Marchino"));
     expect(labels(kb(deps))).toEqual(["Salva", "Annulla"]);
 
     await tap(deps, "Salva");
@@ -89,11 +89,12 @@ describe("US2: inserimento guidato", () => {
       created_at: NOW.toISOString(),
       updated_at: NOW.toISOString(),
     });
-    // FR-003: dopo il salvataggio la scheda con Modifica ed Elimina.
-    expect(deps.tg.lastText()).toContain("14/03/1994 · compie 33 anni tra 137 giorni");
+    // FR-003: dopo il salvataggio la conferma e la scheda con Modifica ed Elimina, nello stesso messaggio.
+    expect(deps.tg.lastText()?.startsWith(`${T.personSaved("Marchino")}\n\n${T.schedaTitle("Marco Rossi", "Marchino")}\n`)).toBe(true);
+    expect(deps.tg.lastText()).toContain(T.schedaDate("14/03/1994", "compie 33 anni tra 137 giorni"));
     expect(buttons(kb(deps))).toEqual([
-      ["Modifica", `p:m:${p!.id}`],
-      ["Elimina", `p:x:${p!.id}`],
+      [T.btnEdit, `p:m:${p!.id}`],
+      [T.btnDelete, `p:x:${p!.id}`],
     ]);
     expect(await count("conversation_state")).toBe(0);
   });
@@ -102,9 +103,9 @@ describe("US2: inserimento guidato", () => {
     const deps = makeDeps();
     await toGroups(deps);
     await tap(deps, "Fine");
-    expect(labels(kb(deps))).not.toContain("Salta");
+    expect(labels(kb(deps))).not.toContain(T.btnSkip);
     await tap(deps, "Media ✓");
-    await tap(deps, "Salta");
+    await tap(deps, T.btnSkip);
     await tap(deps, "Salva");
     const [p] = await rows("SELECT * FROM persons");
     expect(p).toMatchObject({ priority: "media", nickname: null, phone: null, instagram: null, telegram: null, custom_message: null });
@@ -122,7 +123,7 @@ describe("US2: inserimento guidato", () => {
     const deps = makeDeps();
     await say(deps, "/nuovo");
     await say(deps, "Marco Rossi");
-    await tap(deps, "Salta");
+    await tap(deps, T.btnSkip);
     await say(deps, "14/03");
     await tap(deps, "Sì");
     await say(deps, "333 1234567");
@@ -148,9 +149,9 @@ describe("US2: inserimento guidato", () => {
       const deps = makeDeps();
       await say(deps, "/nuovo");
       await say(deps, "Marco Rossi");
-      await tap(deps, "Salta");
+      await tap(deps, T.btnSkip);
       await say(deps, d);
-      expect(deps.tg.lastText()).toContain("Data non valida");
+      expect(deps.tg.lastText()).toContain(T.invalidDate);
       expect(deps.tg.lastText()).toContain("gg/mm/aaaa");
       expect((await stateRow())?.step).toBe("data");
     });
@@ -159,7 +160,7 @@ describe("US2: inserimento guidato", () => {
       const deps = makeDeps();
       await say(deps, "/nuovo");
       await say(deps, "Marco Rossi");
-      await tap(deps, "Salta");
+      await tap(deps, T.btnSkip);
       await say(deps, "29/02");
       expect(deps.tg.lastText()).toBe("29 febbraio, giusto?");
     });
@@ -168,10 +169,10 @@ describe("US2: inserimento guidato", () => {
       const deps = makeDeps();
       await say(deps, "/nuovo");
       await say(deps, "Marco Rossi");
-      await tap(deps, "Salta");
+      await tap(deps, T.btnSkip);
       await say(deps, "14/03/1994");
       await tap(deps, "Correggi");
-      expect(deps.tg.lastText()).toBe("Data di nascita? Formato gg/mm/aaaa, oppure gg/mm se non sai l'anno");
+      expect(deps.tg.lastText()).toBe(T.askBirthDate);
       await say(deps, "15/03/1994");
       expect(deps.tg.lastText()).toBe("15 marzo 1994, giusto?");
     });
@@ -182,7 +183,7 @@ describe("US2: inserimento guidato", () => {
       const deps = makeDeps();
       await say(deps, "/nuovo");
       await say(deps, "Marco Rossi");
-      await tap(deps, "Salta");
+      await tap(deps, T.btnSkip);
       await say(deps, "14/03/1994");
       await tap(deps, "Sì");
       await say(deps, "abc");
@@ -197,8 +198,8 @@ describe("US2: inserimento guidato", () => {
       const deps = makeDeps();
       await say(deps, "/nuovo");
       await say(deps, "   ");
-      expect(deps.tg.lastText()).toContain("Il valore non può essere vuoto");
-      expect(deps.tg.lastText()).toContain("Nome completo?");
+      expect(deps.tg.lastText()).toContain(T.emptyValue);
+      expect(deps.tg.lastText()).toContain(T.askFullName);
     });
 
     it("FR-010a: nome di 61 caratteri → massimo 60", async () => {
@@ -248,7 +249,7 @@ describe("US2: inserimento guidato", () => {
       expect(labels(edit.keyboard)).toContain("☑ Lavoro");
 
       await press(deps, cbOf(edit.keyboard, "➕ Nuovo gruppo"));
-      expect(deps.tg.lastText()).toBe("Nome del nuovo gruppo?");
+      expect(deps.tg.lastText()).toBe(T.askNewGroupName);
       await say(deps, "Beach tennis");
       expect(labels(kb(deps))).toEqual(["☐ Famiglia", "☑ Lavoro", "☑ Beach tennis", "➕ Nuovo gruppo", "Fine"]);
       expect(await count("groups")).toBe(2);
@@ -270,7 +271,7 @@ describe("US2: inserimento guidato", () => {
       await toGroups(deps);
       await tap(deps, "➕ Nuovo gruppo");
       await say(deps, "famiglia");
-      expect(deps.tg.lastText()).toContain("Esiste già un gruppo con questo nome");
+      expect(deps.tg.lastText()).toContain(T.groupExists);
       expect((await stateRow())?.step).toBe("gruppo_nuovo");
     });
 
@@ -281,7 +282,7 @@ describe("US2: inserimento guidato", () => {
       await say(deps, "Beach tennis");
       await tap(deps, "➕ Nuovo gruppo");
       await say(deps, "BEACH TENNIS");
-      expect(deps.tg.lastText()).toContain("Esiste già un gruppo con questo nome");
+      expect(deps.tg.lastText()).toContain(T.groupExists);
     });
 
     it("RF-08: un gruppo in attesa si può deselezionare", async () => {
@@ -312,7 +313,7 @@ describe("US2: inserimento guidato", () => {
       await toGroups(deps);
       await groupsToSummary(deps);
       await tap(deps, "Salva");
-      expect(deps.tg.lastText()).toContain("possibile duplicato");
+      expect(deps.tg.lastText()).toBe(T.possibleDuplicate("marco rossi", "14/03/1994"));
       expect(labels(kb(deps))).toEqual(["Salva comunque", "Annulla"]);
       expect(await count("persons")).toBe(1);
       await tap(deps, "Salva comunque");
@@ -335,7 +336,7 @@ describe("US2: inserimento guidato", () => {
       await toGroups(deps, "Marco Rossi", "14/03");
       await groupsToSummary(deps);
       await tap(deps, "Salva");
-      expect(deps.tg.lastText()).toContain("possibile duplicato");
+      expect(deps.tg.lastText()).toBe(T.possibleDuplicate("Marco Rossi", "14/03/1994"));
     });
 
     it("BR-14: esistente senza anno, nuovo con anno → avviso", async () => {
@@ -344,7 +345,7 @@ describe("US2: inserimento guidato", () => {
       await toGroups(deps, "anna verdi", "14/03/1990");
       await groupsToSummary(deps);
       await tap(deps, "Salva");
-      expect(deps.tg.lastText()).toContain("possibile duplicato");
+      expect(deps.tg.lastText()).toBe(T.possibleDuplicate("Anna Verdi", "14/03"));
     });
 
     it("BR-14: anni diversi → nessun avviso", async () => {
@@ -363,7 +364,7 @@ describe("US2: inserimento guidato", () => {
       await say(deps, "/nuovo");
       await say(deps, "Marco Rossi");
       await say(deps, "/annulla");
-      expect(deps.tg.lastText()).toBe("Operazione annullata");
+      expect(deps.tg.lastText()).toBe(T.cancelled);
       expect(await count("persons")).toBe(0);
       expect(await count("conversation_state")).toBe(0);
     });
@@ -373,7 +374,7 @@ describe("US2: inserimento guidato", () => {
       await toGroups(deps);
       await groupsToSummary(deps);
       await tap(deps, "Annulla");
-      expect(deps.tg.lastText()).toBe("Operazione annullata");
+      expect(deps.tg.lastText()).toBe(T.cancelled);
       expect(await count("persons")).toBe(0);
       expect(await count("conversation_state")).toBe(0);
     });
@@ -391,7 +392,7 @@ describe("US2: inserimento guidato", () => {
     it("RF-06: /annulla senza flusso", async () => {
       const deps = makeDeps();
       await say(deps, "/annulla");
-      expect(deps.tg.lastText()).toBe("Nessuna operazione da annullare");
+      expect(deps.tg.lastText()).toBe(T.nothingToCancel);
     });
   });
 
@@ -403,7 +404,7 @@ describe("US2: inserimento guidato", () => {
       expect(deps.tg.lastText()).toContain("1001");
       expect(await count("conversation_state")).toBe(0);
       await say(deps, "Marco");
-      expect(deps.tg.lastText()).toBe("Non ho capito. Scrivi /aiuto per l'elenco dei comandi");
+      expect(deps.tg.lastText()).toBe(T.notUnderstood);
       expect(await count("persons")).toBe(0);
     });
 
@@ -413,11 +414,11 @@ describe("US2: inserimento guidato", () => {
       await say(deps, "Marco Rossi");
       const before = await stateRow();
       await say(deps, "/annula");
-      expect(deps.tg.lastText()).toContain("Non ho capito. Scrivi /aiuto per l'elenco dei comandi");
-      expect(deps.tg.lastText()).toContain("Nickname?");
+      expect(deps.tg.lastText()).toContain(T.notUnderstood);
+      expect(deps.tg.lastText()).toContain(T.askNickname);
       expect(await stateRow()).toEqual(before);
       await say(deps, "Marchino");
-      expect(deps.tg.lastText()).toContain("Data di nascita?");
+      expect(deps.tg.lastText()).toContain(T.askBirthDate);
     });
 
     it("FR-018b: testo in uno step a pulsanti ripete la domanda", async () => {
@@ -425,7 +426,7 @@ describe("US2: inserimento guidato", () => {
       await toGroups(deps);
       await tap(deps, "Fine");
       await say(deps, "alta");
-      expect(deps.tg.lastText()).toBe("Priorità?");
+      expect(deps.tg.lastText()).toBe(T.askPriority);
       expect(labels(kb(deps))).toEqual(["Alta", "Media ✓", "Bassa"]);
       expect((await stateRow())?.step).toBe("priorita");
     });
@@ -439,7 +440,7 @@ describe("US2: inserimento guidato", () => {
       deps.setNow(addHours(NOW, 24));
       deps.tg.reset();
       await say(deps, "14/03/1994");
-      expect(deps.tg.messages().map((m) => m.text)).toEqual(["Non ho capito. Scrivi /aiuto per l'elenco dei comandi"]);
+      expect(deps.tg.messages().map((m) => m.text)).toEqual([T.notUnderstood]);
       expect(await count("conversation_state")).toBe(0);
     });
 
@@ -449,7 +450,7 @@ describe("US2: inserimento guidato", () => {
       await say(deps, "Marco Rossi");
       deps.setNow(new Date(addHours(NOW, 24).getTime() - 60_000));
       await say(deps, "Marchino");
-      expect(deps.tg.lastText()).toContain("Data di nascita?");
+      expect(deps.tg.lastText()).toContain(T.askBirthDate);
     });
   });
 
@@ -461,7 +462,7 @@ describe("US2: inserimento guidato", () => {
       const saveCb = cbOf(kb(deps), "Salva");
       await tap(deps, "Annulla");
       await press(deps, saveCb);
-      expect(deps.tg.lastAnswer()).toBe("Questa azione non è più disponibile");
+      expect(deps.tg.lastAnswer()).toBe(T.actionUnavailable);
       expect(await count("persons")).toBe(0);
     });
 
@@ -469,13 +470,13 @@ describe("US2: inserimento guidato", () => {
       const deps = makeDeps();
       await say(deps, "/nuovo");
       await say(deps, "Marco Rossi");
-      await tap(deps, "Salta");
+      await tap(deps, T.btnSkip);
       await say(deps, "14/03/1994");
       const yes = cbOf(kb(deps), "Sì");
       await press(deps, yes);
       expect(deps.tg.lastText()).toContain("Telefono?");
       await press(deps, yes);
-      expect(deps.tg.lastAnswer()).toBe("Questa azione non è più disponibile");
+      expect(deps.tg.lastAnswer()).toBe(T.actionUnavailable);
       expect((await stateRow())?.step).toBe("telefono");
     });
 
@@ -487,7 +488,7 @@ describe("US2: inserimento guidato", () => {
       await press(deps, saveCb);
       await press(deps, saveCb);
       expect(await count("persons")).toBe(1);
-      expect(deps.tg.lastAnswer()).toBe("Questa azione non è più disponibile");
+      expect(deps.tg.lastAnswer()).toBe(T.actionUnavailable);
     });
 
     it("R-11: due Salva concorrenti → una sola persona", async () => {
@@ -497,7 +498,7 @@ describe("US2: inserimento guidato", () => {
       const saveCb = cbOf(kb(deps), "Salva");
       await Promise.all([press(deps, saveCb), press(deps, saveCb)]);
       expect(await count("persons")).toBe(1);
-      expect(deps.tg.callbackAnswers().filter((a) => a.text === "Questa azione non è più disponibile")).toHaveLength(1);
+      expect(deps.tg.callbackAnswers().filter((a) => a.text === T.actionUnavailable)).toHaveLength(1);
     });
 
     it("R-10: ogni callback_data generato è ≤ 64 byte", async () => {
@@ -524,7 +525,7 @@ describe("FR-006a: creazione al volo di un gruppo nello step Gruppi di /nuovo", 
     await toGroups(deps);
     await tap(deps, "➕ Nuovo gruppo");
     await say(deps, name);
-    expect(deps.tg.lastText()).toBe("Il nome del gruppo deve contenere almeno 2 lettere o cifre\n\nNome del nuovo gruppo?");
+    expect(deps.tg.lastText()).toBe(`${T.groupKeyTooShort}\n\n${T.askNewGroupName}`);
     expect((await stateRow())?.step).toBe("gruppo_nuovo");
   });
 
@@ -541,7 +542,7 @@ describe("RF-01, FR-011: contatto fuori dallo step telefono", () => {
   it("FR-011, 001 FR-025a: contatto senza flusso attivo → Non ho capito, nessuna persona", async () => {
     const deps = makeDeps();
     await shareContact(deps, "393331234567");
-    expect(deps.tg.messages().map((m) => m.text)).toEqual(["Non ho capito. Scrivi /aiuto per l'elenco dei comandi"]);
+    expect(deps.tg.messages().map((m) => m.text)).toEqual([T.notUnderstood]);
     expect(await count("persons")).toBe(0);
   });
 
@@ -550,7 +551,7 @@ describe("RF-01, FR-011: contatto fuori dallo step telefono", () => {
     await say(deps, "/nuovo");
     const before = await stateRow();
     await shareContact(deps, "393331234567");
-    expect(deps.tg.lastText()).toBe("Nome completo?");
+    expect(deps.tg.lastText()).toBe(T.askFullName);
     expect(labels(kb(deps))).toEqual(["Annulla"]);
     expect(await stateRow()).toEqual(before);
   });
@@ -577,16 +578,16 @@ describe("RF-01, FR-011: contatto fuori dallo step telefono", () => {
 async function toPhone(deps: TestDeps, name = "Marco Rossi") {
   await say(deps, "/nuovo");
   await say(deps, name);
-  await tap(deps, "Salta");
+  await tap(deps, T.btnSkip);
   await say(deps, "14/03/1994");
   await tap(deps, "Sì");
 }
 
 // Dallo step Instagram fino alla scheda, con Telegram scritto a mano.
 async function instagramToSaved(deps: TestDeps, telegram?: string) {
-  await tap(deps, "Salta"); // instagram
+  await tap(deps, T.btnSkip); // instagram
   if (telegram) await say(deps, telegram);
-  else await tap(deps, "Salta");
+  else await tap(deps, T.btnSkip);
   await groupsToSummary(deps);
   await tap(deps, "Salva");
 }
@@ -612,7 +613,7 @@ describe("RF-01, BR-25, V-08: telefono da contatto in /nuovo", () => {
     expect(await count("persons")).toBe(0);
 
     await tap(deps, "Sì");
-    expect(deps.tg.lastText()).toBe("Username Instagram?");
+    expect(deps.tg.lastText()).toBe(T.askInstagram);
     expect(await stateData()).not.toHaveProperty("pendingPhone");
     await instagramToSaved(deps);
     const [p] = await rows("SELECT phone FROM persons");
@@ -643,7 +644,7 @@ describe("RF-01, BR-25, V-08: telefono da contatto in /nuovo", () => {
     await shareContact(deps, "393331234567");
     await tap(deps, "Correggi");
     expect(deps.tg.lastText()).toContain("Telefono?");
-    expect(labels(kb(deps))).toEqual(["Salta"]);
+    expect(labels(kb(deps))).toEqual([T.btnSkip]);
     expect((await stateRow())?.step).toBe("telefono");
     const d = await stateData();
     expect(d).not.toHaveProperty("pendingPhone");
@@ -655,8 +656,8 @@ describe("RF-01, BR-25, V-08: telefono da contatto in /nuovo", () => {
     const deps = makeDeps();
     await toPhone(deps);
     await shareContact(deps, "12345");
-    expect(deps.tg.lastText()).toMatch(/^Numero non valido\. Scrivilo con il prefisso, es\. \+39 333 1234567\n\n.*Telefono\?/s);
-    expect(labels(kb(deps))).toEqual(["Salta"]);
+    expect(deps.tg.lastText()).toBe(`${T.invalidPhone}\n\n${T.askPhone}`);
+    expect(labels(kb(deps))).toEqual([T.btnSkip]);
     expect((await stateRow())?.step).toBe("telefono");
     expect(await count("persons")).toBe(0);
   });
@@ -665,8 +666,8 @@ describe("RF-01, BR-25, V-08: telefono da contatto in /nuovo", () => {
     const deps = makeDeps();
     await toPhone(deps);
     await shareContact(deps, phone);
-    expect(deps.tg.lastText()).toMatch(/^Questo contatto non ha un numero di telefono\n\n.*Telefono\?/s);
-    expect(labels(kb(deps))).toEqual(["Salta"]);
+    expect(deps.tg.lastText()).toBe(`${T.contactWithoutPhone}\n\n${T.askPhone}`);
+    expect(labels(kb(deps))).toEqual([T.btnSkip]);
     expect((await stateRow())?.step).toBe("telefono");
   });
 
@@ -702,7 +703,7 @@ describe("RF-01, BR-25, V-08: telefono da contatto in /nuovo", () => {
     const yes = cbOf(kb(deps), "Sì");
     await say(deps, "/annulla");
     await press(deps, yes);
-    expect(deps.tg.lastAnswer()).toBe("Questa azione non è più disponibile");
+    expect(deps.tg.lastAnswer()).toBe(T.actionUnavailable);
     expect(await count("persons")).toBe(0);
   });
 
@@ -727,7 +728,7 @@ describe("RF-01, BR-25, V-08: telefono da contatto in /nuovo", () => {
     await shareContact(deps, "393331234567");
     expect(deps.tg.lastText()).toBe("📱 +393331234567, giusto?");
     await tap(deps, "Sì");
-    expect(deps.tg.lastText()).toBe("Username Instagram?");
+    expect(deps.tg.lastText()).toBe(T.askInstagram);
     await instagramToSaved(deps);
     expect(await rows("SELECT full_name, phone FROM persons")).toEqual([{ full_name: "Marco Rossi", phone: "+393331234567" }]);
   });
@@ -747,6 +748,6 @@ describe("RF-01, FR-007: domanda del telefono", () => {
     await toPhone(deps);
     expect(deps.tg.lastText()).toBe("📱 Telefono? Scrivilo con il prefisso (es. +39 333 1234567)\noppure condividi il contatto 📎");
     expect(deps.tg.lastText()).toContain("condividi il contatto");
-    expect(labels(kb(deps))).toEqual(["Salta"]);
+    expect(labels(kb(deps))).toEqual([T.btnSkip]);
   });
 });

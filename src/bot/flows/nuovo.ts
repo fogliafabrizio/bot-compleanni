@@ -119,7 +119,7 @@ async function save(ctx: Ctx, state: ConversationState): Promise<void> {
     await answerCallback(ctx, T.actionUnavailable);
     return;
   }
-  await showScheda(ctx, inserted.last_row_id);
+  await showScheda(ctx, inserted.last_row_id, T.personSaved);
 }
 
 registerFlow({
