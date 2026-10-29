@@ -1,38 +1,48 @@
-# Smoke test locali con Postman
+# Test locali con Postman
 
 Collection: `bot-compleanni.postman_collection.json` (versione in `info.version`, vedi
 [Changelog](#changelog)). Environment di esempio: `locale.postman_environment.json`. Dati di
-prova: `seed-smoke.sql`.
+prova: `seed-smoke.sql`. File da inviare al bot: `fixtures/`. Servizio di supporto: `helper.mjs`.
 
 ## Come funziona
 
 Postman simula Telegram: invia al webhook locale degli `Update` finti del proprietario. Il Worker
-risponde **sempre 200 vuoto**, quindi Postman controlla solo il codice HTTP. **Le risposte del bot
-arrivano nella tua chat Telegram**, perché in locale il Worker chiama la Bot API reale con il token
-di `.dev.vars`. Ogni richiesta ha nella descrizione (tab *Docs*) la risposta attesa.
+risponde **sempre 200 vuoto**. **Le risposte del bot arrivano nella tua chat Telegram**, perché in
+locale il Worker chiama la Bot API reale con il token di `.dev.vars`. Nella tab *Docs* di ogni
+richiesta trovi la risposta attesa.
+
+Oltre al codice HTTP, i test controllano il **D1 locale** tramite l'helper (`helper.mjs`, porta
+8788): flusso e step attivi, campi salvati, esiti delle occorrenze. L'helper serve anche a:
+
+- leggere il `flow_id` del flusso guidato in corso. Lo script di collection lo mette in
+  `{{flowId}}` prima di ogni richiesta che lo usa, così Postman può "premere" i pulsanti dei flussi
+  (`f:<flowId>:<azione>`);
+- caricare i file di `fixtures/` nella tua chat (didascalia `📎 File di prova Postman: …`) e
+  restituire il `file_id`, da mettere nell'update finto con il documento;
+- rieseguire il seed (cartelle 00 e 21).
+
+L'helper accetta solo `SELECT` e ascolta solo su `127.0.0.1`.
 
 Il webhook di produzione non cambia. I messaggi che scrivi dall'app Telegram, e i tocchi sui
 pulsanti, vanno al Worker in produzione, non a quello locale.
 
-## Preparazione (una volta per sessione)
+## Avvio
 
 ```powershell
-npx wrangler d1 migrations apply birthday-bot-db --local
-npx wrangler d1 execute birthday-bot-db --local --file postman/seed-smoke.sql
-npx wrangler dev
+powershell -ExecutionPolicy Bypass -File .\scripts\smoke-postman.ps1
 ```
 
-1. In Postman importa la collection e l'environment, poi seleziona l'environment
-   **bot-compleanni locale**.
-2. Imposta **solo nel *Current value*** (mai nell'*Initial value*, che finisce nel file):
-   - `webhookSecret` = il valore di `WEBHOOK_SECRET` in `.dev.vars`;
-   - `ownerId` = il valore di `OWNER_TELEGRAM_ID` in `.dev.vars` (numero, senza virgolette).
-3. Lancia le cartelle **in ordine** (Runner o una richiesta alla volta), con la chat del bot
-   aperta su Telegram.
+Lo script applica migration e seed al D1 locale e crea `locale.local.postman_environment.json` con
+secret e id presi da `.dev.vars` (il file è ignorato da git). Poi avvia `wrangler dev
+--test-scheduled` in una nuova finestra e l'helper in quella corrente.
 
-Per ricominciare da capo basta rieseguire il seed: tocca solo le persone 9001–9006, i gruppi
-9201–9202 e le loro occorrenze. Non esportare l'environment con i valori compilati, e non
-committarlo.
+In Postman importa la collection e `locale.local.postman_environment.json`, seleziona l'environment
+e lancia il **Runner sull'intera collection**, oppure le cartelle **in ordine**. Ogni cartella
+parte dallo stato lasciato dalle precedenti. Per ricominciare basta la cartella 00.
+
+Senza lo script: `npx wrangler d1 migrations apply birthday-bot-db --local`,
+`npx wrangler dev --test-scheduled`, `node postman/helper.mjs`, e nell'environment compila
+`webhookSecret` e `ownerId` **solo nel *Current value***.
 
 ## Dati di prova (date relative a oggi)
 
@@ -45,41 +55,59 @@ committarlo.
 | 9005 | Sara Gialli, senza anno | oggi − 2 | — | 9105 *aperta* |
 | 9006 | Paolo Blu, 1985 | oggi − 5 | — | 9106 *non confermato* |
 
-Se nel DB locale hai altre persone, compaiono anche nelle liste: le attese sopra valgono per i
-soli dati di prova.
+Invii dei promemoria (per `o:f` / `o:s`): 9301 recupero di Sara, 9302 recupero di Paolo, 9303
+pre-reminder di Sara.
 
-## Checklist rapida
+Il seed cancella e ricrea solo questi dati, più le persone e i gruppi con "postman" nel nome
+(creati dalla collection), e azzera lo stato dei flussi guidati. Se nel DB locale hai altre persone,
+compaiono anche nelle liste: le attese valgono per i soli dati di prova.
 
-| Cartella | Cosa guardare in chat |
+## Cartelle
+
+| Cartella | Cosa prova |
 |---|---|
-| 00 Sicurezza | Nessun messaggio. Postman: 401, 401, 405, 404, 400, 200 |
-| 01 /aiuto | I 7 comandi nuovi prima di `/annulla` |
-| 02 /oggi | Reminder di Marchino con Fatto/Salta; dopo `t:f:9101`, `/oggi` mostra `✅ Fatto` |
-| 03 /prossimi | Colonne allineate in monospazio, `/p_<id>` toccabili, filtro gruppo, errori 0/400 |
-| 04 /cerca | `nicolo` e `NICOLÒ` aprono la scheda; `i` dà una lista; `zzz` nessun risultato |
-| 05 /gruppo | Marco poi Luca; sintassi ed elenco gruppi |
-| 06 /mese | Mese corrente; `marzo` = `3`; `marzzo` / `13` errore |
-| 07 /anno | Conteggi 1/1/1; Luca in "Saltati" e nella serie; anno futuro e `20x5` errore |
-| 08 /scaduti | Paolo, Luca, Sara con esito; "Segna fatto" su Luca lo toglie dall'elenco |
-
-Controlla anche, a vista, che le colonne siano allineate e che toccando un `/p_<id>` si apra la
-scheda: sono i task T053 e, in piccolo, T016a. Per T016a completo (≥ 45 righe in un messaggio)
-servono almeno 46 persone: `/prossimi 366` deve arrivare in 2 messaggi con tutti i comandi
-toccabili.
+| 00 Preparazione | Helper attivo, seed |
+| 01 Sicurezza | 401, 401, 405, 404, 400; estraneo, gruppo, callback di un estraneo, /id da estraneo: nessun messaggio |
+| 02 Comandi base | /start, /aiuto, /id, testo libero, comando inesistente, /annulla a vuoto, foto |
+| 03–09 Viste | /oggi e Fatto, /prossimi, /cerca, /gruppo, /mese, /anno, /scaduti e Segna fatto |
+| 10 Esiti | `o:f`/`o:s` su recupero e pre-reminder, correzione entro D+7, cron dell'ora attuale |
+| 11 Scheda | /p_<id>, pulsanti `s:h`, `s:n`, `p:x`, `p:m` su persona inesistente |
+| 12 /nuovo | Tutti gli step con errori, Correggi, gruppi esistenti e nuovi, priorità, salvataggio |
+| 13 Interruzioni | Possibile duplicato e Salva comunque; comandi, /id, foto e pulsanti vecchi durante un flusso |
+| 14 Modifica | Ogni campo, Svuota, data con conferma, gruppi |
+| 15 Elimina | Conferma, persona eliminata |
+| 16 Gruppi | Crea, nome doppio o lungo, rinomina (anche solo maiuscole), elimina con e senza membri |
+| 17 /messaggio | Troppo lungo, anteprima, conferma, ripristino del messaggio standard |
+| 18 File in uscita | /modello, /export, /backup |
+| 19 Import CSV | Anteprima, Importa, duplicati, separatore `,` e BOM, intestazione, vuoto, Latin-1, .txt, .json, file troppo grandi, download fallito |
+| 20 /ripristina | Attesa del file, JSON rotti, due conferme, ripristino. ⚠️ **Sostituisce tutto il D1 locale** |
+| 21 Pulizia | Seed |
 
 ## Limiti noti
 
-- **Pulsanti (`t:f`, `p:f`) da Postman**: `callback_query.id` e `message_id` sono finti, quindi
-  `editMessageText` e `answerCallbackQuery` falliscono. In chat arriva "Si è verificato un errore,
-  riprova" e nel terminale di wrangler compare `handler_error` con `error_code` 400. La scrittura su
-  D1 avviene prima: l'effetto si verifica con la richiesta che segue (`/oggi`, `/p_9004`,
-  `/scaduti`). L'aggiornamento del messaggio premuto si prova solo su Telegram, dopo il deploy.
+- **Ogni pulsante da Postman produce anche "Si è verificato un errore, riprova"** in chat.
+  `callback_query.id` è finto, quindi `answerCallbackQuery` fallisce. L'azione è già stata eseguita:
+  i test sul D1 lo confermano. Nel terminale di wrangler compare `handler_error` con `error_code`
+  400. Per lo stesso motivo il popup del pulsante (es. "Persona non trovata") non si vede.
+- I callback delle cartelle 10–20 non hanno `message`, quindi il bot non modifica il messaggio
+  premuto: risponde con un messaggio nuovo (es. `Gruppi?` aggiornato). Quelli di 03 e 09 hanno un
+  `message_id` finto e `editMessageText` fallisce. Le modifiche ai messaggi si provano solo su
+  Telegram, dopo il deploy.
+- Il pulsante **Annulla** dei flussi non funziona da Postman: risponde al callback prima di chiudere
+  il flusso e quella chiamata fallisce. Le cartelle usano `/annulla`.
+- **La cartella 20 cancella tutto il D1 locale**, compresi i tuoi dati non di prova, e lo
+  sostituisce con `fixtures/backup-ok.json`. La 21 rimette solo i dati di prova.
+- La richiesta "Cron ora" della cartella 10 usa l'ora attuale: invia promemoria solo alle 9, 13, 18
+  e 21 (ora di Roma). Serve `wrangler dev --test-scheduled`.
 - Nei primi giorni di gennaio le occorrenze "passate" del seed cadono nell'anno precedente: `/anno`
   senza argomento mostrerà zeri.
-- Il ciclo orario (cron) non gira con `wrangler dev`.
 
 ## Changelog
 
+- **2.0.0** (2026-10-29): collection completa per le feature 001–004, 226 richieste. Aggiunti
+  helper (`helper.mjs`), controlli sul D1, `{{flowId}}` automatico, file di prova (`fixtures/`),
+  invii 9301–9303 nel seed, cartelle 00, 02, 10–21 e casi nuovi in 01. Cartelle 03–09 = vecchie
+  02–08.
 - **1.0.0** (2026-10-28): prima versione. Sicurezza del webhook, `/aiuto` e i comandi della
   feature 003 (`/oggi`, `/prossimi`, `/cerca`, `/gruppo`, `/mese`, `/anno`, `/scaduti`, "Segna
   fatto").

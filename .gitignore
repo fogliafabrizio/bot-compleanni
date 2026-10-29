@@ -8,6 +8,7 @@ coverage/
 .dev.vars
 .env
 .env.*
+postman/*.local.postman_environment.json
 
 # OS / editor
 .DS_Store

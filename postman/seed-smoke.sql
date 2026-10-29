@@ -1,15 +1,22 @@
--- Dati di prova per gli smoke test della collection Postman (feature 003). Solo D1 LOCALE:
+-- Dati di prova per gli smoke test della collection Postman (feature 001–004). Solo D1 LOCALE:
 --   npx wrangler d1 execute birthday-bot-db --local --file postman/seed-smoke.sql
--- Id fissi (persone 9001–9006, gruppi 9201–9202, occorrenze 9101–9106) così le richieste possono
--- usare /p_<id>, t:f:<occorrenza> e p:f:<persona>. Le date sono relative a oggi (ora locale della
--- macchina): rieseguire il file riporta tutto allo stato iniziale.
+-- (lo esegue anche la richiesta "Seed" della collection, tramite postman/helper.mjs).
+-- Id fissi (persone 9001–9006, gruppi 9201–9202, occorrenze 9101–9106, invii 9301–9303) così le
+-- richieste possono usare /p_<id>, t:f:<occorrenza>, p:f:<persona> e o:f:<invio>. Le date sono
+-- relative a oggi (ora locale della macchina): rieseguire il file riporta tutto allo stato iniziale.
 
--- Pulizia dei soli dati di prova.
-DELETE FROM deliveries WHERE occurrence_id IN (SELECT id FROM occurrences WHERE person_id BETWEEN 9001 AND 9099);
-DELETE FROM occurrences WHERE person_id BETWEEN 9001 AND 9099;
-DELETE FROM person_groups WHERE person_id BETWEEN 9001 AND 9099 OR group_id BETWEEN 9201 AND 9299;
-DELETE FROM persons WHERE id BETWEEN 9001 AND 9099;
-DELETE FROM groups WHERE id BETWEEN 9201 AND 9299;
+-- Pulizia dei dati di prova: id fissi, più persone e gruppi creati dalla collection (nome con
+-- "postman"). Lo stato dei flussi guidati è azzerato per tutte le chat (D1 locale).
+DELETE FROM deliveries WHERE occurrence_id IN (SELECT id FROM occurrences WHERE person_id BETWEEN 9001 AND 9099
+  OR person_id IN (SELECT id FROM persons WHERE full_name_norm LIKE '%postman%'));
+DELETE FROM occurrences WHERE person_id BETWEEN 9001 AND 9099
+  OR person_id IN (SELECT id FROM persons WHERE full_name_norm LIKE '%postman%');
+DELETE FROM person_groups WHERE person_id BETWEEN 9001 AND 9099 OR group_id BETWEEN 9201 AND 9299
+  OR person_id IN (SELECT id FROM persons WHERE full_name_norm LIKE '%postman%')
+  OR group_id IN (SELECT id FROM groups WHERE name_norm LIKE 'postman%');
+DELETE FROM persons WHERE id BETWEEN 9001 AND 9099 OR full_name_norm LIKE '%postman%';
+DELETE FROM groups WHERE id BETWEEN 9201 AND 9299 OR name_norm LIKE 'postman%';
+DELETE FROM conversation_state;
 
 -- Persone: compleanno oggi, tra 5 e 40 giorni, 2, 3 e 5 giorni fa.
 INSERT INTO persons (id, full_name, full_name_norm, nickname, birth_day, birth_month, birth_year, phone, priority, created_at, updated_at) VALUES
@@ -45,3 +52,10 @@ INSERT INTO occurrences (id, person_id, year, effective_date, status, created_at
   (9104, 9004, CAST(strftime('%Y', 'now', 'localtime', '-3 day', '-1 year') AS INTEGER), date('now', 'localtime', '-3 day', '-1 year'), 'saltato', strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
   (9105, 9005, CAST(strftime('%Y', 'now', 'localtime', '-2 day') AS INTEGER), date('now', 'localtime', '-2 day'), 'aperta', strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
   (9106, 9006, CAST(strftime('%Y', 'now', 'localtime', '-5 day') AS INTEGER), date('now', 'localtime', '-5 day'), 'non_confermato', strftime('%Y-%m-%dT%H:%M:%fZ', 'now'));
+
+-- Invii dei promemoria (o:f / o:s senza passare dal cron): recupero di Sara (9301) e di Paolo
+-- (9302), pre-reminder di Sara (9303, "Fatto" non cambia l'esito).
+INSERT INTO deliveries (id, occurrence_id, kind, ref, status, attempts, local_date, sent_at) VALUES
+  (9301, 9105, 'recupero', 13, 'inviato', 1, date('now', 'localtime', '-1 day'), strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+  (9302, 9106, 'recupero', 13, 'inviato', 1, date('now', 'localtime', '-4 day'), strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+  (9303, 9105, 'pre', 1, 'inviato', 1, date('now', 'localtime', '-3 day'), strftime('%Y-%m-%dT%H:%M:%fZ', 'now'));
