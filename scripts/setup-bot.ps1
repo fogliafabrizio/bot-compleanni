@@ -1,8 +1,7 @@
 # setup-bot.ps1 - Primo setup e deploy del bot Compleanni su Cloudflare (Workers + D1)
-# Da lanciare nella cartella del progetto (es. C:\Users\<te>\Projects\bot-compleanni),
-# DOPO che la feature 001 e' implementata e i test sono verdi.
-# Lancio: powershell -ExecutionPolicy Bypass -File .\setup-bot.ps1
-# Requisiti: Node.js installato, bot creato con @BotFather.
+# Da lanciare dalla cartella principale del progetto, su main, DOPO la feature 001:
+#   powershell -ExecutionPolicy Bypass -File .\scripts\setup-bot.ps1
+# Requisiti: Node.js installato, bot creato con @BotFather. Si puo' rilanciare: salta i passi gia' fatti.
 
 # "Continue" e non "Stop": in PowerShell 5.1 l'output su stderr di npx/wrangler
 # verrebbe trattato come errore bloccante. Gli errori si controllano con $LASTEXITCODE.
@@ -16,30 +15,45 @@ function Check($msg) { if ($LASTEXITCODE -ne 0) { Fail $msg } }
 # 0. Controlli
 Step "0. Controllo prerequisiti"
 if (-not (Get-Command node -ErrorAction SilentlyContinue)) { Fail "Node.js non trovato." }
-if (-not (Test-Path ".\wrangler.jsonc")) { Fail "wrangler.jsonc non trovato: lancia lo script dalla cartella del progetto." }
+if (-not (Test-Path ".\wrangler.jsonc")) { Fail "wrangler.jsonc non trovato: lancia lo script dalla cartella principale del progetto." }
 npm install
 Check "npm install fallito."
 
-# 1. Login Cloudflare (apre il browser)
+# 1. Login Cloudflare (apre il browser).
+# 'wrangler whoami' esce con 0 anche quando NON sei loggato: va letto il testo.
 Step "1. Login a Cloudflare"
-# "wrangler whoami" esce con codice 0 anche se non autenticato: si controlla il testo.
-function Test-CfLogin { $o = (npx wrangler whoami 2>&1 | Out-String); return ($LASTEXITCODE -eq 0 -and $o -notmatch "not authenticated") }
-if (-not (Test-CfLogin)) {
+$who = (npx wrangler whoami 2>&1 | Out-String)
+if ($who -match "not authenticated" -or $who -notmatch "logged in") {
+    Write-Host "Non sei loggato: si apre il browser, accedi (o crea un account gratuito) e autorizza Wrangler." -ForegroundColor Yellow
     npx wrangler login
-    if (-not (Test-CfLogin)) { Fail "Login a Cloudflare non riuscito." }
-    Write-Host "Login effettuato." -ForegroundColor Green
-} else { Write-Host "Gia' loggato." -ForegroundColor Green }
+    Check "Login a Cloudflare non riuscito."
+    $who = (npx wrangler whoami 2>&1 | Out-String)
+    if ($who -notmatch "logged in") { Fail "Login non riuscito: rilancia lo script." }
+}
+Write-Host "Login Cloudflare OK" -ForegroundColor Green
+
+function Get-DbId {
+    $json = (npx wrangler d1 list --json 2>$null | Out-String)
+    try {
+        $db = ($json | ConvertFrom-Json) | Where-Object { $_.name -eq $DbName } | Select-Object -First 1
+        if ($db) { return $db.uuid }
+    } catch { }
+    return $null
+}
 
 # 2. Database D1 e aggiornamento wrangler.jsonc
 Step "2. Database D1 '$DbName'"
-$config = Get-Content ".\wrangler.jsonc" -Raw -Encoding UTF8
+$config = Get-Content ".\wrangler.jsonc" -Raw
 if ($config -match "REPLACE_ME") {
-    $out = (npx wrangler d1 create $DbName 2>&1 | Out-String)
-    Write-Host $out
-    $m = [regex]::Match($out, '([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})')
-    if ($m.Success) { $dbId = $m.Groups[1].Value }
-    else { $dbId = Read-Host "Non trovo il database_id nell'output (se il DB esiste gia', prendilo con 'npx wrangler d1 list'): incollalo qui" }
-    if ($dbId -notmatch '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$') { Fail "database_id non valido: wrangler.jsonc non modificato." }
+    $dbId = Get-DbId
+    if (-not $dbId) {
+        # Lanciato senza catturare l'output, cosi' wrangler resta interattivo
+        npx wrangler d1 create $DbName
+        $dbId = Get-DbId
+    } else {
+        Write-Host "Il database esiste gia', lo riuso." -ForegroundColor Yellow
+    }
+    if (-not $dbId) { Fail "Non riesco a trovare il database '$DbName'. Controlla con 'npx wrangler d1 list'." }
     $config = $config.Replace("REPLACE_ME", $dbId)
     [IO.File]::WriteAllText((Resolve-Path ".\wrangler.jsonc"), $config, (New-Object System.Text.UTF8Encoding $false))
     Write-Host "database_id impostato: $dbId" -ForegroundColor Green
@@ -55,13 +69,9 @@ Check "Migration non applicate."
 # 4. Deploy (prima dei secret, cosi' il Worker esiste gia')
 Step "4. Deploy del Worker"
 $deployOut = (npx wrangler deploy 2>&1 | Out-String)
+$deployExit = $LASTEXITCODE
 Write-Host $deployOut
-if ($LASTEXITCODE -ne 0) {
-    if ($deployOut -match "workers\.dev subdomain") {
-        Fail "Manca il sottodominio workers.dev: lancia 'npx wrangler deploy' a mano, rispondi Y alla registrazione, poi rilancia questo script."
-    }
-    Fail "Deploy non riuscito."
-}
+if ($deployExit -ne 0) { Fail "Deploy non riuscito." }
 $u = [regex]::Match($deployOut, 'https://[^\s]+\.workers\.dev')
 if ($u.Success) { $workerUrl = $u.Value }
 else { $workerUrl = Read-Host "Non trovo l'URL del Worker: incollalo (es. https://bot-compleanni.xxx.workers.dev)" }
@@ -94,4 +104,5 @@ try {
 } catch { Fail "Chiamata a Telegram fallita (token corretto?): $($_.Exception.Message)" }
 
 Step "Fatto! Apri il bot su Telegram e scrivi /start"
-Write-Host "Per i deploy successivi basta: npx wrangler d1 migrations apply $DbName --remote ; npx wrangler deploy"
+Write-Host "Ricordati di fare commit di wrangler.jsonc (ora contiene il database_id, che non e' un segreto)."
+Write-Host "Per i deploy successivi: powershell -ExecutionPolicy Bypass -File .\scripts\deploy.ps1"
