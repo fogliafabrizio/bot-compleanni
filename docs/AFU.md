@@ -1,12 +1,14 @@
 # AFU — Bot Telegram Compleanni
 
-**Analisi Funzionale** · versione 1.2 · 29/10/2026
+**Analisi Funzionale** · versione 1.3 · 06/11/2026
 Committente e unico utente MVP: Fabrizio
 
 ## Registro modifiche
 
 | Versione | REV | Decisione | Requisiti |
 |---|---|---|---|
+| 1.3 | REV-012 — Slot delle 00:00 per la priorità Alta | Accettata con modifiche | Modificati il glossario "Slot", i profili di priorità (§7), RF-10 (slot delle 00:00 per Alta) e RNF-19 (la mezzanotte si scrive "00:00" in reminder, `/stato` e avviso di buco N-06). Aggiornata D-02. Aggiunte le alternative scartate "Attendere RF-40", "Pre-reminder di −1 giorno alle 23:00" e "Slot delle 00:00 solo per chi ha telefono o Telegram". |
+| 1.3 | REV-013 — Profili incompleti | Accettata con modifiche | RF-50 anticipato dalle idee future e allargato ai singoli campi: `/incomplete [campo]` con filtri a pulsanti. Modificati RF-28, RF-32 ([📝 Profili incompleti] in fondo a `/statistiche`), RNF-14 (filtri a pulsanti e nuovo punto di passo successivo) e RNF-19. Aggiornati glossario, §5.1, §5.7, §5.11, nuovo mockup §5.13 e roadmap. Aggiunta D-34. L'alternativa scartata "Vista delle schede incomplete anticipata nella v1.1" è superata; aggiunte quattro alternative scartate (combinazioni e filtro per gruppo, conteggi cliccabili, gruppi nella riga, "Senza gruppo" tra i filtri). |
 | 1.2 | REV-008 — Pulsante Indietro dalla scheda gruppo | Accettata con modifiche | Modificati RF-07, RF-19 e RNF-14: [⬅️ Tutti i gruppi] sulla scheda gruppo, sempre con un nuovo messaggio. Aggiornati il mockup §5.9 e l'alternativa scartata "Navigazione sul posto nella scheda gruppo". Aggiunta D-30. |
 | 1.2 | REV-009 — Voce "Senza gruppo" nell'elenco gruppi | Accettata con modifiche | Modificati RF-07, RF-19 e RF-32: voce virtuale [Senza gruppo (N)] e scheda "Senza gruppo", conteggio in `/statistiche`. Aggiornati glossario, mockup §5.9 e §5.11. Aggiunte D-31 e l'alternativa scartata "Gruppo reale «Senza gruppo» o accesso testuale". |
 | 1.2 | REV-010 — Distribuzione per età in `/statistiche` | Accettata con modifiche | Modificati RF-32 (sezione 🧑 Età per decadi con età media) e BR-03 (età attuale in `/statistiche`). Aggiornato il mockup §5.11. Aggiunte D-32 e l'alternativa scartata "Nomi della persona più giovane e più anziana". |
@@ -65,6 +67,10 @@ In v2 il progetto diventa un repository pubblico, che chiunque può installare c
 - Distribuzione per età in `/statistiche`
 - Pulsanti di passo successivo nelle viste (`/mese`, `/anno`, `/prossimi`) e dopo il salvataggio di una persona
 
+### In scope (v1.3)
+- Reminder del giorno alle 00:00 per le persone con priorità Alta
+- Profili incompleti: `/incomplete` con un filtro per ogni dato mancante, raggiungibile anche da `/statistiche`
+
 ### In scope (v2)
 - Configurabilità esterna (fuso orario, slot, profili), README e guida all'installazione, script di setup, pubblicazione del repository con licenza MIT
 
@@ -83,7 +89,7 @@ In v2 il progetto diventa un repository pubblico, che chiunque può installare c
 | **Gruppo** | Etichetta creata dall'utente (es. Famiglia, Lavoro, Beach tennis), assegnabile a più persone. Una persona può avere più gruppi. |
 | **Priorità** | Alta / Media / Bassa. Determina quanti promemoria si ricevono. Default: Media. |
 | **Profilo di priorità** | Insieme di regole (pre-reminder e slot del giorno) associato a una priorità. |
-| **Slot** | Orario fisso, in ora locale, in cui può partire un reminder del giorno: 9:00, 13:00, 18:00, 21:00. |
+| **Slot** *(modificato in v1.3)* | Orario fisso, in ora locale, in cui può partire un reminder del giorno: 00:00 (solo priorità Alta), 9:00, 13:00, 18:00, 21:00. |
 | **Pre-reminder** | Promemoria informativo inviato N giorni prima del compleanno, alle 13:00. |
 | **Reminder del giorno** | Promemoria inviato nel giorno del compleanno, negli slot previsti dal profilo. |
 | **Recupero** | Unico promemoria inviato il giorno dopo il compleanno, alle 13:00, se l'occorrenza è ancora aperta. |
@@ -95,6 +101,7 @@ In v2 il progetto diventa un repository pubblico, che chiunque può installare c
 | **Scheda gruppo** *(v1.1, modificata in v1.2)* | Messaggio con nome del gruppo, numero di persone, lista delle persone e pulsanti Rinomina / Elimina e Tutti i gruppi (RF-19). |
 | **Senza gruppo** *(v1.2)* | Gruppo virtuale che raccoglie le persone senza alcun gruppo. È calcolato al momento, non è un gruppo salvato: non si rinomina, non si elimina, non si cerca per nome e non compare in export e backup (RF-07, RF-19). |
 | **Pulsante di passo successivo** *(v1.2)* | Pulsante in fondo a una vista che porta a una vista vicina (mese o anno accanto, finestra più ampia, elenco gruppi, nuovo inserimento). Manda sempre un nuovo messaggio (RNF-14). |
+| **Profilo incompleto** *(v1.3)* | Scheda persona a cui manca almeno uno tra telefono, username Instagram, username Telegram e anno di nascita. Si elenca con `/incomplete` (RF-50). Non ha legami con il profilo di priorità. |
 
 ## 4. Requisiti funzionali
 
@@ -191,10 +198,19 @@ Inviati alle 13:00 dei giorni previsti dal profilo (vedi §7). Sono informativi 
 - *Dato* che Marco ha priorità Alta e compie gli anni il 14/03, *quando* sono le 13:00 del 07/03, *allora* ricevo "Tra 7 giorni: compleanno di Marco (32 anni) — 14/03".
 - *Dato* che premo "Salta quest'anno" su un pre-reminder, *allora* l'occorrenza diventa *saltato* e non riceverò altri pre-reminder, reminder o recuperi per quest'anno.
 
-**RF-10 — Reminder del giorno** · MVP
+**RF-10 — Reminder del giorno** · MVP · modificato in v1.3
 Un messaggio **per persona** in ogni slot previsto dal profilo, finché l'occorrenza è aperta. Contenuto: nickname e nome completo (se diversi), età (se l'anno è noto), gruppi, esito dell'anno precedente (solo *fatto* o *saltato*), pulsanti di contatto (RF-11), Fatto, Salta quest'anno.
 - *Dato* che due persone compiono gli anni lo stesso giorno, *quando* scatta lo slot, *allora* ricevo due messaggi separati, ciascuno con i propri pulsanti.
 - *Dato* che l'anno scorso l'occorrenza era *non confermato*, *quando* ricevo il reminder, *allora* la riga "L'anno scorso" non compare.
+
+*(v1.3)* **Slot delle 00:00.** Per le persone con priorità Alta il primo reminder del giorno parte alle 00:00 della data effettiva, in ora locale (§7), per fare gli auguri allo scoccare del compleanno. È uno slot a tutti gli effetti: suona come gli altri reminder, ha lo stesso contenuto e gli stessi pulsanti, vale l'idempotenza (N-02), il nuovo tentativo entro la giornata anche nelle ore notturne (N-03), e compare in `/stato` (RF-31). Media e Bassa non cambiano.
+- *(v1.3)* *Dato* che Marco ha priorità Alta e compie gli anni il 14/03, *quando* sono le 00:00 del 14/03, *allora* ricevo il reminder del giorno con notifica sonora, i pulsanti di contatto, Fatto e Salta quest'anno.
+- *(v1.3)* *Dato* che premo Fatto sul reminder delle 00:00, *allora* non ricevo gli slot delle 9:00, 13:00, 18:00 e 21:00 né il recupero (BR-07).
+- *(v1.3)* *Dato* che non chiudo il reminder delle 00:00, *allora* alle 9:00 ricevo il reminder successivo, come oggi.
+- *(v1.3)* *Dato* che Anna ha priorità Media, *quando* è il giorno del suo compleanno, *allora* alle 00:00 non parte nulla e il primo reminder arriva alle 9:00.
+- *(v1.3)* *Dato* che l'invio delle 00:00 fallisce per un errore di Telegram, *allora* viene ritentato alle 01:00 e alle esecuzioni successive della stessa giornata (N-03).
+- *(v1.3)* *Dato* che inserisco una persona con priorità Alta alle 10:00 del giorno del suo compleanno, *allora* lo slot delle 00:00 non parte (BR-10, BR-11).
+- *(v1.3)* *Dato* che Anna ha priorità Alta ed è nata il 29/02, *quando* l'anno non è bisestile, *allora* il reminder delle 00:00 parte alle 00:00 del 28/02 (BR-04).
 
 **RF-11 — Pulsanti di contatto** · MVP · modificato in v1.1
 Compaiono solo per i contatti presenti nella scheda. *(v1.1)* Si usano nei promemoria (reminder, recupero, `/oggi`) e nella scheda persona (RF-03). Il testo precompilato di WhatsApp e il pulsante Copia messaggio valgono solo nei promemoria. Nella scheda WhatsApp apre la chat vuota (`wa.me/<numero>`) e Copia messaggio non c'è. Le etichette dei pulsanti di contatto non hanno icone (RNF-19).
@@ -306,6 +322,32 @@ Se nessuna delle due condizioni vale, non compare alcun pulsante.
 - *(v1.2)* *Dato* che siamo nel primo anno d'uso e non c'è storico precedente, *quando* scrivo `/anno`, *allora* non compare alcun pulsante.
 - *(v1.2)* *Dato* che scrivo `/anno 2023`, anno senza storico, e il 2022 non ha storico, *allora* vedo il riepilogo vuoto con il solo [2024 ▶️].
 
+**RF-50 — `/incomplete [campo]`: profili incompleti** · v1.3 (anticipato dalle idee future e allargato ai singoli campi)
+Elenca le persone a cui manca un dato, per completarne la scheda con Modifica (RF-04). I filtri sono separati e si usano uno alla volta:
+
+| Filtro (pulsante) | Argomento | Persone elencate |
+|---|---|---|
+| Telefono | `telefono` | senza telefono |
+| Instagram | `instagram` | senza username Instagram |
+| Telegram | `telegram` | senza username Telegram |
+| Anno di nascita | `anno` | senza anno di nascita (giorno e mese sono sempre presenti, BR-18) |
+| Nessun contatto | `contatti` | senza telefono, senza Instagram e senza Telegram: la stessa definizione del conteggio "Senza contatti" di RF-32 |
+
+- **Senza argomento** il bot mostra l'intestazione "📝 Profili incompleti" e un pulsante per filtro, nell'ordine della tabella, con il numero di persone: "Telefono (41)". I filtri con 0 persone compaiono comunque. Il tocco manda un nuovo messaggio con la lista di quel filtro (RNF-14); il messaggio con i pulsanti resta com'era.
+- **Con argomento** (senza distinzione tra maiuscole e minuscole) il bot manda subito la lista. Con un argomento non riconosciuto lo segnala e mostra i pulsanti dei filtri.
+- **Lista**: intestazione con il filtro e il numero di persone ("📝 Senza telefono · 41 persone"), righe nel formato §5.7 con il comando `/p_<id>`, ordinate per prossimo compleanno, così si completa prima chi festeggia a breve. Nella riga non compaiono i gruppi. Se la lista è lunga, si spezza in più messaggi. Non ci sono pulsanti sulle righe né pulsanti di passo successivo.
+- **Lista vuota**: il bot conferma che il dato è presente per tutti ("✅ Tutte le persone hanno il telefono."). Se la rubrica è vuota, dice che non ci sono persone.
+- Conteggi e liste si calcolano al momento: un pulsante premuto su un messaggio vecchio mostra la lista con i dati attuali.
+- *(v1.3)* *Dato* che 41 persone non hanno il telefono, *quando* scrivo `/incomplete`, *allora* vedo i 5 pulsanti con i rispettivi conteggi, tra cui [Telefono (41)].
+- *(v1.3)* *Dato* che premo [Telefono (41)], *allora* ricevo un nuovo messaggio "📝 Senza telefono · 41 persone" con le righe ordinate per prossimo compleanno e i comandi `/p_<id>`.
+- *(v1.3)* *Dato* che scrivo `/incomplete instagram`, *allora* ricevo subito la lista delle persone senza username Instagram, senza passare dai pulsanti.
+- *(v1.3)* *Dato* che scrivo `/incomplete Anno`, *allora* ricevo la lista delle persone senza anno di nascita.
+- *(v1.3)* *Dato* che scrivo `/incomplete email`, *allora* il bot segnala che il filtro non esiste e mostra i pulsanti dei filtri.
+- *(v1.3)* *Dato* che Marco ha l'Instagram ma non il telefono né il Telegram, *allora* compare nelle liste Telefono e Telegram ma non in Nessun contatto.
+- *(v1.3)* *Dato* che tutte le persone hanno il telefono, *quando* premo [Telefono (0)], *allora* il bot risponde "✅ Tutte le persone hanno il telefono.".
+- *(v1.3)* *Dato* che apro `/p_<id>` da una lista e aggiungo il telefono con Modifica, *quando* riscrivo `/incomplete telefono`, *allora* quella persona non compare più.
+- *(v1.3)* *Dato* che la lista supera la lunghezza di un messaggio Telegram, *allora* è spezzata in più messaggi, come le altre liste.
+
 ### 4.5 Import, export e backup
 
 **RF-23 — `/modello`** · MVP
@@ -330,8 +372,9 @@ Il bot invia un CSV con lo stesso formato del modello, reimportabile. Non contie
 
 ### 4.6 Accesso e avvio
 
-**RF-28 — `/start` e `/aiuto`** · MVP
+**RF-28 — `/start` e `/aiuto`** · MVP · modificato in v1.3
 `/start` mostra un benvenuto con i pulsanti: Aggiungi persona · Scarica modello CSV · Comandi. `/aiuto` elenca i comandi con una riga di descrizione ciascuno.
+*(v1.3)* `/incomplete [campo]` (RF-50) compare in `/aiuto` e nel menu dei comandi, tra le viste. I pulsanti di `/start` non cambiano.
 
 **RF-29 — `/id`** · MVP
 Risponde a **chiunque** con il suo ID Telegram numerico. Serve per configurare la whitelist.
@@ -353,7 +396,7 @@ Se un valore non è ancora stato registrato, compare "mai registrato". Se la let
 - *Dato* che un reminder di ieri è stato abbandonato dopo i tentativi (N-03), *quando* scrivo `/stato`, *allora* lo vedo nella riga degli ultimi 7 giorni con il nome della persona.
 - *Dato* che il bot è appena stato aggiornato e il cron non ha ancora girato, *quando* scrivo `/stato`, *allora* l'ultimo controllo orario risulta "mai registrato".
 
-**RF-32 — `/statistiche`** · v1.1 · modificato in v1.2
+**RF-32 — `/statistiche`** · v1.1 · modificato in v1.2 e v1.3
 Mostra cifre sintetiche sulla rubrica e sull'andamento. Per il dettaglio di un singolo anno resta `/anno` (RF-22).
 - totale persone, con la suddivisione per priorità e per gruppo (una persona in più gruppi conta in ciascuno); *(v1.2)* in fondo alla riga dei gruppi, "Senza gruppo N" con il numero di persone senza alcun gruppo;
 - compleanni per mese, come istogramma testuale di 12 righe;
@@ -378,13 +421,17 @@ Mostra cifre sintetiche sulla rubrica e sull'andamento. Per il dettaglio di un s
 - *(v1.2)* *Dato* che 23 persone non hanno l'anno di nascita, *allora* sono escluse dall'istogramma e dall'età media, e la sezione lo richiama.
 - *(v1.2)* *Dato* che nessuna persona ha l'anno di nascita, *allora* la sezione Età dice che l'età non è disponibile.
 
+*(v1.3)* **Profili incompleti.** In fondo al messaggio compare il pulsante di passo successivo [📝 Profili incompleti] (RNF-14): manda un nuovo messaggio con i pulsanti dei filtri di `/incomplete` (RF-50). I conteggi "Senza anno di nascita" e "Senza contatti" restano testo, senza elenchi né pulsanti.
+- *(v1.3)* *Dato* che scrivo `/statistiche`, *allora* in fondo vedo [📝 Profili incompleti] e il tocco mi manda i pulsanti dei filtri, come `/incomplete`.
+- *(v1.3)* *Dato* che la rubrica è vuota, *allora* il pulsante compare comunque e i filtri mostrano 0.
+
 ### 4.8 Evoluzioni
 
 **RF-40 — Configurabilità esterna** · v2: fuso orario, orari degli slot e profili di priorità modificabili senza toccare il codice.
 **RF-41 — README e guida all'installazione** · v2 (vedi §12).
 **RF-42 — Script di setup** PowerShell e Bash per la creazione del database, dei segreti e la registrazione del webhook · v2.
 **RF-43 — Pubblicazione del repository** con licenza MIT · v2.
-**RF-50 — Vista schede incomplete** (persone senza telefono o contatti) · Futuro.
+*(v1.3)* RF-50 (Vista schede incomplete) è stato anticipato nella v1.3 come `/incomplete [campo]`: vedi §4.4.
 **RF-51 — Multilingua completo** · Futuro.
 **RF-52 — Gestione dei membri dalla scheda gruppo** (aggiungere o togliere persone da un gruppo partendo dalla scheda gruppo) · Futuro *(v1.1)*. Oggi si fa dalla scheda persona (RF-08).
 
@@ -404,6 +451,7 @@ Mostra cifre sintetiche sulla rubrica e sull'andamento. Per il dettaglio di un s
 | `/gruppi [nome]` *(v1.1)* | Senza nome: elenco gruppi a pulsanti, *(v1.2)* con la voce "Senza gruppo". Con nome: ricerca e scheda gruppo. Alias accettato: `/gruppo` | RF-07, RF-19 |
 | `/scaduti` | Ultimi 7 giorni non fatti | RF-21 |
 | `/anno [anno]` | Riepilogo annuale | RF-22 |
+| `/incomplete [campo]` *(v1.3)* | Profili incompleti: senza campo, pulsanti dei filtri con i conteggi; con campo (`telefono`, `instagram`, `telegram`, `anno`, `contatti`), la lista | RF-50 |
 | `/statistiche` *(v1.1)* | Statistiche della rubrica e andamento | RF-32 |
 | `/stato` *(v1.1)* | Salute di cron, invii, backup e webhook | RF-31 |
 | `/messaggio` | Modifica messaggio di default | RF-15 |
@@ -487,7 +535,7 @@ Storico: 2025 fatto · 2024 saltato
 ```
 Se c'è un'occorrenza da segnare (RF-21), [Segna fatto] compare tra la riga dei contatti e [✏️ Modifica] [🗑 Elimina].
 
-### 5.7 Liste (`/prossimi`, `/mese`, `/gruppi <nome>`, `/cerca`) *(v1.1, modificato in v1.2)*
+### 5.7 Liste (`/prossimi`, `/mese`, `/gruppi <nome>`, `/cerca`, `/incomplete`) *(v1.1, modificato in v1.2 e v1.3)*
 ```
 📆 Prossimi 30 giorni (Famiglia)
 
@@ -509,7 +557,7 @@ In `/mese` le righe sono raggruppate per settimana o in ordine di giorno; nelle 
 …
 [2026 ▶️]
 ```
-`/cerca` non ha pulsanti di passo successivo.
+`/cerca` non ha pulsanti di passo successivo. *(v1.3)* Nemmeno le liste di `/incomplete` (§5.13).
 
 ### 5.8 Import CSV *(v1.1)*
 ```
@@ -567,7 +615,7 @@ Bot: 🩺 Stato del bot
      🔗 Webhook: nessun errore, 0 update in coda
 ```
 
-### 5.11 Statistiche *(v1.1, modificato in v1.2)*
+### 5.11 Statistiche *(v1.1, modificato in v1.2 e v1.3)*
 ```
 Tu:  /statistiche
 Bot: 📊 Statistiche
@@ -590,6 +638,8 @@ Bot: 📊 Statistiche
      Età media: 41 anni · senza anno di nascita: 23
 
      ✅ Auguri fatti: 2026 87% · 2025 81%
+
+     [📝 Profili incompleti]
 ```
 
 ### 5.12 Avviso di buco del cron *(v1.1)*
@@ -597,6 +647,29 @@ Bot: 📊 Statistiche
 ⚠️ Il controllo orario non è girato dalle 14:00 alle 19:00 di oggi:
 alcuni promemoria potrebbero essere andati persi. Controlla /oggi e /scaduti.
 ```
+
+### 5.13 Profili incompleti *(v1.3)*
+```
+Tu:  /incomplete            (oppure [📝 Profili incompleti] da /statistiche)
+Bot: 📝 Profili incompleti
+     Quale dato manca?
+     [Telefono (41)]        [Instagram (60)]
+     [Telegram (80)]        [Anno di nascita (23)]
+     [Nessun contatto (30)]
+Tu:  [Telefono (41)]
+Bot: 📝 Senza telefono · 41 persone
+
+     Ven 13/11  Anna (28)      /p_4
+     Dom 22/11  Paolo (41)     /p_23
+     Gio 03/12  Giulia         /p_9
+     …
+
+Tu:  /incomplete telefono   (stessa lista, senza passare dai pulsanti)
+
+Tu:  /incomplete anno
+Bot: ✅ Tutte le persone hanno l'anno di nascita.
+```
+Le righe hanno il formato §5.7, senza gruppi. I pulsanti dei filtri sono senza emoji, come quelli dei gruppi (RNF-19).
 
 ## 6. Regole di business e casi limite
 
@@ -649,11 +722,12 @@ alcuni promemoria potrebbero essere andati persi. Controlla /oggi e /scaduti.
 ### Profili di priorità
 | Priorità | Pre-reminder (alle 13:00) | Giorno stesso (slot) | Recupero |
 |---|---|---|---|
-| **Alta** | −7, −2, −1 giorni | 9:00 · 13:00 · 18:00 · 21:00 | D+1 alle 13:00 |
+| **Alta** *(modificata in v1.3)* | −7, −2, −1 giorni | 00:00 · 9:00 · 13:00 · 18:00 · 21:00 | D+1 alle 13:00 |
 | **Media** | −1 giorno | 9:00 · 13:00 · 18:00 | D+1 alle 13:00 |
 | **Bassa** | nessuno | 9:00 · 18:00 | D+1 alle 13:00 |
 
 Nell'MVP profili e slot sono costanti definite in un unico punto; in v2 diventano configurabili (RF-40).
+*(v1.3)* Lo slot delle 00:00 vale solo per la priorità Alta ed è il primo reminder del giorno del compleanno (RF-10). Il cambio d'ora avviene alle 2-3 di notte e non lo tocca (BR-24).
 
 ### Stati dell'occorrenza
 ```
@@ -727,7 +801,8 @@ Note:
 ### Usabilità
 - **RNF-13** Interazione il più possibile guidata: nessuna sintassi da ricordare oltre al formato della data.
 - **RNF-14** Pulsanti solo per le azioni; la navigazione nelle liste usa i comandi `/p_<id>` nel testo. *(v1.1)* Eccezione: i gruppi, che sono pochi, si scelgono con pulsanti (elenco gruppi di RF-07, scelta tra più gruppi trovati in RF-17 e RF-19). Le liste di persone restano senza pulsanti.
-  *(v1.2)* **Pulsanti di passo successivo.** Una vista può terminare con al massimo 2 pulsanti di navigazione verso viste vicine, per il passo più probabile. Ognuno manda sempre un nuovo messaggio: il messaggio di partenza resta com'era, senza navigazione sul posto. Non ci sono mai pulsanti sulle righe delle persone. Si applicano a: `/mese` (RF-20), `/anno` (RF-22), `/prossimi` (RF-17), scheda gruppo e scheda "Senza gruppo" ([⬅️ Tutti i gruppi], RF-19) e conferma del salvataggio di una persona (RF-01). Nuovi punti vanno decisi con una revisione dell'AFU.
+  *(v1.2)* **Pulsanti di passo successivo.** Una vista può terminare con al massimo 2 pulsanti di navigazione verso viste vicine, per il passo più probabile. Ognuno manda sempre un nuovo messaggio: il messaggio di partenza resta com'era, senza navigazione sul posto. Non ci sono mai pulsanti sulle righe delle persone. Si applicano a: `/mese` (RF-20), `/anno` (RF-22), `/prossimi` (RF-17), scheda gruppo e scheda "Senza gruppo" ([⬅️ Tutti i gruppi], RF-19), conferma del salvataggio di una persona (RF-01) e, *(v1.3)*, `/statistiche` ([📝 Profili incompleti], RF-32). Nuovi punti vanno decisi con una revisione dell'AFU.
+  *(v1.3)* **Filtri dei profili incompleti.** Anche i 5 filtri di `/incomplete` (RF-50), pochi e fissi, si scelgono con pulsanti, come i gruppi. Le liste che ne risultano restano testuali, senza pulsanti.
   - *Dato* che apro una delle viste elencate, *allora* in fondo trovo al più 2 pulsanti di passo successivo, oltre agli eventuali pulsanti di azione già previsti.
   - *Dato* che premo un pulsante di passo successivo, *allora* ricevo un nuovo messaggio e quello precedente non cambia.
 - **RNF-15** Testi del bot raccolti in un unico punto, per facilitarne modifica e traduzione futura.
@@ -738,6 +813,10 @@ Note:
   - Un'icona per campo nelle domande dei flussi guidati.
   - Icone solo sui pulsanti di azione (✏️ Modifica, 🗑 Elimina, ⏭ Salta, ➕ Nuovo gruppo…). I pulsanti di contatto (WhatsApp, Instagram, Telegram, Copia messaggio) restano senza icona, per non essere troncati su mobile.
   - *(v1.2)* Pulsanti di passo successivo (RNF-14): ◀️ e ▶️ per scorrere mesi e anni, con la freccia verso l'esterno ([◀️ Febbraio] [Aprile ▶️]); ⬅️ per tornare a un elenco ([⬅️ Tutti i gruppi]); ➕ per avviare un nuovo inserimento ([➕ Aggiungi un'altra persona]); nessuna icona sull'allargamento della finestra ([Prossimi 90 giorni]). La voce [Senza gruppo (N)] è senza emoji, come i pulsanti dei gruppi.
+  - *(v1.3)* 📝 per i profili incompleti, nell'intestazione di `/incomplete` e sul pulsante [📝 Profili incompleti] di `/statistiche`. I pulsanti dei filtri ([Telefono (N)] …) sono senza emoji, come quelli dei gruppi.
+  - *(v1.3)* **Orari.** Le ore piene si scrivono H:MM (9:00, 13:00, 18:00); la mezzanotte si scrive sempre "00:00", mai "0:00". La regola vale ovunque compaia un orario: reminder, `/stato` (ultimo controllo orario, invii abbandonati) e avviso di buco del cron (N-06).
+    - *Dato* che il reminder delle 00:00 di Marco è stato abbandonato, *quando* scrivo `/stato`, *allora* leggo "Marco, reminder delle 00:00 del 14/03".
+    - *Dato* che il cron non ha girato tra le 23:00 e le 02:00, *allora* l'avviso di buco indica "dalle 23:00 alle 02:00".
   - Nessuna emoji legata a priorità o gruppo.
   - Esclusi: il messaggio di auguri di default (A-06) e i messaggi personalizzati, che sono dati dell'utente.
   - *Dato* che salvo una persona, *allora* la conferma contiene un'emoji di successo e il nome della persona.
@@ -778,7 +857,7 @@ Note:
 | # | Decisione | Motivazione |
 |---|---|---|
 | D-01 | Profili di priorità condivisi (Alta/Media/Bassa) invece di regole per persona | Una sola configurazione da mantenere; cambiare un profilo aggiorna tutti. |
-| D-02 | Orari fissi a ore piene (9, 13, 18, 21) e pre-reminder alle 13 | Compatibile con il cron orario; alle 13 c'è il tempo per leggere. |
+| D-02 *(modificata in v1.3)* | Orari fissi a ore piene (9, 13, 18, 21; *(v1.3)* più 0 per la sola priorità Alta) e pre-reminder alle 13 | Compatibile con il cron orario; alle 13 c'è il tempo per leggere. *(v1.3)* Le 00:00 permettono gli auguri allo scoccare del compleanno alle persone più importanti; un Fatto a mezzanotte chiude tutti gli slot successivi (BR-07). |
 | D-03 | Un messaggio separato per ogni persona | Ogni messaggio ha i pulsanti di una sola persona. |
 | D-04 | Due esiti espliciti (Fatto, Salta) più *non confermato* | Lo storico distingue le scelte dalle dimenticanze ed evita falsi allarmi. |
 | D-05 | Un solo recupero il giorno dopo, poi silenzio | Rete di sicurezza senza diventare spam. |
@@ -810,6 +889,7 @@ Note:
 | D-31 *(v1.2)* | "Senza gruppo" come gruppo virtuale calcolato, raggiungibile solo dal pulsante dell'elenco | Non va tenuto allineato, non finisce in export e backup, e non entra in conflitto con un gruppo reale con lo stesso nome (BR-17, BR-26). |
 | D-32 *(v1.2)* | Età in `/statistiche` per decadi, età attuale, con età media e senza nomi | Fasce neutre senza configurazione; la statistica fotografa oggi, mentre l'età che si compirà resta per le liste; RF-32 resta "solo conteggi". |
 | D-33 *(v1.2)* | Navigazione guidata con al massimo 2 pulsanti di passo successivo per vista (RNF-14) | Rende verificabile la "navigazione più guidata" senza arrivare a un muro di pulsanti. |
+| D-34 *(v1.3)* | Profili incompleti con 5 filtri singoli e fissi, scelti a pulsanti da `/incomplete` o da `/statistiche`, con liste §5.7 | Con i dati reali è lo strumento per completare le schede, soprattutto i telefoni che abilitano WhatsApp (RF-11). I filtri singoli bastano: "Nessun contatto" copre il caso peggiore. `/statistiche` resta "solo conteggi" e ci porta con un solo pulsante. |
 
 ### Alternative scartate
 | Alternativa | Motivo |
@@ -836,7 +916,14 @@ Note:
 | WhatsApp con auguri precompilati e Copia messaggio nella scheda *(v1.1)* | La scheda si usa tutto l'anno; per gli auguri ci sono reminder, recupero e `/oggi`. |
 | Username di Instagram e Telegram nell'etichetta dei pulsanti *(v1.1)* | Con tre pulsanti su una riga verrebbero troncati su mobile. |
 | Priorità "Silenziosa" (nessun promemoria, solo nelle liste) *(v1.1)* | Non necessaria all'utente. |
-| Vista delle schede incomplete anticipata nella v1.1 *(v1.1)* | Non necessaria ora; resta tra le idee future (RF-50). `/statistiche` ne mostra solo il conteggio. |
+| Vista delle schede incomplete anticipata nella v1.1 *(v1.1, superata in v1.3)* | Non necessaria allora; restava tra le idee future (RF-50). *(v1.3)* Superata: RF-50 è anticipato su richiesta del proprietario (D-34). |
+| Attendere RF-40 per aggiungere le 00:00 al profilo Alta *(v1.3)* | La richiesta serve subito e basta cambiare il profilo di default, già centralizzato (RNF-18). |
+| Pre-reminder di −1 giorno spostato alle 23:00 al posto dello slot delle 00:00 *(v1.3)* | Non dà i pulsanti Fatto e Salta del giorno stesso. |
+| Slot delle 00:00 solo per chi ha telefono o Telegram *(v1.3)* | Più complesso, senza un beneficio reale: il profilo resta uguale per tutte le persone Alta. |
+| Combinazioni di filtri e filtro per gruppo in `/incomplete` *(v1.3)* | Complessità alta per un uso raro; "Nessun contatto" copre il caso peggiore. |
+| Conteggi di `/statistiche` cliccabili *(v1.3)* | RF-32 resta "solo conteggi" e coprirebbe solo anno e contatti; basta un pulsante di passo successivo verso `/incomplete`. |
+| Gruppi nella riga della lista di `/incomplete` *(v1.3)* | Righe più lunghe e liste spezzate prima; per completare la scheda basta `/p_<id>`. |
+| "Senza gruppo" tra i filtri di `/incomplete` *(v1.3)* | Esiste già nell'elenco gruppi (RF-07, RF-19). |
 | Onomastici e anniversari *(v1.1)* | Allargherebbero il dominio a ricorrenze generiche, fuori dall'obiettivo. |
 | Rifare tutto il guidato per modificare | Troppi passaggi per correggere un campo. |
 | Più formati di data accettati | L'utente preferisce un formato unico. |
@@ -867,6 +954,10 @@ Note:
 - `/statistiche`: conteggio "Senza gruppo" e distribuzione per età (RF-32, BR-03)
 - Pulsanti di passo successivo in `/mese`, `/anno`, `/prossimi` e dopo il salvataggio di una persona (RNF-14, RNF-19, RF-01, RF-17, RF-20, RF-22)
 
+### v1.3
+- Reminder del giorno alle 00:00 per la priorità Alta e regola di scrittura della mezzanotte (RF-10, §7, RNF-19, D-02)
+- Profili incompleti: `/incomplete [campo]` e pulsante da `/statistiche` (RF-50, RF-32, RF-28, RNF-14, RNF-19)
+
 ### v2
 - Configurabilità esterna di fuso orario, slot e profili (RF-40)
 - README con guida completa (RF-41), basata sul percorso seguito dall'autore:
@@ -880,7 +971,6 @@ Note:
 - Pubblicazione del repository con licenza MIT (RF-43)
 
 ### Idee future
-- Vista delle schede incomplete (RF-50)
 - Multilingua completo (RF-51)
 - Gestione dei membri dalla scheda gruppo (RF-52)
 - Riepilogo annuale inviato in automatico il 31/12
@@ -891,6 +981,35 @@ Nessun punto aperto bloccante.
 
 Punti chiusi:
 - **PA-01** ~~Il comportamento del numero cliccabile nel testo (V-04) va verificato sui client Telegram usati (Android, iOS, desktop).~~ *(v1.1)* **Chiuso: verificato.** Il numero nel testo è cliccabile sui client in uso; il pulsante "Chiama" tramite una pagina del Worker non serve.
+
+## Impatto della versione 1.3
+
+### Requisiti cambiati per area
+- **Anagrafica e gruppi** (feature 001, 005): nessuna modifica. I profili incompleti si completano con la Modifica per campo già esistente (RF-04).
+- **Promemoria** (feature 002):
+  - RF-10 e §7: slot delle 00:00 nel profilo Alta, primo reminder del giorno, con N-02, N-03 e BR-11 invariati;
+  - glossario "Slot" e D-02 aggiornati.
+- **Viste** (feature 003, 007, 009):
+  - RF-50: nuovo comando `/incomplete [campo]` con 5 filtri a pulsanti e liste §5.7;
+  - RF-32: pulsante [📝 Profili incompleti] in fondo a `/statistiche`;
+  - RF-28 e §5.1: `/incomplete` in `/aiuto` e nel menu dei comandi.
+- **Import, export e backup** (feature 004): nessuna modifica.
+- **Trasversale** (feature 008, 009): RNF-14 (filtri a pulsanti e nuovo punto di passo successivo in `/statistiche`), RNF-19 (icona 📝 e regola "00:00" per la mezzanotte in reminder, `/stato` e N-06); i nuovi testi entrano nel punto unico dei testi (RNF-15).
+
+### Modello dati
+- Nessuna nuova entità, nessun nuovo attributo, nessuna migration.
+- Lo slot delle 00:00 è un nuovo valore del riferimento dell'Invio (slot 0), già ammesso; l'idempotenza (N-02) lo distingue dagli altri slot.
+- I profili incompleti si calcolano dai campi facoltativi già presenti (telefono, Instagram, Telegram, anno di nascita).
+- Dati esistenti in produzione:
+  - nessuna conversione;
+  - le persone con priorità Alta ricevono lo slot delle 00:00 dal primo compleanno successivo al deploy; le occorrenze già aperte al momento del deploy ricevono solo gli slot ancora futuri (BR-10);
+  - gli invii già registrati non cambiano; in `/stato` l'orario della mezzanotte compare come "00:00" anche per i dati già registrati;
+  - i profili incompleti lavorano subito sui dati attuali; i messaggi di `/statistiche` già inviati restano senza il nuovo pulsante.
+
+### Ordine di realizzazione consigliato
+Un solo ciclo, perché nessuna modifica tocca il modello dati e i due punti sono indipendenti:
+1. **Slot delle 00:00**: §7, RF-10, D-02 e la regola "00:00" di RNF-19 (reminder, `/stato`, N-06). Effort S.
+2. **Profili incompleti**: RF-50, RF-32, RF-28, RNF-14 e l'icona 📝 di RNF-19. Effort M.
 
 ## Impatto della versione 1.2
 
