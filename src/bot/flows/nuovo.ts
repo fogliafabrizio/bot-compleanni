@@ -3,7 +3,7 @@ import type { ConversationState } from "../../db/conversation";
 import { findDuplicate, insertGuardedStatements, type PersonFields } from "../../db/persons";
 import type { BirthDate } from "../../domain/date";
 import { normKey } from "../../domain/text";
-import { keyboard } from "../../telegram/keyboard";
+import { button, keyboard } from "../../telegram/keyboard";
 import { T } from "../../texts";
 import { toIso, toLocal } from "../../time";
 import { answerCallback, type Ctx } from "../context";
@@ -119,7 +119,8 @@ async function save(ctx: Ctx, state: ConversationState): Promise<void> {
     await answerCallback(ctx, T.actionUnavailable);
     return;
   }
-  await showScheda(ctx, inserted.last_row_id, T.personSaved);
+  // RF-01, FR-021, FR-022: riuso di s:n, che come /nuovo sostituisce il flusso in corso.
+  await showScheda(ctx, inserted.last_row_id, T.personSaved, [[button(T.btnAddAnother, { kind: "static", scope: "s", action: "n" })]]);
 }
 
 registerFlow({

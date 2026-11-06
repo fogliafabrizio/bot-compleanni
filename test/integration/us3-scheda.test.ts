@@ -159,7 +159,8 @@ describe("RF-03, RF-11: tastiera della scheda v1.1", () => {
       ["WhatsApp", "https://wa.me/393337654321"],
       ["Instagram", "https://ig.me/m/anna.b"],
     ]);
-    expect(rowsOf(deps.tg.lastKeyboard())).toEqual([["WhatsApp", "Instagram"], [T.btnEdit, T.btnDelete]]);
+    // 009 RF-01: la conferma del salvataggio aggiunge solo l'ultima riga.
+    expect(rowsOf(deps.tg.lastKeyboard())).toEqual([["WhatsApp", "Instagram"], [T.btnEdit, T.btnDelete], [T.btnAddAnother]]);
   });
 
   it("FR-015: p:m, p:x e p:f di una scheda inviata senza riga contatti funzionano", async () => {

@@ -1,10 +1,24 @@
 import { describe, expect, it } from "vitest";
 import { STATS_BAR_WIDTH } from "../../src/config";
-import { formatStatistiche, histogramLines, type StatisticheData } from "../../src/domain/statistiche";
+import {
+  ageBuckets,
+  ageSectionLines,
+  averageAge,
+  barLines,
+  currentAge,
+  formatStatistiche,
+  histogramLines,
+  isValidBirthYear,
+  type StatisticheData,
+} from "../../src/domain/statistiche";
 import { MONTHS_SHORT } from "../../src/texts";
+import type { LocalDate } from "../../src/time";
 
 const B = "█";
 const months = (m: Record<number, number>) => Array.from({ length: 12 }, (_, i) => m[i + 1] ?? 0);
+const TODAY: LocalDate = { year: 2026, month: 10, day: 29 };
+// Nato il 01/01 dell'anno indicato: con 2018, 1992, 1989, 1974 → 8, 34, 37, 52 anni al 29/10/2026.
+const born = (year: number) => ({ birth_day: 1, birth_month: 1, birth_year: year });
 
 const base: StatisticheData = {
   persons: { total: 112, alta: 18, media: 70, bassa: 24, senzaAnno: 23, senzaContatti: 41, senzaGruppo: 4 },
@@ -18,6 +32,8 @@ const base: StatisticheData = {
     { year: 2026, fatto: 87, chiuse: 100 },
     { year: 2025, fatto: 81, chiuse: 100 },
   ],
+  births: [born(2018), born(1992), born(1989), born(1974)],
+  today: TODAY,
 };
 
 const texts = (d: Partial<StatisticheData>) => formatStatistiche({ ...base, ...d }).map((l) => l.text);
@@ -58,11 +74,18 @@ describe("RF-32, FR-013, FR-014: formatStatistiche", () => {
       "",
       "🎂 Compleanni per mese",
       histogramLines(base.months).join("\n"),
+      "",
+      "🧑 Età",
+      ageSectionLines([8, 34, 37, 52], 108)[1]!.text,
+      "Età media: 33 anni · senza anno di nascita: 108",
       "✅ Auguri fatti: 2026 87% · 2025 81%",
     ]);
-    const hist = lines[6]!;
-    expect(hist.entities).toEqual([{ type: "pre", offset: 0, length: hist.text.length }]);
-    for (const [i, l] of lines.entries()) if (i !== 6) expect(l.entities).toEqual([]);
+    // Istogrammi per mese e per età: ciascuno in un'entità pre.
+    for (const i of [6, 9]) {
+      const hist = lines[i]!;
+      expect(hist.entities).toEqual([{ type: "pre", offset: 0, length: hist.text.length }]);
+    }
+    for (const [i, l] of lines.entries()) if (i !== 6 && i !== 9) expect(l.entities).toEqual([]);
   });
 
   it("RF-32: 1 persona al singolare, priorità a 0 sempre presenti", () => {
@@ -102,5 +125,105 @@ describe("RF-32, FR-013, FR-014: formatStatistiche", () => {
     expect(lines[1]).toBe("0 persone · Alta 0 · Media 0 · Bassa 0");
     expect(lines[3]).toBe("Senza anno di nascita: 0 · Senza contatti: 0");
     expect(lines[6]!.split("\n")).toHaveLength(12);
+  });
+
+  it("RF-32, FR-010: sezione Età dopo «🎂 Compleanni per mese» e prima di «✅ Auguri fatti»", () => {
+    const lines = texts({});
+    const mesi = lines.indexOf("🎂 Compleanni per mese");
+    const eta = lines.indexOf("🧑 Età");
+    const fatti = lines.findIndex((l) => l.startsWith("✅ Auguri fatti"));
+    expect(mesi).toBeGreaterThanOrEqual(0);
+    expect(eta).toBe(mesi + 3);
+    expect(fatti).toBeGreaterThan(eta);
+  });
+
+  it("RF-32, FR-026a: anni fuori da BR-02 contati come senza anno", () => {
+    const lines = texts({ persons: { ...base.persons, total: 3 }, births: [born(1899), born(2027), born(1992)] });
+    expect(lines).toContain("Età media: 34 anni · senza anno di nascita: 2");
+  });
+
+  it("RF-32, FR-014: nessun anno valido → età non disponibile", () => {
+    expect(texts({ births: [] })).toContain("Età non disponibile: nessuna persona ha l'anno di nascita.");
+  });
+});
+
+describe("RF-32: barLines generalizza histogramLines", () => {
+  it("RF-32: istogramma per mese invariato", () => {
+    const counts = months({ 1: 11, 2: 7, 4: 1 });
+    expect(histogramLines(counts)).toEqual(barLines(MONTHS_SHORT, counts));
+  });
+});
+
+describe("RF-32, BR-03, BR-04: currentAge e isValidBirthYear", () => {
+  it.each([
+    [14, 3, 1994, { year: 2026, month: 10, day: 29 }, 32],
+    [14, 3, 1994, { year: 2026, month: 3, day: 10 }, 31],
+    [14, 3, 1994, { year: 2026, month: 3, day: 14 }, 32],
+    [29, 2, 2000, { year: 2026, month: 2, day: 28 }, 26],
+    [29, 2, 2000, { year: 2026, month: 2, day: 27 }, 25],
+    [30, 12, 2026, { year: 2026, month: 10, day: 29 }, 0],
+  ])("BR-03, BR-04: nato il %i/%i/%i, oggi %o → %i anni", (d, m, y, today, age) => {
+    expect(currentAge(d, m, y, today)).toBe(age);
+  });
+
+  it.each([
+    [1899, false],
+    [1900, true],
+    [2026, true],
+    [2027, false],
+  ])("BR-02: anno %i valido = %s", (year, ok) => {
+    expect(isValidBirthYear(year, TODAY)).toBe(ok);
+  });
+});
+
+describe("RF-32, FR-012, FR-013: ageBuckets e averageAge", () => {
+  it("FR-012: dalla fascia minima alla massima, intermedie a 0", () => {
+    expect(ageBuckets([8, 34, 37, 52])).toEqual([1, 0, 0, 2, 0, 1]);
+  });
+
+  it("FR-012, FR-026a: 80+ comprende le età ≥ 80, anche ≥ 120", () => {
+    expect(ageBuckets([83, 91])).toEqual([2]);
+    expect(ageBuckets([126])).toEqual([1]);
+    expect(ageSectionLines([83, 91], 0)[1]!.text.startsWith("80+   ")).toBe(true);
+  });
+
+  it("FR-012: nessuna età → nessuna fascia", () => {
+    expect(ageBuckets([])).toEqual([]);
+  });
+
+  it.each([
+    [[8, 34, 37, 52], 33],
+    [[32, 33], 33],
+    [[30, 34], 32],
+  ])("FR-013: media di %o → %i (0,5 per eccesso)", (ages, avg) => {
+    expect(averageAge(ages)).toBe(avg);
+  });
+});
+
+describe("RF-32, FR-013, FR-014: ageSectionLines", () => {
+  it("FR-014: senza età → titolo e «non disponibile»", () => {
+    expect(ageSectionLines([], 5).map((l) => l.text)).toEqual(["🧑 Età", "Età non disponibile: nessuna persona ha l'anno di nascita."]);
+  });
+
+  it("RF-32, AFU §5.11: fasce 0-9…50-59 e sola età media con withoutYear = 0", () => {
+    const lines = ageSectionLines([8, 34, 37, 52], 0);
+    expect(lines.map((l) => l.text)).toEqual([
+      "🧑 Età",
+      [
+        `0-9   ${B.repeat(5).padEnd(STATS_BAR_WIDTH)} 1`,
+        `10-19 ${" ".repeat(STATS_BAR_WIDTH)} 0`,
+        `20-29 ${" ".repeat(STATS_BAR_WIDTH)} 0`,
+        `30-39 ${B.repeat(STATS_BAR_WIDTH)} 2`,
+        `40-49 ${" ".repeat(STATS_BAR_WIDTH)} 0`,
+        `50-59 ${B.repeat(5).padEnd(STATS_BAR_WIDTH)} 1`,
+      ].join("\n"),
+      "Età media: 33 anni",
+    ]);
+    expect(lines[1]!.entities).toEqual([{ type: "pre", offset: 0, length: lines[1]!.text.length }]);
+    expect(lines[2]!.entities).toEqual([]);
+  });
+
+  it("FR-013: withoutYear = 23 → richiamo", () => {
+    expect(ageSectionLines([32], 23).at(-1)!.text).toBe("Età media: 32 anni · senza anno di nascita: 23");
   });
 });

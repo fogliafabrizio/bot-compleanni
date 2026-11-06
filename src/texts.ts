@@ -7,9 +7,11 @@ import {
   IMPORT_MAX_ROWS,
   OUTCOME_CORRECTION_DAYS,
   RECEIVED_FILE_MAX_BYTES,
+  STATS_BAR_WIDTH,
   STATUS_WINDOW_DAYS,
   TELEGRAM_DOWNLOAD_MAX_BYTES,
   TEXT_LIMITS,
+  UPCOMING_WIDE_DAYS,
 } from "./config";
 import type { Kind } from "./domain/schedule";
 import type { BotCommand } from "./telegram/types";
@@ -35,6 +37,12 @@ export const WEEKDAYS_IT = ["Dom", "Lun", "Mar", "Mer", "Gio", "Ven", "Sab"] as 
 
 // Mesi abbreviati dell'istogramma di /statistiche (AFU §5.11): "Gen" … "Dic".
 export const MONTHS_SHORT = MONTHS_IT.map((m) => m.charAt(0).toUpperCase() + m.slice(1, 3));
+
+// Mesi con l'iniziale maiuscola dei pulsanti di /mese (RF-20): "Gennaio" … "Dicembre".
+export const MONTHS_CAP = MONTHS_IT.map((m) => m.charAt(0).toUpperCase() + m.slice(1));
+
+// Fasce della sezione Età di /statistiche (RF-32, AFU §5.11).
+export const AGE_BUCKET_LABELS = ["0-9", "10-19", "20-29", "30-39", "40-49", "50-59", "60-69", "70-79", "80+"] as const;
 
 const daysSuffix = (group: string | null) => (group ? ` (${group})` : "");
 
@@ -137,6 +145,8 @@ export const T = {
   emptyValue: "❌ Il valore non può essere vuoto.",
   // FR-008 di 008: in testa alla scheda dopo il salvataggio, nello stesso messaggio.
   personSaved: (name: string) => `🎉 Fatto! ${name} è in rubrica.`,
+  // RF-01, AFU §5.2: sotto la scheda della conferma del salvataggio.
+  btnAddAnother: "➕ Aggiungi un'altra persona",
 
   // Scheda (AFU §5.6)
   schedaTitle: (name: string, nickname: string | null) => `👤 ${name}${nickname ? ` — "${nickname}"` : ""}`,
@@ -194,6 +204,11 @@ export const T = {
   groupCardTitle: (name: string, n: number) => `👥 ${name} · ${n === 1 ? "1 persona" : `${n} persone`}`,
   groupCardEmpty: "Nel gruppo non c'è ancora nessuno.",
   groupGone: "❌ Questo gruppo non esiste più.",
+  // v1.2 (RF-07, RF-19, AFU §5.9): ritorno all'elenco e gruppo virtuale "Senza gruppo".
+  btnAllGroups: "⬅️ Tutti i gruppi",
+  btnUngrouped: (n: number) => `Senza gruppo (${n})`,
+  ungroupedCardTitle: (n: number) => `👥 Senza gruppo · ${n === 1 ? "1 persona" : `${n} persone`}`,
+  allGrouped: "Ora tutte le persone hanno un gruppo.",
   // Ricerca (FR-007): `q` è il testo come scritto dall'utente.
   groupsMany: (q: string) => `🔍 Più gruppi corrispondono a «${q}»:`,
   groupNoMatch: (q: string) => `🔍 Nessun gruppo corrisponde a «${q}».`,
@@ -248,6 +263,8 @@ export const T = {
   upcomingNone: (days: number, group: string | null) =>
     `📆 ${days === 1 ? "Nessun compleanno nel prossimo giorno" : `Nessun compleanno nei prossimi ${days} giorni`}${daysSuffix(group)}`,
   upcomingDaysRange: (max: number) => `❌ Il numero di giorni deve essere tra 1 e ${max}.`,
+  // RF-17, FR-018: pulsante di passo successivo, senza icona.
+  btnUpcomingWide: `Prossimi ${UPCOMING_WIDE_DAYS} giorni`,
   // RF-18
   searchUsage: "Scrivi /cerca seguito da una parte del nome o del nickname, es. /cerca marco",
   searchHeader: (q: string) => `🔍 Risultati per «${q}»`,
@@ -256,6 +273,9 @@ export const T = {
   monthHeader: (monthName: string, year: number) => `🗓 Compleanni di ${monthName} ${year}`,
   monthNone: (monthName: string) => `🗓 Nessun compleanno a ${monthName}`,
   monthInvalid: "❌ Mese non riconosciuto: scrivilo per nome (es. marzo) o per numero da 1 a 12.",
+  // RF-20, RNF-14: mese prima e dopo, frecce verso l'esterno.
+  btnPrevMonth: (name: string) => `◀️ ${name}`,
+  btnNextMonth: (name: string) => `${name} ▶️`,
   // RF-21, BR-08
   btnMarkDone: "Segna fatto",
   overdueHeader: (days: number) => `⏳ Ultimi ${days} giorni, non fatti`,
@@ -267,6 +287,9 @@ export const T = {
   yearStreak: "Saltati per 2 o più anni di fila:",
   yearNone: "nessuno",
   yearInvalid: (min: number, max: number) => `❌ Anno non valido: scrivi un anno tra ${min} e ${max}.`,
+  // RF-22, RNF-14
+  btnPrevYear: (y: number) => `◀️ ${y}`,
+  btnNextYear: (y: number) => `${y} ▶️`,
 
   // /statistiche (RF-32, AFU §5.11, contracts/statistiche.md)
   statsTitle: "📊 Statistiche",
@@ -278,6 +301,13 @@ export const T = {
   statsMissing: (senzaAnno: number, senzaContatti: number) =>
     `Senza anno di nascita: ${senzaAnno} · Senza contatti: ${senzaContatti}`,
   statsMonthsTitle: "🎂 Compleanni per mese",
+  // Sezione Età (RF-32, AFU §5.11, FR-013, FR-014)
+  statsAgeTitle: "🧑 Età",
+  statsAgeRow: (label: string, bar: string, n: number, width: number) =>
+    `${label.padEnd(5)} ${bar.padEnd(STATS_BAR_WIDTH)} ${String(n).padStart(width)}`,
+  statsAgeAverage: (avg: number, without: number) =>
+    `Età media: ${plural(avg, "anno", "anni")}${without > 0 ? ` · senza anno di nascita: ${without}` : ""}`,
+  statsAgeUnavailable: "Età non disponibile: nessuna persona ha l'anno di nascita.",
   statsYear: (year: number, percent: number) => `${year} ${percent}%`,
   statsDone: (items: readonly string[]) =>
     `✅ Auguri fatti: ${items.length > 0 ? items.join(" · ") : "non ci sono ancora anni con esiti"}`,
@@ -422,7 +452,7 @@ export const T = {
   help: [
     "📖 Ecco cosa posso fare:",
     "/nuovo — aggiungi una persona, un campo alla volta",
-    "/gruppi [nome] — elenco gruppi a pulsanti; con un nome cerca il gruppo e apre la scheda",
+    '/gruppi [nome] — elenco gruppi a pulsanti, con la voce "Senza gruppo"; con un nome cerca il gruppo e apre la scheda',
     "/messaggio — modifica il messaggio di auguri",
     "/oggi — compleanni di oggi",
     "/prossimi [giorni] [gruppo] — prossimi compleanni",

@@ -89,13 +89,16 @@ describe("US2: inserimento guidato", () => {
       created_at: NOW.toISOString(),
       updated_at: NOW.toISOString(),
     });
-    // FR-003: dopo il salvataggio la conferma e la scheda con Modifica ed Elimina, nello stesso messaggio.
+    // FR-003: dopo il salvataggio la conferma e la scheda con Modifica ed Elimina, nello stesso messaggio;
+    // 009 RF-01: in fondo, su una riga a sé, [➕ Aggiungi un'altra persona] (s:n).
     expect(deps.tg.lastText()?.startsWith(`${T.personSaved("Marchino")}\n\n${T.schedaTitle("Marco Rossi", "Marchino")}\n`)).toBe(true);
     expect(deps.tg.lastText()).toContain(T.schedaDate("14/03/1994", "compie 33 anni tra 137 giorni"));
     expect(buttons(kb(deps))).toEqual([
       [T.btnEdit, `p:m:${p!.id}`],
       [T.btnDelete, `p:x:${p!.id}`],
+      [T.btnAddAnother, "s:n"],
     ]);
+    expect(kb(deps)!.inline_keyboard.at(-1)!.map((b) => b.text)).toEqual(["➕ Aggiungi un'altra persona"]);
     expect(await count("conversation_state")).toBe(0);
   });
 

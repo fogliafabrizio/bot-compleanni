@@ -8,7 +8,10 @@ import {
   groupByIdStatement,
   listWithCountsStatement,
   renameGuardedStatements,
+  ungroupedCountStatement,
+  ungroupedFrom,
   type Group,
+  type GroupListData,
   type GroupWithCount,
 } from "../../db/groups";
 import { groupCardStatements } from "../../db/viste";
@@ -16,7 +19,7 @@ import { nameHash, normKey } from "../../domain/text";
 import { keyboard, type Callback } from "../../telegram/keyboard";
 import { T } from "../../texts";
 import { answerCallback, type Ctx } from "../context";
-import { cardFromBatch, openGroupCard, replyGroupGone, showGroupCard, showGroups } from "../gruppi";
+import { cardFromBatch, openGroupCard, openUngrouped, replyGroupGone, showAllGroups, showGroupCard, showGroups } from "../gruppi";
 import { showProssimiForGroup } from "../viste";
 import { cancelButton, flowButton, registerFlow, repeatStep, startFlow } from "./engine";
 import { validateGroupName } from "./steps";
@@ -51,6 +54,14 @@ export async function handleGroupCallback(ctx: Ctx, cb: Extract<Callback, { kind
     await startCrea(ctx);
     return;
   }
+  if (cb.action === "l") {
+    await showAllGroups(ctx);
+    return;
+  }
+  if (cb.action === "s") {
+    await openUngrouped(ctx);
+    return;
+  }
   const { groupId, nameHash: hash } = cb;
   if (groupId === undefined || hash === undefined) {
     await answerCallback(ctx, T.actionUnavailable);
@@ -76,10 +87,10 @@ export async function handleGroupCallback(ctx: Ctx, cb: Extract<Callback, { kind
 
 // Scrittura a 0 righe: gruppo cambiato (→ non esiste più, flusso chiuso) o flusso già consumato da
 // un doppio invio (→ nessuna risposta). `current` è il gruppo riletto nella stessa batch.
-async function closeIfChanged(ctx: Ctx, current: Group | undefined, expected: string, groups?: readonly GroupWithCount[]): Promise<boolean> {
+async function closeIfChanged(ctx: Ctx, current: Group | undefined, expected: string, data?: GroupListData): Promise<boolean> {
   if (current && current.name === expected) return false;
   await clear(ctx.deps.db, ctx.chatId);
-  await replyGroupGone(ctx, groups);
+  await replyGroupGone(ctx, data);
   return true;
 }
 
@@ -161,14 +172,16 @@ registerFlow({
           ...deleteGuardedStatements(db, ctx.chatId, state.flowId, groupId, groupName),
           groupByIdStatement(db, groupId),
           listWithCountsStatement(db),
+          // Dopo la DELETE: comprende le persone rimaste senza gruppo (research R-02 di 009).
+          ungroupedCountStatement(db),
         ]);
-        const groups = (results[3]?.results ?? []) as GroupWithCount[];
+        const data: GroupListData = { groups: (results[3]?.results ?? []) as GroupWithCount[], ungrouped: ungroupedFrom(results[4]) };
         if ((results[0]?.meta.changes ?? 0) === 0) {
           const current = results[2]?.results[0] as Group | undefined;
-          if (!(await closeIfChanged(ctx, current, groupName, groups))) await answerCallback(ctx, T.actionUnavailable);
+          if (!(await closeIfChanged(ctx, current, groupName, data))) await answerCallback(ctx, T.actionUnavailable);
           return;
         }
-        await showGroups(ctx, T.groupDeleted(groupName), groups);
+        await showGroups(ctx, T.groupDeleted(groupName), data);
       },
     },
   },

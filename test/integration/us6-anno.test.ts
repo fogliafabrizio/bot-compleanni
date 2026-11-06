@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { insertOccurrence, insertPerson } from "../helpers/db";
 import { makeDeps } from "../helpers/deps";
-import { commandParts, monoParts } from "../helpers/fake-telegram";
+import { buttons, commandParts, monoParts } from "../helpers/fake-telegram";
 import { say } from "../helpers/send";
 import { T } from "../../src/texts";
 
@@ -34,7 +34,11 @@ describe("US6: /anno", () => {
     await say(deps, "/anno 2025");
     const [msg] = deps.tg.messages();
     expect(deps.tg.messages()).toHaveLength(1);
-    expect(msg!.keyboard).toBeUndefined();
+    // 009 RF-22: storico chiuso nel 2024 → [◀️ 2024]; 2025 < anno corrente → [2026 ▶️].
+    expect(buttons(msg!.keyboard)).toEqual([
+      ["◀️ 2024", "s:y:2024"],
+      ["2026 ▶️", "s:y:2026"],
+    ]);
     expect(msg!.text.split("\n")).toEqual([
       T.yearHeader(2025),
       "",
@@ -86,11 +90,22 @@ describe("US6: /anno", () => {
       ),
     );
     expect(deps.tg.messages()[0]!.entities).toBeUndefined();
+    // 009 RF-22: anno corrente senza storico chiuso nel 2025 → nessun pulsante.
+    expect(deps.tg.messages()[0]!.keyboard).toBeUndefined();
+  });
+
+  it("009 RF-22: /anno 2023 senza storico nel 2022 → solo [2024 ▶️]; occorrenze aperte nel 2022 non contano", async () => {
+    const p = await insertPerson({ fullName: "Paolo", day: 5, month: 6 });
+    await insertOccurrence({ personId: p, year: 2022, effectiveDate: "2022-06-05", status: "aperta" });
+    const deps = makeDeps();
+    await say(deps, "/anno 2023");
+    expect(buttons(deps.tg.lastKeyboard())).toEqual([["2024 ▶️", "s:y:2024"]]);
   });
 
   it.each(["2027", "1850", "20x5"])("FR-019: /anno %s → anno non valido", async (y) => {
     const deps = makeDeps();
     await say(deps, `/anno ${y}`);
     expect(deps.tg.messages().map((m) => m.text)).toEqual([T.yearInvalid(1900, 2026)]);
+    expect(deps.tg.lastKeyboard()).toBeUndefined();
   });
 });

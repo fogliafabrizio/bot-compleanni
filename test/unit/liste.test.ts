@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
+import { renderGroupList } from "../../src/bot/gruppi";
 import { columnWidth, formatListLine, splitMessage, type LineInput, type ListLine } from "../../src/bot/liste";
 import { LIST_MAX_LINES_PER_MESSAGE, LIST_NAME_COLUMN_MAX, MESSAGE_MAX_LENGTH } from "../../src/config";
+import type { InlineKeyboardButton, InlineKeyboardMarkup } from "../../src/telegram/types";
 
 // Oggi = mercoledì 28/10/2026.
 const item = (over: Partial<LineInput> = {}): LineInput => ({
@@ -140,5 +142,61 @@ describe("FR-005, research R-05: splitMessage", () => {
       }
     }
     expect(seen).toBe(200);
+  });
+});
+
+// --- Elenco gruppi v1.2 (RF-07, RF-19, V-09, research R-04 di 009) ---
+
+const groupsOf = (n: number) => Array.from({ length: n }, (_, i) => ({ id: i + 1, name: `Gruppo ${String(i + 1).padStart(2, "0")}`, members: 1 }));
+const mainList = (n: number, ungrouped: number) => renderGroupList(groupsOf(n), { title: "👥 I tuoi gruppi", action: "o", withNew: true, ungrouped });
+const allButtons = (kb: InlineKeyboardMarkup | undefined) => (kb?.inline_keyboard ?? []).flat();
+const rowTexts = (kb: InlineKeyboardMarkup | undefined) => (kb?.inline_keyboard ?? []).map((r) => r.map((b) => b.text));
+const cbOfButton = (b: InlineKeyboardButton | undefined) => (b && "callback_data" in b ? b.callback_data : undefined);
+
+describe("RF-07, V-09: renderGroupList con la voce «Senza gruppo»", () => {
+  it("RF-07: 0 gruppi, N = 0 → solo ➕ Nuovo gruppo", () => {
+    expect(rowTexts(mainList(0, 0).keyboard)).toEqual([["➕ Nuovo gruppo"]]);
+  });
+
+  it("RF-07: 0 gruppi, N > 0 → [Senza gruppo (N)] sopra ➕", () => {
+    const r = mainList(0, 30);
+    expect(r.lines.map((l) => l.text)).toEqual(["👥 Non hai ancora nessun gruppo."]);
+    expect(rowTexts(r.keyboard)).toEqual([["Senza gruppo (30)"], ["➕ Nuovo gruppo"]]);
+    expect(cbOfButton(allButtons(r.keyboard)[0])).toBe("g2:s");
+  });
+
+  it("RF-07: ≤ 60 gruppi → voce su una riga a sé tra i gruppi e ➕", () => {
+    const rows = rowTexts(mainList(3, 12).keyboard);
+    expect(rows).toEqual([["Gruppo 01 (1)", "Gruppo 02 (1)"], ["Gruppo 03 (1)"], ["Senza gruppo (12)"], ["➕ Nuovo gruppo"]]);
+  });
+
+  it("RF-07: N = 0 → nessuna voce", () => {
+    expect(allButtons(mainList(3, 0).keyboard).map((b) => b.text)).not.toContain("Senza gruppo (0)");
+    expect(allButtons(mainList(3, 0).keyboard)).toHaveLength(4);
+  });
+
+  it("V-09: 60 gruppi + N > 0 → 62 pulsanti", () => {
+    expect(allButtons(mainList(60, 5).keyboard)).toHaveLength(62);
+  });
+
+  it("V-09: 61 gruppi + N > 0 → righe testuali e 2 pulsanti", () => {
+    const r = mainList(61, 5);
+    expect(r.lines.map((l) => l.text)).toContain("Gruppo 61 (1)");
+    expect(rowTexts(r.keyboard)).toEqual([["Senza gruppo (5)"], ["➕ Nuovo gruppo"]]);
+  });
+
+  it("RF-07, FR-003: la scelta tra candidati non ha mai la voce virtuale", () => {
+    const r = renderGroupList(groupsOf(3), { title: "🔍", action: "o", withNew: false, ungrouped: 9 });
+    expect(allButtons(r.keyboard).map((b) => b.text)).toEqual(["Gruppo 01 (1)", "Gruppo 02 (1)", "Gruppo 03 (1)"]);
+  });
+
+  it("RF-07, FR-005: un gruppo reale «Senza gruppo» è ordinato come gli altri e distinto dalla voce", () => {
+    const groups = [
+      { id: 1, name: "Senza gruppo", members: 2 },
+      { id: 2, name: "Amici", members: 1 },
+    ];
+    const r = renderGroupList(groups, { title: "👥 I tuoi gruppi", action: "o", withNew: true, ungrouped: 4 });
+    expect(rowTexts(r.keyboard)).toEqual([["Amici (1)", "Senza gruppo (2)"], ["Senza gruppo (4)"], ["➕ Nuovo gruppo"]]);
+    expect(cbOfButton(allButtons(r.keyboard)[1])).toMatch(/^g2:o:1:/);
   });
 });

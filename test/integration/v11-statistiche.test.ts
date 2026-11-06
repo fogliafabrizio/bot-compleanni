@@ -52,7 +52,17 @@ describe("RF-32: /statistiche", () => {
     expect(monthCount(lines, "Dic")).toBe(2);
     expect(monthCount(lines, "Giu")).toBe(0);
     expect(lines.at(-1)).toBe("✅ Auguri fatti: 2026 67% · 2025 50%");
-    expect(lines).toHaveLength(6 + 12 + 1);
+    // Sezione Età (009, RF-32) al 28/10/2026: 36, 41, 56 e 25 anni; 2 senza anno.
+    expect(lines.slice(18, 25).map((l) => l.replace(/█+/g, "█").replace(/ +/g, " "))).toEqual([
+      "",
+      "🧑 Età",
+      "20-29 █ 1",
+      "30-39 █ 1",
+      "40-49 █ 1",
+      "50-59 █ 1",
+      "Età media: 40 anni · senza anno di nascita: 2",
+    ]);
+    expect(lines).toHaveLength(6 + 12 + 1 + 1 + 4 + 1 + 1);
   });
 
   it("RF-32, US3-2, FR-014: nessuna occorrenza chiusa → frase senza anni", async () => {

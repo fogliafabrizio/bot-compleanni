@@ -3,7 +3,7 @@ import { formatShort, nextBirthday } from "../domain/date";
 import { sortNames } from "../domain/text";
 import { pendingWindow } from "../domain/viste";
 import { button, keyboard } from "../telegram/keyboard";
-import type { InlineKeyboardMarkup } from "../telegram/types";
+import type { InlineKeyboardButton, InlineKeyboardMarkup } from "../telegram/types";
 import { T } from "../texts";
 import { toIso, toLocal, type LocalDate } from "../time";
 import { answerCallback, reply, type Ctx } from "./context";
@@ -64,7 +64,13 @@ export function schedaKeyboard(personId: number, contacts: ContactFields, hasPen
 }
 
 // `confirm` (FR-008 di 008): conferma col nome della persona, nello stesso messaggio della scheda.
-export async function showScheda(ctx: Ctx, personId: number, confirm?: (name: string) => string): Promise<void> {
+// `extraRows` (RF-01 v1.2, research R-08 di 009): righe di tastiera in coda a quelle della scheda.
+export async function showScheda(
+  ctx: Ctx,
+  personId: number,
+  confirm?: (name: string) => string,
+  extraRows: InlineKeyboardButton[][] = [],
+): Promise<void> {
   const { db } = ctx.deps;
   const today = toLocal(ctx.deps.now());
   const data = schedaFromResults(await db.batch(schedaStatements(db, personId, pendingWindow(today))));
@@ -74,7 +80,8 @@ export async function showScheda(ctx: Ctx, personId: number, confirm?: (name: st
   }
   const text = renderScheda(data.person, data.groups, data.outcomes, today);
   const full = confirm ? `${confirm(data.person.nickname ?? data.person.fullName)}\n\n${text}` : text;
-  await reply(ctx, full, schedaKeyboard(personId, data.person, data.pending !== null));
+  const kb = schedaKeyboard(personId, data.person, data.pending !== null);
+  await reply(ctx, full, keyboard([...kb.inline_keyboard, ...extraRows]));
 }
 
 // "Segna fatto" (p:f, FR-017, FR-018, BR-08): una batch con l'UPDATE e la rilettura della scheda.

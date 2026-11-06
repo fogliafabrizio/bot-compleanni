@@ -1,4 +1,5 @@
 import { consumeStatement, flowGuardSql } from "./conversation";
+import { LIST_PERSON_COLUMNS } from "./viste";
 
 // Query della tabella groups (data-model.md, RF-07, RF-08, BR-17).
 
@@ -28,6 +29,34 @@ export function listWithCountsStatement(db: D1Database): D1PreparedStatement {
 export async function listWithCounts(db: D1Database): Promise<GroupWithCount[]> {
   const { results } = await listWithCountsStatement(db).all<GroupWithCount>();
   return results;
+}
+
+// --- "Senza gruppo" (RF-07, RF-19, D-31, research R-02, R-03 di 009): calcolato, mai salvato. Nessun
+// confronto sul nome: un gruppo reale "Senza gruppo" è un gruppo come gli altri (FR-005, FR-027).
+
+const UNGROUPED_SQL = "NOT EXISTS (SELECT 1 FROM person_groups pg WHERE pg.person_id = p.id)";
+
+export function ungroupedCountStatement(db: D1Database): D1PreparedStatement {
+  return db.prepare(`SELECT COUNT(*) AS n FROM persons p WHERE ${UNGROUPED_SQL}`);
+}
+
+// Righe con la forma di ListPersonRow.
+export function ungroupedPersonsStatement(db: D1Database): D1PreparedStatement {
+  return db.prepare(`SELECT ${LIST_PERSON_COLUMNS} FROM persons p WHERE ${UNGROUPED_SQL}`);
+}
+
+export interface GroupListData {
+  groups: GroupWithCount[];
+  ungrouped: number;
+}
+
+// Conteggio letto da una batch che lo contiene (prima riga, colonna n).
+export const ungroupedFrom = (r: D1Result | undefined): number => (r?.results[0] as { n: number } | undefined)?.n ?? 0;
+
+// Elenco gruppi: una batch [gruppi con conteggio, persone senza gruppo] (una subrequest).
+export async function readGroupList(db: D1Database): Promise<GroupListData> {
+  const [groups, ungrouped] = await db.batch([listWithCountsStatement(db), ungroupedCountStatement(db)]);
+  return { groups: (groups?.results ?? []) as GroupWithCount[], ungrouped: ungroupedFrom(ungrouped) };
 }
 
 export function groupByIdStatement(db: D1Database, id: number): D1PreparedStatement {

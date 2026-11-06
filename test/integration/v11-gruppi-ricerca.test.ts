@@ -31,6 +31,7 @@ describe("RF-19, BR-26, RNF-14: /gruppi <testo>", () => {
     expect(buttons(deps.tg.lastKeyboard())).toEqual([
       ["✏️ Rinomina", `g2:r:${gid}:${nameHash("👨‍👩‍👧 Famiglia")}`],
       ["🗑 Elimina", `g2:x:${gid}:${nameHash("👨‍👩‍👧 Famiglia")}`],
+      ["⬅️ Tutti i gruppi", "g2:l"],
     ]);
   });
 
@@ -72,6 +73,29 @@ describe("RF-19, BR-26, RNF-14: /gruppi <testo>", () => {
     expect(deps.tg.messages()).toHaveLength(1);
     expect(deps.tg.lastText()).toBe(`${T.groupNoMatch("xyz")}\n\n${T.groupsTitle}`);
     expect(labels(deps.tg.lastKeyboard())).toEqual(["Famiglia (1)", "Lavoro (0)", "➕ Nuovo gruppo"]);
+  });
+
+  it("009 RF-07, FR-003: nessuna corrispondenza → l'elenco dopo l'avviso ha la voce «Senza gruppo»", async () => {
+    await groupWith("Famiglia", 1);
+    await insertPerson({ fullName: "Sola", day: 2, month: 11 });
+    const deps = makeDeps();
+    await say(deps, "/gruppi xyz");
+    expect(deps.tg.lastText()).toBe(`${T.groupNoMatch("xyz")}\n\n${T.groupsTitle}`);
+    expect(buttons(deps.tg.lastKeyboard())).toEqual([
+      ["Famiglia (1)", expect.stringMatching(/^g2:o:/)],
+      ["Senza gruppo (1)", "g2:s"],
+      ["➕ Nuovo gruppo", "g2:n"],
+    ]);
+  });
+
+  it("009 RF-19, BR-26: /gruppi senza cerca solo tra i gruppi salvati, non apre la scheda virtuale", async () => {
+    await groupWith("Famiglia", 1);
+    await insertPerson({ fullName: "Sola", day: 2, month: 11 });
+    const deps = makeDeps();
+    await say(deps, "/gruppi senza");
+    expect(deps.tg.messages()).toHaveLength(1);
+    expect(deps.tg.lastText()).toBe(`${T.groupNoMatch("senza")}\n\n${T.groupsTitle}`);
+    expect(deps.tg.lastText()).not.toContain(T.ungroupedCardTitle(1));
   });
 
   it("FR-014 (#6): /gruppo lavoro e /gruppi lavoro danno messaggi identici", async () => {

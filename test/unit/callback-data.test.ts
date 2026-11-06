@@ -118,3 +118,52 @@ describe("FR-017, V-09: tastiere dei gruppi entro 64 byte", () => {
     }
   });
 });
+
+describe("009 FR-030, RNF-14: pulsanti di passo successivo (contracts/callback-data.md di 009)", () => {
+  const bytes = (s: string) => new TextEncoder().encode(s).length;
+
+  it.each(["g2:l", "g2:s", "s:u", "s:m:1", "s:m:12", "s:y:2026", "s:n", "g2:p:999999999999999:zzzzzzz:90"])(
+    "FR-030: round-trip di %s entro 64 byte",
+    (s) => {
+      const cb = decodeCallback(s);
+      expect(cb).not.toBeNull();
+      expect(encodeCallback(cb!)).toBe(s);
+      expect(bytes(s)).toBeLessThanOrEqual(64);
+    },
+  );
+
+  it("FR-030: decodifica delle azioni nuove", () => {
+    expect(decodeCallback("g2:l")).toEqual({ kind: "group", action: "l" });
+    expect(decodeCallback("g2:s")).toEqual({ kind: "group", action: "s" });
+    expect(decodeCallback("s:u")).toEqual({ kind: "static", scope: "s", action: "u" });
+    expect(decodeCallback("s:m:4")).toEqual({ kind: "static", scope: "s", action: "m", id: 4 });
+    expect(decodeCallback("s:y:2025")).toEqual({ kind: "static", scope: "s", action: "y", id: 2025 });
+  });
+
+  it("research R-01: caso peggiore di [Prossimi 90 giorni] con gruppo = 31 byte", () => {
+    const s = encodeCallback({ kind: "group", action: "p", groupId: 999999999999999, nameHash: "zzzzzzz", days: 90 });
+    expect(s).toBe("g2:p:999999999999999:zzzzzzz:90");
+    expect(bytes(s)).toBe(31);
+  });
+
+  it.each(["g2:l:1", "g2:s:5", "g2:s:5:abc"])("FR-030: %s (campi in più) → null", (s) => {
+    expect(decodeCallback(s)).toBeNull();
+  });
+
+  it("FR-030: forme n|o|r|x|p di 005 invariate", () => {
+    expect(decodeCallback("g2:n")).toEqual({ kind: "group", action: "n" });
+    expect(decodeCallback("g2:o:12:1x9k3pq")).toEqual({ kind: "group", action: "o", groupId: 12, nameHash: "1x9k3pq" });
+    expect(decodeCallback("g2:r:12:esn6mr")).toEqual({ kind: "group", action: "r", groupId: 12, nameHash: "esn6mr" });
+    expect(decodeCallback("g2:x:12:esn6mr")).toEqual({ kind: "group", action: "x", groupId: 12, nameHash: "esn6mr" });
+    expect(decodeCallback("g2:p:12:esn6mr:90")).toEqual({ kind: "group", action: "p", groupId: 12, nameHash: "esn6mr", days: 90 });
+  });
+
+  it("V-09: elenco con 60 gruppi e voce «Senza gruppo» → 62 pulsanti entro 64 byte", () => {
+    const groups = Array.from({ length: GROUP_BUTTONS_MAX }, (_, i) => ({ id: 999999999999999 - i, name: `G${i}`, members: 1 }));
+    const kb = renderGroupList(groups, { title: "t", action: "o", withNew: true, ungrouped: 200 }).keyboard;
+    const data = (kb?.inline_keyboard ?? []).flat().map((b) => ("callback_data" in b ? b.callback_data : ""));
+    expect(data).toHaveLength(62);
+    expect(data.slice(-2)).toEqual(["g2:s", "g2:n"]);
+    for (const d of data) expect(bytes(d)).toBeLessThanOrEqual(64);
+  });
+});

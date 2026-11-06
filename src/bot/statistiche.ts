@@ -1,18 +1,20 @@
 import {
   statisticheReadStatements,
+  type StatsBirthRow,
   type StatsGroupRow,
   type StatsMonthRow,
   type StatsPersonsRow,
   type StatsYearRow,
 } from "../db/statistiche";
 import { formatStatistiche } from "../domain/statistiche";
+import { toLocal } from "../time";
 import type { Ctx } from "./context";
 import { sendLines } from "./liste";
 
 // /statistiche (RF-32, contracts/statistiche.md): una batch D1, poi la risposta.
 export async function showStatistiche(ctx: Ctx): Promise<void> {
   const { db } = ctx.deps;
-  const [personsRes, groupsRes, monthsRes, yearsRes] = await db.batch(statisticheReadStatements(db));
+  const [personsRes, groupsRes, monthsRes, yearsRes, birthsRes] = await db.batch(statisticheReadStatements(db));
   const p = personsRes?.results[0] as StatsPersonsRow | undefined;
   // Mesi senza compleanni = 0.
   const months = Array.from({ length: 12 }, () => 0);
@@ -32,6 +34,8 @@ export async function showStatistiche(ctx: Ctx): Promise<void> {
       groups: (groupsRes?.results ?? []) as StatsGroupRow[],
       months,
       years: (yearsRes?.results ?? []) as StatsYearRow[],
+      births: (birthsRes?.results ?? []) as StatsBirthRow[],
+      today: toLocal(ctx.deps.now()),
     }),
   );
 }

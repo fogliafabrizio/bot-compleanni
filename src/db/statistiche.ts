@@ -1,5 +1,6 @@
 // Letture di /statistiche (RF-32, contracts/statistiche.md, research R-08 di 007): una batch di 4
-// aggregati [persone, gruppi, mesi, andamento per anno].
+// aggregati [persone, gruppi, mesi, andamento per anno] più le date di nascita con anno della
+// sezione Età (research R-07 di 009).
 
 export interface StatsPersonsRow {
   total: number;
@@ -20,6 +21,12 @@ export interface StatsGroupRow {
 export interface StatsMonthRow {
   birth_month: number;
   n: number;
+}
+
+export interface StatsBirthRow {
+  birth_day: number;
+  birth_month: number;
+  birth_year: number;
 }
 
 export interface StatsYearRow {
@@ -44,5 +51,6 @@ export function statisticheReadStatements(db: D1Database): D1PreparedStatement[]
       `SELECT year, SUM(status = 'fatto') AS fatto, COUNT(*) AS chiuse FROM occurrences
        WHERE status <> 'aperta' GROUP BY year ORDER BY year DESC`,
     ),
+    db.prepare("SELECT birth_day, birth_month, birth_year FROM persons WHERE birth_year IS NOT NULL"),
   ];
 }

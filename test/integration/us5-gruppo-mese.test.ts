@@ -25,6 +25,7 @@ describe("US5: /gruppo (alias di /gruppi, v1.1 RF-19, BR-26)", () => {
     expect(buttons(msg.keyboard)).toEqual([
       ["✏️ Rinomina", `g2:r:${lavoro}:${nameHash("Lavoro")}`],
       ["🗑 Elimina", `g2:x:${lavoro}:${nameHash("Lavoro")}`],
+      ["⬅️ Tutti i gruppi", "g2:l"],
     ]);
     await say(deps, "/gruppo LAVORO");
     expect(deps.tg.lastText()).toBe(msg.text);
@@ -65,6 +66,11 @@ describe("US5: /mese", () => {
     await say(deps, "/mese marzo");
     const first = deps.tg.lastText()!;
     expect(first.split("\n")).toEqual([T.monthHeader("marzo", 2027), "", `Mar 02/03  Zeno (37)  /p_${z}`, `Dom 14/03  Anna       /p_${a}`]);
+    // 009 RF-20: [◀️ Febbraio] [Aprile ▶️] sull'ultimo messaggio.
+    expect(buttons(deps.tg.lastKeyboard())).toEqual([
+      ["◀️ Febbraio", "s:m:2"],
+      ["Aprile ▶️", "s:m:4"],
+    ]);
     await say(deps, "/mese Marzo");
     expect(deps.tg.lastText()).toBe(first);
     await say(deps, "/mese 3");
@@ -85,6 +91,7 @@ describe("US5: /mese", () => {
     const deps = makeDeps();
     await say(deps, `/mese ${m}`);
     expect(deps.tg.lastText()).toBe(T.monthInvalid);
+    expect(deps.tg.lastKeyboard()).toBeUndefined();
   });
 
   it("BR-04: /mese febbraio con un nato il 29/02 → 29/02 con il giorno della settimana del 28/02/2027", async () => {
@@ -99,5 +106,7 @@ describe("US5: /mese", () => {
     const deps = makeDeps();
     await say(deps, "/mese giugno");
     expect(deps.tg.lastText()).toBe(T.monthNone("giugno"));
+    // 009 RF-20: anche la vista vuota ha i pulsanti.
+    expect(labels(deps.tg.lastKeyboard())).toEqual(["◀️ Maggio", "Luglio ▶️"]);
   });
 });

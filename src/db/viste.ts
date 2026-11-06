@@ -1,6 +1,7 @@
 import type { PersonRowLike } from "../bot/promemoria";
 import type { OccurrenceStatus } from "../domain/schedule";
 import type { ListPerson } from "../domain/viste";
+import { ungroupedCountStatement } from "./groups";
 import { GROUP_NAMES_SQL } from "./reminders";
 import { DEFAULT_MESSAGE_KEY } from "./settings";
 
@@ -70,12 +71,14 @@ export interface MembershipRow extends ListPersonRow {
 const GROUP_COUNT_SQL = `SELECT g.id, g.name, COUNT(pg.person_id) AS members
   FROM groups g LEFT JOIN person_groups pg ON pg.group_id = g.id`;
 
-// Ricerca in una sola andata: [gruppi con conteggi, tutte le appartenenze]. La chiave BR-26 non si
-// calcola in SQL; il filtro sul gruppo trovato è in TypeScript.
+// Ricerca in una sola andata: [gruppi con conteggi, tutte le appartenenze, persone senza gruppo]. La
+// chiave BR-26 non si calcola in SQL; il filtro sul gruppo trovato è in TypeScript.
 export function groupSearchStatements(db: D1Database): D1PreparedStatement[] {
   return [
     db.prepare(`${GROUP_COUNT_SQL} GROUP BY g.id`),
     db.prepare(`SELECT pg.group_id, ${LIST_PERSON_COLUMNS} FROM person_groups pg JOIN persons p ON p.id = pg.person_id`),
+    // RF-07 v1.2: conteggio della voce "Senza gruppo" dell'elenco (research R-02 di 009).
+    ungroupedCountStatement(db),
   ];
 }
 
@@ -136,7 +139,8 @@ export function overdueStatement(db: D1Database, from: string, to: string): D1Pr
     .bind(from, to);
 }
 
-// RF-22, research R-11: [conteggi per stato, saltati di Y, saltati di Y e di Y − 1].
+// RF-22, research R-11: [conteggi per stato, saltati di Y, saltati di Y e di Y − 1, esiste uno
+// storico chiuso in Y − 1 (pulsante ◀️, research R-06 di 009)].
 export function yearStatements(db: D1Database, year: number): D1PreparedStatement[] {
   return [
     db.prepare("SELECT status, COUNT(*) AS n FROM occurrences WHERE year = ? AND status <> 'aperta' GROUP BY status").bind(year),
@@ -153,5 +157,6 @@ export function yearStatements(db: D1Database, year: number): D1PreparedStatemen
          WHERE o.year = ? AND o.status = 'saltato' ORDER BY o.effective_date, p.id`,
       )
       .bind(year),
+    db.prepare("SELECT EXISTS (SELECT 1 FROM occurrences WHERE year = ? AND status <> 'aperta') AS has").bind(year - 1),
   ];
 }

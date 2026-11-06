@@ -65,10 +65,13 @@ export const TODAY_MAX_MESSAGES = 10;
 // RF-17: giorni di /prossimi senza argomento e massimo ammesso.
 export const UPCOMING_DEFAULT_DAYS = 30;
 export const UPCOMING_MAX_DAYS = 366;
+// RF-17, FR-018: finestra allargata di [Prossimi 90 giorni]
+export const UPCOMING_WIDE_DAYS = 90;
 
 // --- Gruppi v1.1 (feature 005) ---
 
-// V-09, FR-013: pulsanti di gruppo per tastiera; con ➕ Nuovo gruppo sono 61 ≤ 100. Oltre, elenco testuale.
+// V-09, FR-013: pulsanti di gruppo per tastiera; 60 gruppi + [Senza gruppo (N)] + [➕ Nuovo gruppo] =
+// 62 ≤ 100 (V-09). Oltre, elenco testuale.
 export const GROUP_BUTTONS_MAX = 60;
 
 // BR-26, FR-006a: lunghezza minima della chiave di ricerca del nome di un gruppo nuovo o rinominato.

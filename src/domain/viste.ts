@@ -1,4 +1,4 @@
-import { MIN_BIRTH_YEAR, OUTCOME_CORRECTION_DAYS, UPCOMING_DEFAULT_DAYS, UPCOMING_MAX_DAYS } from "../config";
+import { MIN_BIRTH_YEAR, OUTCOME_CORRECTION_DAYS, UPCOMING_DEFAULT_DAYS, UPCOMING_MAX_DAYS, UPCOMING_WIDE_DAYS } from "../config";
 import { MONTHS_IT } from "../texts";
 import { addDays, toDateString, type LocalDate } from "../time";
 import { effectiveDate, nextBirthday } from "./date";
@@ -76,6 +76,11 @@ export function parseUpcomingArgs(args: string): UpcomingArgs {
   return { ok: true, days, group: rest.length > 0 ? rest.join(" ") : null };
 }
 
+// RF-17, FR-018: [Prossimi 90 giorni] solo sotto la finestra allargata.
+export function canWidenUpcoming(days: number): boolean {
+  return days < UPCOMING_WIDE_DAYS;
+}
+
 // Compleanni da oggi a oggi + days − 1 compresi.
 export function upcoming(people: readonly ListPerson[], today: LocalDate, days: number): BirthdayRow[] {
   return sortByNextBirthday(people, today).filter((r) => r.daysUntil <= days - 1);
@@ -106,6 +111,11 @@ export function referenceYear(month: number, today: LocalDate): number {
   return month >= today.month ? today.year : today.year + 1;
 }
 
+// RF-20, FR-019, research R-05 di 009: mese prima e dopo, circolare (gennaio ↔ dicembre).
+export function adjacentMonths(month: number): { prev: number; next: number } {
+  return { prev: month === 1 ? 12 : month - 1, next: month === 12 ? 1 : month + 1 };
+}
+
 // Persone nate nel mese, per giorno di nascita e poi nome; età nell'anno di riferimento.
 export function monthRows(people: readonly ListPerson[], month: number, today: LocalDate): ListRow[] {
   const year = referenceYear(month, today);
@@ -127,6 +137,11 @@ export function parseYear(args: string, today: LocalDate): { ok: true; year: num
   if (!/^\d{4}$/.test(text)) return { ok: false };
   const year = Number(text);
   return year >= MIN_BIRTH_YEAR && year <= today.year ? { ok: true, year } : { ok: false };
+}
+
+// RF-22, FR-020: ◀️ solo con storico chiuso nell'anno prima; ▶️ solo prima dell'anno corrente.
+export function yearNavigation(shown: number, currentYear: number, prevHasHistory: boolean): { prev: number | null; next: number | null } {
+  return { prev: prevHasHistory ? shown - 1 : null, next: shown < currentYear ? shown + 1 : null };
 }
 
 // --- Gruppi: ordinamento e ricerca morbida (BR-26, FR-001, FR-006, FR-007, FR-016, research R-03) ---

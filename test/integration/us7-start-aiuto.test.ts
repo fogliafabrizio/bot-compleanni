@@ -47,11 +47,11 @@ describe("US7: benvenuto e aiuto", () => {
     expect(lines).toContain("Per importare persone inviami un file CSV.");
   });
 
-  it("RF-19, AFU §5.1 (#7): /aiuto mostra /gruppi [nome] e non /gruppo", async () => {
+  it("RF-19, AFU §5.1 (#7), FR-009: /aiuto mostra /gruppi [nome] e non /gruppo", async () => {
     const deps = makeDeps();
     await say(deps, "/aiuto");
     const lines = deps.tg.lastText()!.split("\n");
-    expect(lines).toContain("/gruppi [nome] — elenco gruppi a pulsanti; con un nome cerca il gruppo e apre la scheda");
+    expect(lines).toContain('/gruppi [nome] — elenco gruppi a pulsanti, con la voce "Senza gruppo"; con un nome cerca il gruppo e apre la scheda');
     expect(lines.some((l) => l.startsWith("/gruppo "))).toBe(false);
   });
 

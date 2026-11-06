@@ -1,4 +1,4 @@
-import { MIN_BIRTH_YEAR, OUTCOME_CORRECTION_DAYS, UPCOMING_MAX_DAYS } from "../config";
+import { MIN_BIRTH_YEAR, OUTCOME_CORRECTION_DAYS, UPCOMING_MAX_DAYS, UPCOMING_WIDE_DAYS } from "../config";
 import {
   groupCardStatements,
   listPersonsStatement,
@@ -12,6 +12,8 @@ import {
 import type { OccurrenceStatus } from "../domain/schedule";
 import { groupKey, nameHash } from "../domain/text";
 import {
+  adjacentMonths,
+  canWidenUpcoming,
   findGroups,
   matchSearch,
   monthRows,
@@ -24,18 +26,21 @@ import {
   sortByDate,
   sortByNextBirthday,
   upcoming,
+  yearNavigation,
   type ListPerson,
   type ListRow,
 } from "../domain/viste";
-import { MONTHS_IT, T } from "../texts";
+import { button, keyboard } from "../telegram/keyboard";
+import { MONTHS_CAP, MONTHS_IT, T } from "../texts";
 import { toLocal } from "../time";
-import { reply, type Ctx } from "./context";
+import { answerCallback, reply, type Ctx } from "./context";
 import { cardFromBatch, readGroupSearch, replyGroupGone, showGroupChoice, showGroups } from "./gruppi";
 import { formatRows, plainLine, sendList } from "./liste";
 import { showScheda } from "./scheda";
 
 // Comandi delle viste (feature 003, contracts/comandi.md). Ogni comando fa una sola andata a D1
-// (research R-08); le liste non hanno tastiera (FR-004, RNF-14).
+// (research R-08); nessun pulsante sulle righe delle persone (FR-004). Dalla 009 (RNF-14) /prossimi,
+// /mese e /anno hanno al più 2 pulsanti di passo successivo sull'ultimo messaggio.
 
 async function allPersons(ctx: Ctx, month?: number): Promise<ListPersonRow[]> {
   return (await listPersonsStatement(ctx.deps.db, month).all<ListPersonRow>()).results;
@@ -65,11 +70,11 @@ export async function showProssimi(ctx: Ctx, args: string): Promise<void> {
     await sendUpcoming(ctx, (await allPersons(ctx)).map(rowToListPerson), parsed.days, null);
     return;
   }
-  const { groups, memberships } = await readGroupSearch(ctx);
+  const { groups, memberships, ungrouped } = await readGroupSearch(ctx);
   const found = findGroups(groups, query);
-  if (found.kind === "one") await sendUpcoming(ctx, membersOf(memberships, found.group.id), parsed.days, found.group.name);
+  if (found.kind === "one") await sendUpcoming(ctx, membersOf(memberships, found.group.id), parsed.days, found.group);
   else if (found.kind === "many") await showGroupChoice(ctx, T.groupsMany(query), found.groups, parsed.days);
-  else await showGroups(ctx, T.groupNoMatch(query), groups);
+  else await showGroups(ctx, T.groupNoMatch(query), { groups, ungrouped });
 }
 
 // Tocco g2:p (FR-011, FR-005): gruppo assente o nome cambiato → non esiste più.
@@ -80,13 +85,30 @@ export async function showProssimiForGroup(ctx: Ctx, groupId: number, hash: stri
     await replyGroupGone(ctx);
     return;
   }
-  await sendUpcoming(ctx, card.people, days, card.group.name);
+  await sendUpcoming(ctx, card.people, days, card.group);
 }
 
-async function sendUpcoming(ctx: Ctx, people: readonly ListPerson[], days: number, groupName: string | null): Promise<void> {
+// Tocco s:u [Prossimi 90 giorni] senza filtro (RF-17, FR-018): come /prossimi 90.
+export async function showProssimiWide(ctx: Ctx): Promise<void> {
+  await sendUpcoming(ctx, (await allPersons(ctx)).map(rowToListPerson), UPCOMING_WIDE_DAYS, null);
+}
+
+// RF-17, FR-018: sotto i 90 giorni [Prossimi 90 giorni] sull'ultimo messaggio, anche con la lista
+// vuota: s:u senza filtro, g2:p:<id>:<h>:90 con il gruppo (stessa validazione al tocco di 005).
+async function sendUpcoming(
+  ctx: Ctx,
+  people: readonly ListPerson[],
+  days: number,
+  group: { id: number; name: string } | null,
+): Promise<void> {
   const rows = upcoming(people, toLocal(ctx.deps.now()), days);
-  if (rows.length === 0) await reply(ctx, T.upcomingNone(days, groupName));
-  else await sendList(ctx, T.upcomingHeader(days, groupName), formatRows(rows));
+  const groupName = group?.name ?? null;
+  const wide = group
+    ? button(T.btnUpcomingWide, { kind: "group", action: "p", groupId: group.id, nameHash: nameHash(group.name), days: UPCOMING_WIDE_DAYS })
+    : button(T.btnUpcomingWide, { kind: "static", scope: "s", action: "u" });
+  const kb = canWidenUpcoming(days) ? keyboard([[wide]]) : undefined;
+  if (rows.length === 0) await reply(ctx, T.upcomingNone(days, groupName), kb);
+  else await sendList(ctx, T.upcomingHeader(days, groupName), formatRows(rows), kb);
 }
 
 // RF-18
@@ -113,8 +135,22 @@ export async function showMese(ctx: Ctx, args: string): Promise<void> {
   }
   const monthName = MONTHS_IT[parsed.month - 1] ?? "";
   const rows = monthRows((await allPersons(ctx, parsed.month)).map(rowToListPerson), parsed.month, today);
-  if (rows.length === 0) await reply(ctx, T.monthNone(monthName));
-  else await sendList(ctx, T.monthHeader(monthName, referenceYear(parsed.month, today)), formatRows(rows));
+  // RNF-14, FR-019: [◀️ <mese>] [<mese> ▶️] sull'ultimo messaggio, anche con la vista vuota.
+  const { prev, next } = adjacentMonths(parsed.month);
+  const kb = keyboard([
+    [
+      button(T.btnPrevMonth(MONTHS_CAP[prev - 1] ?? ""), { kind: "static", scope: "s", action: "m", id: prev }),
+      button(T.btnNextMonth(MONTHS_CAP[next - 1] ?? ""), { kind: "static", scope: "s", action: "m", id: next }),
+    ],
+  ]);
+  if (rows.length === 0) await reply(ctx, T.monthNone(monthName), kb);
+  else await sendList(ctx, T.monthHeader(monthName, referenceYear(parsed.month, today)), formatRows(rows), kb);
+}
+
+// Tocco s:m:<mese> (RF-20, FR-019): anno di riferimento ricalcolato al tocco da showMese.
+export async function showMeseFromButton(ctx: Ctx, id?: number): Promise<void> {
+  if (id === undefined || id < 1 || id > 12) await answerCallback(ctx, T.actionUnavailable);
+  else await showMese(ctx, String(id));
 }
 
 // RF-21
@@ -140,7 +176,7 @@ export async function showAnno(ctx: Ctx, args: string): Promise<void> {
     await reply(ctx, T.yearInvalid(MIN_BIRTH_YEAR, today.year));
     return;
   }
-  const [counts, skipped, streak] = await db.batch(yearStatements(db, parsed.year));
+  const [counts, skipped, streak, prevHistory] = await db.batch(yearStatements(db, parsed.year));
   const n: Record<string, number> = {};
   for (const r of (counts?.results ?? []) as { status: string; n: number }[]) n[r.status] = r.n;
   const skippedRows = sortByDate(((skipped?.results ?? []) as ListOccurrenceRow[]).map(occurrenceRow));
@@ -150,6 +186,12 @@ export async function showAnno(ctx: Ctx, args: string): Promise<void> {
   const skippedLines = lines.slice(0, skippedRows.length);
   const streakLines = lines.slice(skippedRows.length);
   const none = [plainLine(T.yearNone)];
+  // RNF-14, FR-020: ◀️ solo con storico chiuso nell'anno prima, ▶️ solo prima dell'anno corrente.
+  const nav = yearNavigation(parsed.year, today.year, ((prevHistory?.results[0] as { has: number } | undefined)?.has ?? 0) === 1);
+  const navRow = [
+    ...(nav.prev !== null ? [button(T.btnPrevYear(nav.prev), { kind: "static", scope: "s", action: "y", id: nav.prev })] : []),
+    ...(nav.next !== null ? [button(T.btnNextYear(nav.next), { kind: "static", scope: "s", action: "y", id: nav.next })] : []),
+  ];
   await sendList(ctx, T.yearHeader(parsed.year), [
     ...T.yearCounts(n.fatto ?? 0, n.saltato ?? 0, n.non_confermato ?? 0).map(plainLine),
     plainLine(""),
@@ -158,5 +200,11 @@ export async function showAnno(ctx: Ctx, args: string): Promise<void> {
     plainLine(""),
     plainLine(T.yearStreak),
     ...(streakLines.length > 0 ? streakLines : none),
-  ]);
+  ], navRow.length > 0 ? keyboard([navRow]) : undefined);
+}
+
+// Tocco s:y:<anno> (RF-22, FR-020): stesso controllo di /anno <anno>, calcolato al tocco.
+export async function showAnnoFromButton(ctx: Ctx, id?: number): Promise<void> {
+  if (id === undefined || !parseYear(String(id), toLocal(ctx.deps.now())).ok) await answerCallback(ctx, T.actionUnavailable);
+  else await showAnno(ctx, String(id));
 }

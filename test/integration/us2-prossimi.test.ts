@@ -20,7 +20,8 @@ describe("US2: /prossimi", () => {
     const deps = makeDeps();
     await say(deps, "/prossimi");
     expect(lines(deps)).toEqual([T.upcomingHeader(30, null), "", `Mer 28/10  Anna (36)  /p_${oggi}`, `Gio 26/11  Bruno      /p_${fine}`]);
-    expect(deps.tg.lastKeyboard()).toBeUndefined();
+    // 009 RF-17: < 90 giorni senza filtro → [Prossimi 90 giorni] (s:u).
+    expect(buttons(deps.tg.lastKeyboard())).toEqual([["Prossimi 90 giorni", "s:u"]]);
   });
 
   it("RF-17, FR-010: /prossimi 7 famiglia filtra per gruppo (nome come salvato), anche in maiuscolo", async () => {
@@ -58,6 +59,18 @@ describe("US2: /prossimi", () => {
     const deps = makeDeps();
     await say(deps, `/prossimi ${n}`);
     expect(deps.tg.messages().map((m) => m.text)).toEqual([T.upcomingDaysRange(366)]);
+    expect(deps.tg.lastKeyboard()).toBeUndefined();
+  });
+
+  it.each([
+    ["89", true],
+    ["90", false],
+    ["120", false],
+  ])("009 RF-17, FR-018: /prossimi %s → pulsante [Prossimi 90 giorni] = %s", async (n, shown) => {
+    await insertPerson({ fullName: "Anna", day: 28, month: 10 });
+    const deps = makeDeps();
+    await say(deps, `/prossimi ${n}`);
+    expect(labels(deps.tg.lastKeyboard())).toEqual(shown ? ["Prossimi 90 giorni"] : []);
   });
 
   it("RF-17: /prossimi 1 → Prossimo giorno (solo oggi)", async () => {
@@ -89,7 +102,8 @@ describe("US2: /prossimi", () => {
     expect(new Set(mono.map((s) => s.length)).size).toBe(1);
     expect(commandParts(msg)).toEqual([`/p_${a}`, `/p_${l}`, `/p_${g}`]);
     for (const m of mono) expect(m).not.toContain("/p_");
-    expect(msg.keyboard).toBeUndefined();
+    // Nessun pulsante sulle righe: il solo pulsante di passo successivo (009 RF-17).
+    expect(labels(msg.keyboard)).toEqual(["Prossimi 90 giorni"]);
   });
 
   it("FR-009: nessun compleanno nel periodo", async () => {
@@ -98,6 +112,8 @@ describe("US2: /prossimi", () => {
     const deps = makeDeps();
     await say(deps, "/prossimi 7");
     expect(deps.tg.lastText()).toBe(T.upcomingNone(7, null));
+    // 009 RF-17: anche con la lista vuota.
+    expect(buttons(deps.tg.lastKeyboard())).toEqual([["Prossimi 90 giorni", "s:u"]]);
     await say(deps, "/prossimi 7 famiglia");
     expect(deps.tg.lastText()).toBe(T.upcomingNone(7, "Famiglia"));
     expect(fam).toBeGreaterThan(0);
@@ -146,7 +162,8 @@ describe("v1.1 RF-17, BR-26 — filtro gruppo", () => {
     ]);
     await press(deps, cbOf(deps.tg.lastKeyboard(), "Famiglia Rossi (2)"));
     expect(lines(deps)).toEqual([T.upcomingHeader(7, "Famiglia Rossi"), "", `Sab 31/10  Bruno  /p_${b}`]);
-    expect(deps.tg.lastKeyboard()).toBeUndefined();
+    // 009 RF-17: il gruppo scelto tra i candidati resta nel pulsante (g2:p:…:90).
+    expect(buttons(deps.tg.lastKeyboard())).toEqual([["Prossimi 90 giorni", `g2:p:${rossi}:${nameHash("Famiglia Rossi")}:90`]]);
   });
 
   it("RF-17 (#18): /prossimi 7 xyz → avviso + elenco a pulsanti g2:o", async () => {

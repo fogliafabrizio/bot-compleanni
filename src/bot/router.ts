@@ -15,6 +15,7 @@ import { startModifica } from "./flows/modifica";
 import { startNuovo } from "./flows/nuovo";
 import { handleTodayCallback } from "./oggi";
 import { markDone } from "./scheda";
+import { showAnnoFromButton, showMeseFromButton, showProssimiWide } from "./viste";
 
 // Callback senza stato (contracts/callback-data.md), chiave "<scope>:<action>".
 export type StaticCallbackHandler = (ctx: Ctx, id: number | undefined) => Promise<void>;
@@ -22,6 +23,10 @@ export type StaticCallbackHandler = (ctx: Ctx, id: number | undefined) => Promis
 export const STATIC_CALLBACKS: Record<string, StaticCallbackHandler> = {
   "s:n": (ctx) => startNuovo(ctx),
   "s:h": (ctx) => reply(ctx, T.help),
+  // Pulsanti di passo successivo (RNF-14, contracts/callback-data.md di 009): validati al tocco.
+  "s:u": (ctx, id) => (id === undefined ? showProssimiWide(ctx) : answerCallback(ctx, T.actionUnavailable)),
+  "s:m": (ctx, id) => showMeseFromButton(ctx, id),
+  "s:y": (ctx, id) => showAnnoFromButton(ctx, id),
   "p:m": (ctx, id) => startModifica(ctx, id ?? 0),
   // FR-017, BR-08
   "p:f": (ctx, id) => markDone(ctx, id ?? 0),

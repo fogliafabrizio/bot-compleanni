@@ -240,7 +240,7 @@ describe("§5.9: gruppi", () => {
     expect(rows(deps)).toEqual([["Famiglia (2)"], ["➕ Nuovo gruppo"]]);
     await tap(deps, "Famiglia (2)");
     expect(deps.tg.lastText()?.split("\n")[0]).toBe("👥 Famiglia · 2 persone");
-    expect(labels(deps.tg.lastKeyboard())).toEqual(["✏️ Rinomina", "🗑 Elimina"]);
+    expect(labels(deps.tg.lastKeyboard())).toEqual(["✏️ Rinomina", "🗑 Elimina", "⬅️ Tutti i gruppi"]);
   });
 
   it("ricerca: più candidati con 🔍, nessuna corrispondenza con 🔍", async () => {

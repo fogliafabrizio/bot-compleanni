@@ -41,14 +41,15 @@ async function measure(deps: TestDeps, run: () => Promise<unknown>): Promise<{ d
   return { d1: deps.counter.count, tg: deps.tg.calls.length };
 }
 
-// `keyboardOnLast`: la scheda gruppo (FR-008 di 005) ha Rinomina ed Elimina sull'ultimo messaggio.
+// `keyboardOnLast`: la scheda gruppo (FR-008 di 005) e, dalla 009 (RNF-14), /prossimi < 90, /mese e
+// /anno hanno la tastiera sull'ultimo messaggio.
 function expectCompleteList(deps: TestDeps, n: number, messages: number, keyboardOnLast = false): void {
   const msgs = deps.tg.messages();
   expect(msgs).toHaveLength(messages);
   for (const [i, m] of msgs.entries()) {
     expect(m.text.length).toBeLessThanOrEqual(MESSAGE_MAX_LENGTH);
     expect(commandParts(m).length).toBeLessThanOrEqual(LIST_MAX_LINES_PER_MESSAGE);
-    // RNF-14, SC-005: nessuna tastiera sulle liste.
+    // RNF-14, SC-005: nessuna tastiera sulle righe; al più quella di passo successivo sull'ultimo.
     if (keyboardOnLast && i === msgs.length - 1) expect(m.keyboard).toBeDefined();
     else expect(m.keyboard).toBeUndefined();
   }
@@ -159,5 +160,87 @@ describe("principio II, RNF-17: budget di /stato e /statistiche (007)", () => {
     const m = await measure(deps, () => say(deps, "/statistiche"));
     expect(m).toEqual({ d1: 2, tg: 1 });
     expect(m.d1 + m.tg).toBeLessThanOrEqual(4);
+  });
+});
+
+describe("principio II, research R-11 di 009: budget dei pulsanti di passo successivo", () => {
+  async function seedSkipped(): Promise<void> {
+    await seed(200);
+    await env.DB.prepare(
+      `INSERT INTO occurrences (person_id, year, effective_date, status, created_at)
+       SELECT id, y.year, printf('%d-%02d-%02d', y.year, birth_month, birth_day), 'saltato', 'x'
+       FROM persons, (SELECT 2024 AS year UNION ALL SELECT 2025) y`,
+    ).run();
+  }
+
+  it("RF-17, RNF-14: /prossimi 89 con 200 persone → tastiera solo sull'ultimo messaggio, 2 D1", async () => {
+    await seed(200);
+    const deps = makeDeps();
+    const m = await measure(deps, () => say(deps, "/prossimi 89"));
+    const msgs = deps.tg.messages();
+    expectCompleteList(deps, msgs.flatMap(commandParts).length, msgs.length, true);
+    expect(m.d1).toBe(2);
+  });
+
+  it("RF-20, RNF-14: /mese con 120 persone nel mese → tastiera solo sull'ultimo messaggio, 2 D1", async () => {
+    await seed(120, { month: 3 });
+    const deps = makeDeps();
+    const m = await measure(deps, () => say(deps, "/mese marzo"));
+    expectCompleteList(deps, 120, deps.tg.messages().length, true);
+    expect(m.d1).toBe(2);
+  });
+
+  it("RF-22: /anno con 200 saltati in serie → 2 D1 + 9 messaggi, tastiera sull'ultimo", async () => {
+    await seedSkipped();
+    const deps = makeDeps();
+    const m = await measure(deps, () => say(deps, "/anno 2025"));
+    expect(m).toEqual({ d1: 2, tg: 9 });
+    expect(deps.tg.messages().slice(0, -1).every((msg) => msg.keyboard === undefined)).toBe(true);
+    expect(deps.tg.lastKeyboard()).toBeDefined();
+  });
+
+  it("RF-19, R-11: tocco g2:s con 200 persone senza gruppo → 2 D1 + 5 messaggi + 1 answer = 8", async () => {
+    await seed(200);
+    const deps = makeDeps();
+    deps.counter.batches = [];
+    const m = await measure(deps, () => press(deps, "g2:s"));
+    expectCompleteList(deps, 200, 5, true);
+    expect(deps.counter.batches).toHaveLength(1);
+    expect(m).toEqual({ d1: 2, tg: 6 });
+    expect(m.d1 + m.tg).toBeLessThanOrEqual(8);
+  });
+
+  it("RF-19, R-11: tocco g2:l → ≤ 5 subrequest", async () => {
+    await seed(200);
+    await env.DB.prepare("INSERT INTO groups (name, name_norm) VALUES ('Tutti', 'tutti')").run();
+    const deps = makeDeps();
+    const m = await measure(deps, () => press(deps, "g2:l"));
+    expect(m).toEqual({ d1: 2, tg: 2 });
+    expect(m.d1 + m.tg).toBeLessThanOrEqual(5);
+  });
+
+  it("RF-22, R-11: tocco s:y:2025 con 200 saltati in serie → 2 D1 + 9 messaggi + 1 answer = 12", async () => {
+    await seedSkipped();
+    const deps = makeDeps();
+    const m = await measure(deps, () => press(deps, "s:y:2025"));
+    expect(m).toEqual({ d1: 2, tg: 10 });
+    expect(m.d1 + m.tg).toBeLessThanOrEqual(12);
+  });
+
+  it("RF-17, R-11: tocco s:u con 200 persone → ≤ 8 subrequest", async () => {
+    await seed(200);
+    const deps = makeDeps();
+    const m = await measure(deps, () => press(deps, "s:u"));
+    expect(m.d1).toBe(2);
+    expect(m.d1 + m.tg).toBeLessThanOrEqual(8);
+    expect(deps.tg.lastKeyboard()).toBeUndefined();
+  });
+
+  it("RF-20, R-11: tocco s:m:3 → ≤ 8 subrequest", async () => {
+    await seed(200);
+    const deps = makeDeps();
+    const m = await measure(deps, () => press(deps, "s:m:3"));
+    expect(m.d1).toBe(2);
+    expect(m.d1 + m.tg).toBeLessThanOrEqual(8);
   });
 });

@@ -19,7 +19,7 @@ Oltre al codice HTTP, i test controllano il **D1 locale** tramite l'helper (`hel
   (`f:<flowId>:<azione>`);
 - caricare i file di `fixtures/` nella tua chat (didascalia `📎 File di prova Postman: …`) e
   restituire il `file_id`, da mettere nell'update finto con il documento;
-- rieseguire il seed (cartelle 00 e 21).
+- rieseguire il seed (cartelle 00, 21 e 22).
 
 L'helper accetta solo `SELECT` e ascolta solo su `127.0.0.1`.
 
@@ -82,7 +82,8 @@ compaiono anche nelle liste: le attese valgono per i soli dati di prova.
 | 18 File in uscita | /modello, /export, /backup |
 | 19 Import CSV | Anteprima, Importa, duplicati, separatore `,` e BOM, intestazione, vuoto, Latin-1, .txt, .json, file troppo grandi, download fallito |
 | 20 /ripristina | Attesa del file, JSON rotti, due conferme, ripristino. ⚠️ **Sostituisce tutto il D1 locale** |
-| 21 Pulizia | Seed |
+| 21 Navigazione v1.2 | Seed, poi voce e scheda "Senza gruppo" (`g2:s`), [⬅️ Tutti i gruppi] (`g2:l`), [Prossimi 90 giorni] (`s:u`, `g2:p:…:90`), ◀️/▶️ di /mese (`s:m`) e /anno (`s:y`), sezione 🧑 Età di /statistiche, /nuovo con [➕ Aggiungi un'altra persona] (`s:n`), pulsanti malformati, estraneo |
+| 22 Pulizia | Seed |
 
 ## Limiti noti
 
@@ -98,7 +99,7 @@ compaiono anche nelle liste: le attese valgono per i soli dati di prova.
 - Il pulsante **Annulla** dei flussi non funziona da Postman: risponde al callback prima di chiudere
   il flusso e quella chiamata fallisce. Le cartelle usano `/annulla`.
 - **La cartella 20 cancella tutto il D1 locale**, compresi i tuoi dati non di prova, e lo
-  sostituisce con `fixtures/backup-ok.json`. La 21 rimette solo i dati di prova.
+  sostituisce con `fixtures/backup-ok.json`. La 21 e la 22 rimettono solo i dati di prova.
 - I pulsanti dei gruppi (`g2:<azione>:<id>:<hash>`) contengono l'hash del nome: nelle richieste si
   scrive `{{hash:<nome esatto>}}` e lo script di collection lo calcola con `nameHash` (stesso
   algoritmo di `src/domain/text.ts`). Il gruppo 9203 ha l'hash fisso `1ol49qr`.
@@ -116,6 +117,16 @@ compaiono anche nelle liste: le attese valgono per i soli dati di prova.
 
 ## Changelog
 
+- **2.5.0** (2026-10-29): feature 009 (navigazione v1.2), 282 richieste. Nuova cartella
+  "21 · Navigazione v1.2" prima della pulizia, che diventa "22 · Pulizia": seed (la 20 sostituisce il
+  D1), /gruppi con [Senza gruppo (N)], scheda "Senza gruppo" (`g2:s`), scheda gruppo con
+  [⬅️ Tutti i gruppi] (`g2:l`), /prossimi con [Prossimi 90 giorni] (`s:u` e `g2:p:…:90`), /mese con
+  `s:m`, /anno con `s:y:<anno − 1>` (variabile `{{annoPrima}}` calcolata nel pre-request),
+  /statistiche con la sezione Età, /nuovo completo con [➕ Aggiungi un'altra persona] (`s:n`) e
+  `/p_<id>` senza, pulsanti malformati (`s:m:13`, `s:y`, `g2:l:1`, `s:u:5`), `g2:l` di un estraneo.
+  Prima dei tocchi 2, 4, 6, 8 e 10 un /nuovo: il test su D1 verifica che il tocco lo annulli. Nuova
+  variabile `navigazioneId`. Seed invariato (ha già persone senza gruppo e uno storico chiuso
+  dell'anno prima).
 - **2.4.0** (2026-10-29): feature 008 (guida di stile RNF-19), solo descrizioni "Atteso": i testi
   attesi riportano le emoji di sezione, le icone delle domande, "⏭ Salta", "✏️ Modifica"/"🗑 Elimina",
   le conferme 🎉/✅, gli avvisi ⚠️ e gli errori ❌. Nessuna richiesta, `callback_data`, `pm.test` o

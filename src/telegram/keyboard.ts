@@ -3,7 +3,8 @@ import type { InlineKeyboardButton, InlineKeyboardMarkup } from "./types";
 
 // Formato dei callback_data: contracts/callback-data.md (research R-10); ambito "t" dei messaggi
 // di /oggi in specs/003-viste-ricerche/contracts/callback-data.md; ambito versionato "g2" dei gruppi
-// in specs/005-revisioni-v1-1-gruppi/contracts/callback-data.md.
+// in specs/005-revisioni-v1-1-gruppi/contracts/callback-data.md; azioni di 009 in
+// specs/009-revisioni-v1-2-navigazione/contracts/callback-data.md.
 
 export type Callback =
   | { kind: "static"; scope: "s" | "p" | "o" | "t"; action: string; id?: number }
@@ -11,7 +12,8 @@ export type Callback =
   | { kind: "group"; action: GroupAction; groupId?: number; nameHash?: string; days?: number };
 
 // FR-005: n = Nuovo; o, r, x = apri, rinomina, elimina (id + hash del nome); p = /prossimi (+ giorni).
-export type GroupAction = "n" | "o" | "r" | "x" | "p";
+// 009 (FR-030): l = ⬅️ Tutti i gruppi, s = Senza gruppo, entrambe senza campi; g2 resta g2.
+export type GroupAction = "n" | "o" | "r" | "x" | "p" | "l" | "s";
 
 const MAX_BYTES = 64;
 const FLOW_ID_RE = /^[0-9a-z]{6}$/;
@@ -64,10 +66,10 @@ export function decodeCallback(data: string): Callback | null {
   return null;
 }
 
-// Forme ammesse: n senza campi, o|r|x con id e hash, p con id, hash e giorni; il resto → null.
+// Forme ammesse: n|l|s senza campi, o|r|x con id e hash, p con id, hash e giorni; il resto → null.
 function decodeGroup(fields: readonly string[]): Callback | null {
   const [action, id, hash, days] = fields;
-  if (action === "n") return fields.length === 1 ? { kind: "group", action } : null;
+  if (action === "n" || action === "l" || action === "s") return fields.length === 1 ? { kind: "group", action } : null;
   if (action !== "o" && action !== "r" && action !== "x" && action !== "p") return null;
   if (fields.length !== (action === "p" ? 4 : 3)) return null;
   if (!id || !ID_RE.test(id) || !hash || !HASH_RE.test(hash)) return null;

@@ -218,6 +218,21 @@ const INVENTARIO: Record<string, Tipo> = {
   btnDone: "PA",
   btnClear: "PA",
   yourId: "I",
+  // v1.2 (contracts/testi-v12.md di 009, FR-023, FR-024)
+  btnAllGroups: "PA",
+  btnUngrouped: "PA",
+  btnUpcomingWide: "PA",
+  btnPrevMonth: "PA",
+  btnNextMonth: "PA",
+  btnPrevYear: "PA",
+  btnNextYear: "PA",
+  btnAddAnother: "PA",
+  ungroupedCardTitle: "T",
+  statsAgeTitle: "T",
+  allGrouped: "I",
+  statsAgeUnavailable: "I",
+  statsAgeRow: "R",
+  statsAgeAverage: "F",
 };
 
 const DAY: LocalDate = { year: 2026, month: 10, day: 29 };
@@ -281,6 +296,14 @@ const ESEMPI: Record<string, readonly unknown[]> = {
   statsMissing: [3, 3],
   statsYear: [2026, 87],
   statsDone: [["2026 87%"]],
+  btnUngrouped: [12],
+  ungroupedCardTitle: [12],
+  btnPrevMonth: ["Febbraio"],
+  btnNextMonth: ["Aprile"],
+  btnPrevYear: [2025],
+  btnNextYear: [2027],
+  statsAgeRow: ["30-39", "██", 2, 1],
+  statsAgeAverage: [33, 23],
   gapAlert: [CLOCK, CLOCK, DAY],
   statoWhen: [CLOCK, DAY],
   statoAt: [CLOCK],
@@ -352,7 +375,22 @@ const contieneEmoji = (s: string) => /\p{Extended_Pictographic}/u.test(s);
 // Icone delle domande (FR-007, mappa chiusa).
 const ICONE_DOMANDE = ["👤", "💬", "🎂", "📱", "📸", "✈️", "👥", "⭐", "✍️", "📋", "✏️", "💾"];
 // Pulsanti di azione con icona (FR-009, elenco chiuso).
-const PULSANTI_CON_ICONA = ["btnEdit", "btnRename", "btnDelete", "btnDeleteGroup", "btnSkip", "btnNewGroup", "btnOutcomeDone"];
+// v1.2 (FR-023): si aggiungono ◀️ ▶️ ⬅️ ➕.
+const PULSANTI_CON_ICONA = [
+  "btnEdit",
+  "btnRename",
+  "btnDelete",
+  "btnDeleteGroup",
+  "btnSkip",
+  "btnNewGroup",
+  "btnOutcomeDone",
+  "btnAllGroups",
+  "btnPrevMonth",
+  "btnNextMonth",
+  "btnPrevYear",
+  "btnNextYear",
+  "btnAddAnother",
+];
 
 // Foglie di un valore di T in notazione a punto (le funzioni e le stringhe sono foglie).
 function foglie(v: unknown, prefisso: string): string[] {
@@ -508,6 +546,42 @@ describe("RNF-19: testi esclusi dalla guida", () => {
 
   it("§5.1: menu dei comandi senza emoji", () => {
     for (const c of BOT_COMMANDS) expect(contieneEmoji(c.description), c.command).toBe(false);
+  });
+});
+
+describe("RNF-19, FR-023: icone dei pulsanti v1.2 (R6)", () => {
+  it.each([
+    ["btnAllGroups", "⬅️"],
+    ["btnPrevMonth", "◀️"],
+    ["btnNextMonth", "▶️"],
+    ["btnPrevYear", "◀️"],
+    ["btnNextYear", "▶️"],
+    ["btnAddAnother", "➕"],
+  ])("%s usa %s", (chiave, icona) => {
+    expect(testoDi(chiave)[0]).toContain(icona);
+  });
+
+  it.each(["btnUpcomingWide", "btnUngrouped"])("%s senza icona", (chiave) => {
+    expect(contieneEmoji(testoDi(chiave)[0]!)).toBe(false);
+  });
+
+  it("RF-01, RF-17, RF-19, RF-20, RF-22: testi esatti", () => {
+    expect(T.btnAllGroups).toBe("⬅️ Tutti i gruppi");
+    expect(T.btnUngrouped(12)).toBe("Senza gruppo (12)");
+    expect(T.btnUpcomingWide).toBe("Prossimi 90 giorni");
+    expect(T.btnPrevMonth("Febbraio")).toBe("◀️ Febbraio");
+    expect(T.btnNextMonth("Aprile")).toBe("Aprile ▶️");
+    expect(T.btnPrevYear(2025)).toBe("◀️ 2025");
+    expect(T.btnNextYear(2027)).toBe("2027 ▶️");
+    expect(T.btnAddAnother).toBe("➕ Aggiungi un'altra persona");
+    expect(T.ungroupedCardTitle(1)).toBe("👥 Senza gruppo · 1 persona");
+    expect(T.ungroupedCardTitle(12)).toBe("👥 Senza gruppo · 12 persone");
+  });
+
+  it("RF-32, FR-013: età media con e senza richiamo", () => {
+    expect(T.statsAgeAverage(33, 0)).toBe("Età media: 33 anni");
+    expect(T.statsAgeAverage(33, 23)).toBe("Età media: 33 anni · senza anno di nascita: 23");
+    expect(T.statsAgeAverage(1, 0)).toBe("Età media: 1 anno");
   });
 });
 

@@ -63,8 +63,8 @@ describe("research R-03, R-07 (005): gruppi, 200 persone / 100 gruppi", () => {
     if (messages.length !== 5) throw new Error("scenario non valido");
   });
 
-  bench("elenco 100 gruppi", () => {
-    const r = renderGroupList(sortGroups(groups), { title: "👥 I tuoi gruppi", action: "o", withNew: true });
+  bench("elenco 100 gruppi con la voce «Senza gruppo» (009, V-09)", () => {
+    const r = renderGroupList(sortGroups(groups), { title: "👥 I tuoi gruppi", action: "o", withNew: true, ungrouped: 25 });
     if (r.lines.length < 100) throw new Error("scenario non valido");
   });
 });

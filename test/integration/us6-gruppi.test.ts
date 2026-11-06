@@ -57,6 +57,19 @@ describe("v1.1 RF-07, RF-19 — elenco e scheda gruppo", () => {
     ]);
   });
 
+  it("009 RF-07: con persone senza gruppo l'elenco ha [Senza gruppo (N)] su una riga a sé sopra ➕", async () => {
+    const famiglia = await groupWithMembers("Famiglia", 2);
+    await insertPerson({ fullName: "Sola", day: 3, month: 3 });
+    const deps = makeDeps();
+    await say(deps, "/gruppi");
+    expect(buttons(deps.tg.lastKeyboard())).toEqual([
+      ["Famiglia (2)", open(famiglia, "Famiglia")],
+      ["Senza gruppo (1)", "g2:s"],
+      ["➕ Nuovo gruppo", "g2:n"],
+    ]);
+    expect(deps.tg.lastKeyboard()!.inline_keyboard.map((r) => r.length)).toEqual([1, 1, 1]);
+  });
+
   it("RF-19, FR-002 (#9, #10): il tocco apre la scheda in un nuovo messaggio, per prossimo compleanno", async () => {
     const gid = await insertGroup("Famiglia");
     const later = await insertPerson({ fullName: "Bruno", day: 1, month: 12 });
@@ -78,6 +91,7 @@ describe("v1.1 RF-07, RF-19 — elenco e scheda gruppo", () => {
     expect(buttons(msg.keyboard)).toEqual([
       ["✏️ Rinomina", rename(gid, "Famiglia")],
       ["🗑 Elimina", remove(gid, "Famiglia")],
+      ["⬅️ Tutti i gruppi", "g2:l"],
     ]);
   });
 
@@ -93,7 +107,7 @@ describe("v1.1 RF-07, RF-19 — elenco e scheda gruppo", () => {
     const deps = makeDeps();
     await press(deps, open(gid, "Amici"));
     expect(deps.tg.lastText()).toBe(`${T.groupCardTitle("Amici", 0)}\n\n${T.groupCardEmpty}`);
-    expect(labels(deps.tg.lastKeyboard())).toEqual(["✏️ Rinomina", "🗑 Elimina"]);
+    expect(labels(deps.tg.lastKeyboard())).toEqual(["✏️ Rinomina", "🗑 Elimina", "⬅️ Tutti i gruppi"]);
   });
 
   it("FR-008: scheda di 200 persone divisa in più messaggi, tastiera solo sull'ultimo", async () => {
@@ -103,7 +117,7 @@ describe("v1.1 RF-07, RF-19 — elenco e scheda gruppo", () => {
     const msgs = deps.tg.messages();
     expect(msgs.length).toBeGreaterThan(1);
     expect(msgs.slice(0, -1).every((m) => m.keyboard === undefined)).toBe(true);
-    expect(labels(msgs.at(-1)!.keyboard)).toEqual(["✏️ Rinomina", "🗑 Elimina"]);
+    expect(labels(msgs.at(-1)!.keyboard)).toEqual(["✏️ Rinomina", "🗑 Elimina", "⬅️ Tutti i gruppi"]);
     expect(msgs.flatMap(commandParts)).toHaveLength(200);
   });
 
@@ -228,6 +242,7 @@ describe("v1.1 RF-07, FR-006a, FR-017 — Nuovo, Rinomina, Elimina", () => {
       expect(buttons(deps.tg.lastKeyboard())).toEqual([
         ["✏️ Rinomina", rename(gid, "Ufficio")],
         ["🗑 Elimina", remove(gid, "Ufficio")],
+        ["⬅️ Tutti i gruppi", "g2:l"],
       ]);
       expect(deps.tg.messages().length).toBe(cardCount + 2);
       expect(deps.tg.textEdits()).toHaveLength(0);
@@ -321,7 +336,8 @@ describe("v1.1 RF-07, FR-006a, FR-017 — Nuovo, Rinomina, Elimina", () => {
       expect(await count("persons")).toBe(8);
       expect(await count("person_groups")).toBe(0);
       expect(deps.tg.lastText()).toBe(`${T.groupDeleted("Famiglia")}\n\n${T.groupsTitle}`);
-      expect(labels(deps.tg.lastKeyboard())).toEqual(["Lavoro (0)", "➕ Nuovo gruppo"]);
+      // 009 RF-07, research R-02: le 8 persone, ora senza gruppo, contate dopo la DELETE.
+      expect(labels(deps.tg.lastKeyboard())).toEqual(["Lavoro (0)", "Senza gruppo (8)", "➕ Nuovo gruppo"]);
     });
 
     it("FR-022: una sola persona → testo al singolare", async () => {

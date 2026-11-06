@@ -1,8 +1,8 @@
 {
   "info": {
     "name": "Bot compleanni — test locale completo",
-    "description": "Versione 2.4.0. Test del webhook in locale (`wrangler dev`), feature 001–008: sicurezza, comandi, viste, esiti dei promemoria, flussi guidati (/nuovo e modifica anche con il contatto condiviso, elimina, gruppi, /messaggio), import CSV, export, backup e ripristino, /stato e /statistiche, testi secondo la guida di stile (008: le descrizioni «Atteso» riportano i testi con le emoji).\n\nIl Worker risponde sempre 200 vuoto: la risposta del bot arriva **nella chat Telegram del proprietario** (il Worker locale usa la Bot API reale con il token di `.dev.vars`). I test controllano anche il D1 locale tramite `postman/helper.mjs` (porta 8788): stato del flusso e campi salvati.\n\nAvvio: `scripts/smoke-postman.ps1`, poi Runner sull'intera collection (o cartella per cartella, **in ordine**). Istruzioni e limiti in `postman/README.md`.",
-    "version": "2.4.0",
+    "description": "Versione 2.5.0. Test del webhook in locale (`wrangler dev`), feature 001–009: sicurezza, comandi, viste, esiti dei promemoria, flussi guidati (/nuovo e modifica anche con il contatto condiviso, elimina, gruppi, /messaggio), import CSV, export, backup e ripristino, /stato e /statistiche, testi secondo la guida di stile (008: le descrizioni «Atteso» riportano i testi con le emoji), navigazione v1.2 (009: Senza gruppo, età, pulsanti di passo successivo).\n\nIl Worker risponde sempre 200 vuoto: la risposta del bot arriva **nella chat Telegram del proprietario** (il Worker locale usa la Bot API reale con il token di `.dev.vars`). I test controllano anche il D1 locale tramite `postman/helper.mjs` (porta 8788): stato del flusso e campi salvati.\n\nAvvio: `scripts/smoke-postman.ps1`, poi Runner sull'intera collection (o cartella per cartella, **in ordine**). Istruzioni e limiti in `postman/README.md`.",
+    "version": "2.5.0",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "event": [
@@ -12412,7 +12412,1988 @@
       ]
     },
     {
-      "name": "21 · Pulizia",
+      "name": "21 · Navigazione v1.2",
+      "description": "Feature 009 (REV-008…REV-011): [⬅️ Tutti i gruppi], voce e scheda «Senza gruppo», sezione 🧑 Età di /statistiche, pulsanti di passo successivo di /prossimi, /mese, /anno e della conferma del salvataggio. Riparte dal seed perché la cartella 20 sostituisce il D1 locale. I passi 2, 4, 6, 8 e 10 sono preceduti da un /nuovo e controllano su D1 che il tocco lo annulli; il 12 che `s:n` lo riavvii.",
+      "item": [
+        {
+          "name": "Seed dei dati di prova",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Seed eseguito\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{helperUrl}}/seed",
+              "host": [
+                "{{helperUrl}}"
+              ],
+              "path": [
+                "seed"
+              ]
+            },
+            "description": "Dopo la cartella 20 il D1 locale contiene solo Rita e Bruno: rimette persone 9001–9006 e gruppi 9201–9204."
+          }
+        },
+        {
+          "name": "1 · /gruppi con la voce Senza gruppo",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "const q = (sql, cb) => pm.sendRequest({ url: pm.variables.get(\"helperUrl\") + \"/query\", method: \"POST\", header: { \"Content-Type\": \"application/json\" }, body: { mode: \"raw\", raw: JSON.stringify({ sql: sql.replace(/:(\\w+)/g, (_, k) => pm.variables.get(k)) }) } }, (err, res) => {",
+                  "  pm.test(\"Helper: query riuscita\", () => { pm.expect(err).to.equal(null); pm.expect(res.code).to.equal(200); });",
+                  "  if (!err && res.code === 200) cb(res.json().rows);",
+                  "});",
+                  "q(\"SELECT flow, step FROM conversation_state WHERE chat_id = :ownerId\", (rows) => pm.test(\"Nessun flusso guidato attivo\", () => pm.expect(rows.length).to.equal(0)));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Telegram-Bot-Api-Secret-Token",
+                "value": "{{webhookSecret}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"update_id\": {{$randomInt}},\n  \"message\": {\n    \"message_id\": {{$randomInt}},\n    \"from\": { \"id\": {{ownerId}} },\n    \"chat\": { \"id\": {{ownerId}}, \"type\": \"private\" },\n    \"text\": \"/gruppi\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/webhook",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "webhook"
+              ]
+            },
+            "description": "RF-07, V-09. Atteso: `👥 I tuoi gruppi` con i gruppi a pulsanti, poi **Senza gruppo (2)** (Sara 9005 e Paolo 9006) su una riga a sé, poi **➕ Nuovo gruppo**. La voce è senza emoji."
+          }
+        },
+        {
+          "name": "/nuovo (flusso da annullare, 2)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "const q = (sql, cb) => pm.sendRequest({ url: pm.variables.get(\"helperUrl\") + \"/query\", method: \"POST\", header: { \"Content-Type\": \"application/json\" }, body: { mode: \"raw\", raw: JSON.stringify({ sql: sql.replace(/:(\\w+)/g, (_, k) => pm.variables.get(k)) }) } }, (err, res) => {",
+                  "  pm.test(\"Helper: query riuscita\", () => { pm.expect(err).to.equal(null); pm.expect(res.code).to.equal(200); });",
+                  "  if (!err && res.code === 200) cb(res.json().rows);",
+                  "});",
+                  "q(\"SELECT flow, step FROM conversation_state WHERE chat_id = :ownerId\", (rows) => pm.test(\"Flusso nuovo/nome\", () => { pm.expect(rows.length).to.equal(1); pm.expect(rows[0].flow + \"/\" + rows[0].step).to.equal(\"nuovo/nome\"); }));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Telegram-Bot-Api-Secret-Token",
+                "value": "{{webhookSecret}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"update_id\": {{$randomInt}},\n  \"message\": {\n    \"message_id\": {{$randomInt}},\n    \"from\": { \"id\": {{ownerId}} },\n    \"chat\": { \"id\": {{ownerId}}, \"type\": \"private\" },\n    \"text\": \"/nuovo\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/webhook",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "webhook"
+              ]
+            },
+            "description": "Atteso: `👤 Come si chiama? Nome e cognome` con **Annulla**. Il tocco successivo deve annullare il flusso (001 FR-018)."
+          }
+        },
+        {
+          "name": "2 · Senza gruppo (g2:s)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "const q = (sql, cb) => pm.sendRequest({ url: pm.variables.get(\"helperUrl\") + \"/query\", method: \"POST\", header: { \"Content-Type\": \"application/json\" }, body: { mode: \"raw\", raw: JSON.stringify({ sql: sql.replace(/:(\\w+)/g, (_, k) => pm.variables.get(k)) }) } }, (err, res) => {",
+                  "  pm.test(\"Helper: query riuscita\", () => { pm.expect(err).to.equal(null); pm.expect(res.code).to.equal(200); });",
+                  "  if (!err && res.code === 200) cb(res.json().rows);",
+                  "});",
+                  "q(\"SELECT flow, step FROM conversation_state WHERE chat_id = :ownerId\", (rows) => pm.test(\"Nessun flusso guidato attivo\", () => pm.expect(rows.length).to.equal(0)));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Telegram-Bot-Api-Secret-Token",
+                "value": "{{webhookSecret}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"update_id\": {{$randomInt}},\n  \"callback_query\": {\n    \"id\": \"smoke-{{$randomInt}}\",\n    \"from\": { \"id\": {{ownerId}} },\n    \"data\": \"g2:s\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/webhook",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "webhook"
+              ]
+            },
+            "description": "RF-19, D-31. Atteso: nuovo messaggio `👥 Senza gruppo · 2 persone` con le righe di Sara (`/p_9005`) e Paolo (`/p_9006`) per prossimo compleanno e il solo **⬅️ Tutti i gruppi** (niente Rinomina né Elimina). Il flusso /nuovo è annullato."
+          }
+        },
+        {
+          "name": "3 · Scheda Smoke Famiglia (g2:o)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "const q = (sql, cb) => pm.sendRequest({ url: pm.variables.get(\"helperUrl\") + \"/query\", method: \"POST\", header: { \"Content-Type\": \"application/json\" }, body: { mode: \"raw\", raw: JSON.stringify({ sql: sql.replace(/:(\\w+)/g, (_, k) => pm.variables.get(k)) }) } }, (err, res) => {",
+                  "  pm.test(\"Helper: query riuscita\", () => { pm.expect(err).to.equal(null); pm.expect(res.code).to.equal(200); });",
+                  "  if (!err && res.code === 200) cb(res.json().rows);",
+                  "});",
+                  "q(\"SELECT flow, step FROM conversation_state WHERE chat_id = :ownerId\", (rows) => pm.test(\"Nessun flusso guidato attivo\", () => pm.expect(rows.length).to.equal(0)));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Telegram-Bot-Api-Secret-Token",
+                "value": "{{webhookSecret}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"update_id\": {{$randomInt}},\n  \"callback_query\": {\n    \"id\": \"smoke-{{$randomInt}}\",\n    \"from\": { \"id\": {{ownerId}} },\n    \"data\": \"g2:o:9201:{{hash:Smoke Famiglia}}\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/webhook",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "webhook"
+              ]
+            },
+            "description": "RF-19, FR-001. Atteso: `👥 Smoke Famiglia · 1 persona` con Anna, poi [✏️ Rinomina] [🗑 Elimina] e, su una riga a sé, [⬅️ Tutti i gruppi]."
+          }
+        },
+        {
+          "name": "/nuovo (flusso da annullare, 4)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "const q = (sql, cb) => pm.sendRequest({ url: pm.variables.get(\"helperUrl\") + \"/query\", method: \"POST\", header: { \"Content-Type\": \"application/json\" }, body: { mode: \"raw\", raw: JSON.stringify({ sql: sql.replace(/:(\\w+)/g, (_, k) => pm.variables.get(k)) }) } }, (err, res) => {",
+                  "  pm.test(\"Helper: query riuscita\", () => { pm.expect(err).to.equal(null); pm.expect(res.code).to.equal(200); });",
+                  "  if (!err && res.code === 200) cb(res.json().rows);",
+                  "});",
+                  "q(\"SELECT flow, step FROM conversation_state WHERE chat_id = :ownerId\", (rows) => pm.test(\"Flusso nuovo/nome\", () => { pm.expect(rows.length).to.equal(1); pm.expect(rows[0].flow + \"/\" + rows[0].step).to.equal(\"nuovo/nome\"); }));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Telegram-Bot-Api-Secret-Token",
+                "value": "{{webhookSecret}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"update_id\": {{$randomInt}},\n  \"message\": {\n    \"message_id\": {{$randomInt}},\n    \"from\": { \"id\": {{ownerId}} },\n    \"chat\": { \"id\": {{ownerId}}, \"type\": \"private\" },\n    \"text\": \"/nuovo\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/webhook",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "webhook"
+              ]
+            },
+            "description": "Atteso: `👤 Come si chiama? Nome e cognome` con **Annulla**. Il tocco successivo deve annullare il flusso (001 FR-018)."
+          }
+        },
+        {
+          "name": "4 · ⬅️ Tutti i gruppi (g2:l)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "const q = (sql, cb) => pm.sendRequest({ url: pm.variables.get(\"helperUrl\") + \"/query\", method: \"POST\", header: { \"Content-Type\": \"application/json\" }, body: { mode: \"raw\", raw: JSON.stringify({ sql: sql.replace(/:(\\w+)/g, (_, k) => pm.variables.get(k)) }) } }, (err, res) => {",
+                  "  pm.test(\"Helper: query riuscita\", () => { pm.expect(err).to.equal(null); pm.expect(res.code).to.equal(200); });",
+                  "  if (!err && res.code === 200) cb(res.json().rows);",
+                  "});",
+                  "q(\"SELECT flow, step FROM conversation_state WHERE chat_id = :ownerId\", (rows) => pm.test(\"Nessun flusso guidato attivo\", () => pm.expect(rows.length).to.equal(0)));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Telegram-Bot-Api-Secret-Token",
+                "value": "{{webhookSecret}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"update_id\": {{$randomInt}},\n  \"callback_query\": {\n    \"id\": \"smoke-{{$randomInt}}\",\n    \"from\": { \"id\": {{ownerId}} },\n    \"data\": \"g2:l\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/webhook",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "webhook"
+              ]
+            },
+            "description": "RF-19, FR-002. Atteso: **nuovo** messaggio con l'elenco gruppi (come /gruppi, con **Senza gruppo (2)**); la scheda precedente resta com'è. Il flusso /nuovo è annullato."
+          }
+        },
+        {
+          "name": "5 · /prossimi con [Prossimi 90 giorni]",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "const q = (sql, cb) => pm.sendRequest({ url: pm.variables.get(\"helperUrl\") + \"/query\", method: \"POST\", header: { \"Content-Type\": \"application/json\" }, body: { mode: \"raw\", raw: JSON.stringify({ sql: sql.replace(/:(\\w+)/g, (_, k) => pm.variables.get(k)) }) } }, (err, res) => {",
+                  "  pm.test(\"Helper: query riuscita\", () => { pm.expect(err).to.equal(null); pm.expect(res.code).to.equal(200); });",
+                  "  if (!err && res.code === 200) cb(res.json().rows);",
+                  "});",
+                  "q(\"SELECT flow, step FROM conversation_state WHERE chat_id = :ownerId\", (rows) => pm.test(\"Nessun flusso guidato attivo\", () => pm.expect(rows.length).to.equal(0)));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Telegram-Bot-Api-Secret-Token",
+                "value": "{{webhookSecret}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"update_id\": {{$randomInt}},\n  \"message\": {\n    \"message_id\": {{$randomInt}},\n    \"from\": { \"id\": {{ownerId}} },\n    \"chat\": { \"id\": {{ownerId}}, \"type\": \"private\" },\n    \"text\": \"/prossimi\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/webhook",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "webhook"
+              ]
+            },
+            "description": "RF-17, FR-018. Atteso: `📆 Prossimi 30 giorni` con Marco (oggi) e Anna (+5), poi il pulsante **Prossimi 90 giorni** (senza icona)."
+          }
+        },
+        {
+          "name": "/nuovo (flusso da annullare, 6)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "const q = (sql, cb) => pm.sendRequest({ url: pm.variables.get(\"helperUrl\") + \"/query\", method: \"POST\", header: { \"Content-Type\": \"application/json\" }, body: { mode: \"raw\", raw: JSON.stringify({ sql: sql.replace(/:(\\w+)/g, (_, k) => pm.variables.get(k)) }) } }, (err, res) => {",
+                  "  pm.test(\"Helper: query riuscita\", () => { pm.expect(err).to.equal(null); pm.expect(res.code).to.equal(200); });",
+                  "  if (!err && res.code === 200) cb(res.json().rows);",
+                  "});",
+                  "q(\"SELECT flow, step FROM conversation_state WHERE chat_id = :ownerId\", (rows) => pm.test(\"Flusso nuovo/nome\", () => { pm.expect(rows.length).to.equal(1); pm.expect(rows[0].flow + \"/\" + rows[0].step).to.equal(\"nuovo/nome\"); }));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Telegram-Bot-Api-Secret-Token",
+                "value": "{{webhookSecret}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"update_id\": {{$randomInt}},\n  \"message\": {\n    \"message_id\": {{$randomInt}},\n    \"from\": { \"id\": {{ownerId}} },\n    \"chat\": { \"id\": {{ownerId}}, \"type\": \"private\" },\n    \"text\": \"/nuovo\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/webhook",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "webhook"
+              ]
+            },
+            "description": "Atteso: `👤 Come si chiama? Nome e cognome` con **Annulla**. Il tocco successivo deve annullare il flusso (001 FR-018)."
+          }
+        },
+        {
+          "name": "6 · Prossimi 90 giorni (s:u)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "const q = (sql, cb) => pm.sendRequest({ url: pm.variables.get(\"helperUrl\") + \"/query\", method: \"POST\", header: { \"Content-Type\": \"application/json\" }, body: { mode: \"raw\", raw: JSON.stringify({ sql: sql.replace(/:(\\w+)/g, (_, k) => pm.variables.get(k)) }) } }, (err, res) => {",
+                  "  pm.test(\"Helper: query riuscita\", () => { pm.expect(err).to.equal(null); pm.expect(res.code).to.equal(200); });",
+                  "  if (!err && res.code === 200) cb(res.json().rows);",
+                  "});",
+                  "q(\"SELECT flow, step FROM conversation_state WHERE chat_id = :ownerId\", (rows) => pm.test(\"Nessun flusso guidato attivo\", () => pm.expect(rows.length).to.equal(0)));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Telegram-Bot-Api-Secret-Token",
+                "value": "{{webhookSecret}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"update_id\": {{$randomInt}},\n  \"callback_query\": {\n    \"id\": \"smoke-{{$randomInt}}\",\n    \"from\": { \"id\": {{ownerId}} },\n    \"data\": \"s:u\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/webhook",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "webhook"
+              ]
+            },
+            "description": "RF-17. Atteso: `📆 Prossimi 90 giorni` con Marco, Anna e Nicolò (+40), **senza** pulsante. Il flusso /nuovo è annullato."
+          }
+        },
+        {
+          "name": "7 · /prossimi 7 smoke famiglia",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "const q = (sql, cb) => pm.sendRequest({ url: pm.variables.get(\"helperUrl\") + \"/query\", method: \"POST\", header: { \"Content-Type\": \"application/json\" }, body: { mode: \"raw\", raw: JSON.stringify({ sql: sql.replace(/:(\\w+)/g, (_, k) => pm.variables.get(k)) }) } }, (err, res) => {",
+                  "  pm.test(\"Helper: query riuscita\", () => { pm.expect(err).to.equal(null); pm.expect(res.code).to.equal(200); });",
+                  "  if (!err && res.code === 200) cb(res.json().rows);",
+                  "});",
+                  "q(\"SELECT flow, step FROM conversation_state WHERE chat_id = :ownerId\", (rows) => pm.test(\"Nessun flusso guidato attivo\", () => pm.expect(rows.length).to.equal(0)));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Telegram-Bot-Api-Secret-Token",
+                "value": "{{webhookSecret}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"update_id\": {{$randomInt}},\n  \"message\": {\n    \"message_id\": {{$randomInt}},\n    \"from\": { \"id\": {{ownerId}} },\n    \"chat\": { \"id\": {{ownerId}}, \"type\": \"private\" },\n    \"text\": \"/prossimi 7 smoke famiglia\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/webhook",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "webhook"
+              ]
+            },
+            "description": "RF-17. Atteso: `📆 Prossimi 7 giorni (Smoke Famiglia)` con Anna, poi **Prossimi 90 giorni** (g2:p con il gruppo)."
+          }
+        },
+        {
+          "name": "7 · Prossimi 90 giorni del gruppo (g2:p:9201:…:90)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "const q = (sql, cb) => pm.sendRequest({ url: pm.variables.get(\"helperUrl\") + \"/query\", method: \"POST\", header: { \"Content-Type\": \"application/json\" }, body: { mode: \"raw\", raw: JSON.stringify({ sql: sql.replace(/:(\\w+)/g, (_, k) => pm.variables.get(k)) }) } }, (err, res) => {",
+                  "  pm.test(\"Helper: query riuscita\", () => { pm.expect(err).to.equal(null); pm.expect(res.code).to.equal(200); });",
+                  "  if (!err && res.code === 200) cb(res.json().rows);",
+                  "});",
+                  "q(\"SELECT flow, step FROM conversation_state WHERE chat_id = :ownerId\", (rows) => pm.test(\"Nessun flusso guidato attivo\", () => pm.expect(rows.length).to.equal(0)));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Telegram-Bot-Api-Secret-Token",
+                "value": "{{webhookSecret}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"update_id\": {{$randomInt}},\n  \"callback_query\": {\n    \"id\": \"smoke-{{$randomInt}}\",\n    \"from\": { \"id\": {{ownerId}} },\n    \"data\": \"g2:p:9201:{{hash:Smoke Famiglia}}:90\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/webhook",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "webhook"
+              ]
+            },
+            "description": "RF-17, research R-01 di 009. Atteso: `📆 Prossimi 90 giorni (Smoke Famiglia)` con la sola Anna, senza pulsante."
+          }
+        },
+        {
+          "name": "8 · /mese marzo",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "const q = (sql, cb) => pm.sendRequest({ url: pm.variables.get(\"helperUrl\") + \"/query\", method: \"POST\", header: { \"Content-Type\": \"application/json\" }, body: { mode: \"raw\", raw: JSON.stringify({ sql: sql.replace(/:(\\w+)/g, (_, k) => pm.variables.get(k)) }) } }, (err, res) => {",
+                  "  pm.test(\"Helper: query riuscita\", () => { pm.expect(err).to.equal(null); pm.expect(res.code).to.equal(200); });",
+                  "  if (!err && res.code === 200) cb(res.json().rows);",
+                  "});",
+                  "q(\"SELECT flow, step FROM conversation_state WHERE chat_id = :ownerId\", (rows) => pm.test(\"Nessun flusso guidato attivo\", () => pm.expect(rows.length).to.equal(0)));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Telegram-Bot-Api-Secret-Token",
+                "value": "{{webhookSecret}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"update_id\": {{$randomInt}},\n  \"message\": {\n    \"message_id\": {{$randomInt}},\n    \"from\": { \"id\": {{ownerId}} },\n    \"chat\": { \"id\": {{ownerId}}, \"type\": \"private\" },\n    \"text\": \"/mese marzo\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/webhook",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "webhook"
+              ]
+            },
+            "description": "RF-20, RNF-14. Atteso: i compleanni di marzo (o `🗓 Nessun compleanno a marzo`) con [◀️ Febbraio] [Aprile ▶️] sull'ultimo messaggio."
+          }
+        },
+        {
+          "name": "/nuovo (flusso da annullare, 8)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "const q = (sql, cb) => pm.sendRequest({ url: pm.variables.get(\"helperUrl\") + \"/query\", method: \"POST\", header: { \"Content-Type\": \"application/json\" }, body: { mode: \"raw\", raw: JSON.stringify({ sql: sql.replace(/:(\\w+)/g, (_, k) => pm.variables.get(k)) }) } }, (err, res) => {",
+                  "  pm.test(\"Helper: query riuscita\", () => { pm.expect(err).to.equal(null); pm.expect(res.code).to.equal(200); });",
+                  "  if (!err && res.code === 200) cb(res.json().rows);",
+                  "});",
+                  "q(\"SELECT flow, step FROM conversation_state WHERE chat_id = :ownerId\", (rows) => pm.test(\"Flusso nuovo/nome\", () => { pm.expect(rows.length).to.equal(1); pm.expect(rows[0].flow + \"/\" + rows[0].step).to.equal(\"nuovo/nome\"); }));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Telegram-Bot-Api-Secret-Token",
+                "value": "{{webhookSecret}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"update_id\": {{$randomInt}},\n  \"message\": {\n    \"message_id\": {{$randomInt}},\n    \"from\": { \"id\": {{ownerId}} },\n    \"chat\": { \"id\": {{ownerId}}, \"type\": \"private\" },\n    \"text\": \"/nuovo\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/webhook",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "webhook"
+              ]
+            },
+            "description": "Atteso: `👤 Come si chiama? Nome e cognome` con **Annulla**. Il tocco successivo deve annullare il flusso (001 FR-018)."
+          }
+        },
+        {
+          "name": "8 · Aprile (s:m:4)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "const q = (sql, cb) => pm.sendRequest({ url: pm.variables.get(\"helperUrl\") + \"/query\", method: \"POST\", header: { \"Content-Type\": \"application/json\" }, body: { mode: \"raw\", raw: JSON.stringify({ sql: sql.replace(/:(\\w+)/g, (_, k) => pm.variables.get(k)) }) } }, (err, res) => {",
+                  "  pm.test(\"Helper: query riuscita\", () => { pm.expect(err).to.equal(null); pm.expect(res.code).to.equal(200); });",
+                  "  if (!err && res.code === 200) cb(res.json().rows);",
+                  "});",
+                  "q(\"SELECT flow, step FROM conversation_state WHERE chat_id = :ownerId\", (rows) => pm.test(\"Nessun flusso guidato attivo\", () => pm.expect(rows.length).to.equal(0)));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Telegram-Bot-Api-Secret-Token",
+                "value": "{{webhookSecret}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"update_id\": {{$randomInt}},\n  \"callback_query\": {\n    \"id\": \"smoke-{{$randomInt}}\",\n    \"from\": { \"id\": {{ownerId}} },\n    \"data\": \"s:m:4\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/webhook",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "webhook"
+              ]
+            },
+            "description": "RF-20, FR-019. Atteso: **nuovo** messaggio con la vista di aprile (anno di riferimento calcolato ora) e [◀️ Marzo] [Maggio ▶️]. Il flusso /nuovo è annullato."
+          }
+        },
+        {
+          "name": "9 · /mese dicembre",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "const q = (sql, cb) => pm.sendRequest({ url: pm.variables.get(\"helperUrl\") + \"/query\", method: \"POST\", header: { \"Content-Type\": \"application/json\" }, body: { mode: \"raw\", raw: JSON.stringify({ sql: sql.replace(/:(\\w+)/g, (_, k) => pm.variables.get(k)) }) } }, (err, res) => {",
+                  "  pm.test(\"Helper: query riuscita\", () => { pm.expect(err).to.equal(null); pm.expect(res.code).to.equal(200); });",
+                  "  if (!err && res.code === 200) cb(res.json().rows);",
+                  "});",
+                  "q(\"SELECT flow, step FROM conversation_state WHERE chat_id = :ownerId\", (rows) => pm.test(\"Nessun flusso guidato attivo\", () => pm.expect(rows.length).to.equal(0)));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Telegram-Bot-Api-Secret-Token",
+                "value": "{{webhookSecret}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"update_id\": {{$randomInt}},\n  \"message\": {\n    \"message_id\": {{$randomInt}},\n    \"from\": { \"id\": {{ownerId}} },\n    \"chat\": { \"id\": {{ownerId}}, \"type\": \"private\" },\n    \"text\": \"/mese dicembre\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/webhook",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "webhook"
+              ]
+            },
+            "description": "RF-20 (circolare). Atteso: [◀️ Novembre] [Gennaio ▶️]."
+          }
+        },
+        {
+          "name": "10 · /anno",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "const q = (sql, cb) => pm.sendRequest({ url: pm.variables.get(\"helperUrl\") + \"/query\", method: \"POST\", header: { \"Content-Type\": \"application/json\" }, body: { mode: \"raw\", raw: JSON.stringify({ sql: sql.replace(/:(\\w+)/g, (_, k) => pm.variables.get(k)) }) } }, (err, res) => {",
+                  "  pm.test(\"Helper: query riuscita\", () => { pm.expect(err).to.equal(null); pm.expect(res.code).to.equal(200); });",
+                  "  if (!err && res.code === 200) cb(res.json().rows);",
+                  "});",
+                  "q(\"SELECT flow, step FROM conversation_state WHERE chat_id = :ownerId\", (rows) => pm.test(\"Nessun flusso guidato attivo\", () => pm.expect(rows.length).to.equal(0)));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Telegram-Bot-Api-Secret-Token",
+                "value": "{{webhookSecret}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"update_id\": {{$randomInt}},\n  \"message\": {\n    \"message_id\": {{$randomInt}},\n    \"from\": { \"id\": {{ownerId}} },\n    \"chat\": { \"id\": {{ownerId}}, \"type\": \"private\" },\n    \"text\": \"/anno\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/webhook",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "webhook"
+              ]
+            },
+            "description": "RF-22, FR-020. Atteso: `🗂 Riepilogo <anno>`; lo storico chiuso dell'anno prima (9102 fatto, 9104 saltato) dà il solo [◀️ <anno − 1>]; nessun ▶️ sull'anno corrente."
+          }
+        },
+        {
+          "name": "/nuovo (flusso da annullare, 10)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "const q = (sql, cb) => pm.sendRequest({ url: pm.variables.get(\"helperUrl\") + \"/query\", method: \"POST\", header: { \"Content-Type\": \"application/json\" }, body: { mode: \"raw\", raw: JSON.stringify({ sql: sql.replace(/:(\\w+)/g, (_, k) => pm.variables.get(k)) }) } }, (err, res) => {",
+                  "  pm.test(\"Helper: query riuscita\", () => { pm.expect(err).to.equal(null); pm.expect(res.code).to.equal(200); });",
+                  "  if (!err && res.code === 200) cb(res.json().rows);",
+                  "});",
+                  "q(\"SELECT flow, step FROM conversation_state WHERE chat_id = :ownerId\", (rows) => pm.test(\"Flusso nuovo/nome\", () => { pm.expect(rows.length).to.equal(1); pm.expect(rows[0].flow + \"/\" + rows[0].step).to.equal(\"nuovo/nome\"); }));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Telegram-Bot-Api-Secret-Token",
+                "value": "{{webhookSecret}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"update_id\": {{$randomInt}},\n  \"message\": {\n    \"message_id\": {{$randomInt}},\n    \"from\": { \"id\": {{ownerId}} },\n    \"chat\": { \"id\": {{ownerId}}, \"type\": \"private\" },\n    \"text\": \"/nuovo\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/webhook",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "webhook"
+              ]
+            },
+            "description": "Atteso: `👤 Come si chiama? Nome e cognome` con **Annulla**. Il tocco successivo deve annullare il flusso (001 FR-018)."
+          }
+        },
+        {
+          "name": "10 · Anno precedente (s:y:<anno − 1>)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.variables.set(\"annoPrima\", String(new Date().getFullYear() - 1));",
+                  "pm.variables.set(\"anno\", String(new Date().getFullYear()));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "const q = (sql, cb) => pm.sendRequest({ url: pm.variables.get(\"helperUrl\") + \"/query\", method: \"POST\", header: { \"Content-Type\": \"application/json\" }, body: { mode: \"raw\", raw: JSON.stringify({ sql: sql.replace(/:(\\w+)/g, (_, k) => pm.variables.get(k)) }) } }, (err, res) => {",
+                  "  pm.test(\"Helper: query riuscita\", () => { pm.expect(err).to.equal(null); pm.expect(res.code).to.equal(200); });",
+                  "  if (!err && res.code === 200) cb(res.json().rows);",
+                  "});",
+                  "q(\"SELECT flow, step FROM conversation_state WHERE chat_id = :ownerId\", (rows) => pm.test(\"Nessun flusso guidato attivo\", () => pm.expect(rows.length).to.equal(0)));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Telegram-Bot-Api-Secret-Token",
+                "value": "{{webhookSecret}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"update_id\": {{$randomInt}},\n  \"callback_query\": {\n    \"id\": \"smoke-{{$randomInt}}\",\n    \"from\": { \"id\": {{ownerId}} },\n    \"data\": \"s:y:{{annoPrima}}\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/webhook",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "webhook"
+              ]
+            },
+            "description": "RF-22. Atteso: **nuovo** messaggio `🗂 Riepilogo <anno − 1>` con [<anno> ▶️] (e [◀️ <anno − 2>] solo se c'è uno storico chiuso due anni fa: il seed non ne ha). Il flusso /nuovo è annullato."
+          }
+        },
+        {
+          "name": "11 · /statistiche con la sezione Età",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "const q = (sql, cb) => pm.sendRequest({ url: pm.variables.get(\"helperUrl\") + \"/query\", method: \"POST\", header: { \"Content-Type\": \"application/json\" }, body: { mode: \"raw\", raw: JSON.stringify({ sql: sql.replace(/:(\\w+)/g, (_, k) => pm.variables.get(k)) }) } }, (err, res) => {",
+                  "  pm.test(\"Helper: query riuscita\", () => { pm.expect(err).to.equal(null); pm.expect(res.code).to.equal(200); });",
+                  "  if (!err && res.code === 200) cb(res.json().rows);",
+                  "});",
+                  "q(\"SELECT flow, step FROM conversation_state WHERE chat_id = :ownerId\", (rows) => pm.test(\"Nessun flusso guidato attivo\", () => pm.expect(rows.length).to.equal(0)));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Telegram-Bot-Api-Secret-Token",
+                "value": "{{webhookSecret}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"update_id\": {{$randomInt}},\n  \"message\": {\n    \"message_id\": {{$randomInt}},\n    \"from\": { \"id\": {{ownerId}} },\n    \"chat\": { \"id\": {{ownerId}}, \"type\": \"private\" },\n    \"text\": \"/statistiche\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/webhook",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "webhook"
+              ]
+            },
+            "description": "RF-32. Atteso: dopo `🎂 Compleanni per mese` una riga vuota, `🧑 Età` con le fasce da quella di Luca (2000) a quella di Paolo (1985) in monospazio, poi `Età media: N anni · senza anno di nascita: 2` (Anna e Sara). Nessun nome."
+          }
+        },
+        {
+          "name": "12 · /nuovo",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "const q = (sql, cb) => pm.sendRequest({ url: pm.variables.get(\"helperUrl\") + \"/query\", method: \"POST\", header: { \"Content-Type\": \"application/json\" }, body: { mode: \"raw\", raw: JSON.stringify({ sql: sql.replace(/:(\\w+)/g, (_, k) => pm.variables.get(k)) }) } }, (err, res) => {",
+                  "  pm.test(\"Helper: query riuscita\", () => { pm.expect(err).to.equal(null); pm.expect(res.code).to.equal(200); });",
+                  "  if (!err && res.code === 200) cb(res.json().rows);",
+                  "});",
+                  "q(\"SELECT flow, step FROM conversation_state WHERE chat_id = :ownerId\", (rows) => pm.test(\"Flusso nuovo/nome\", () => { pm.expect(rows.length).to.equal(1); pm.expect(rows[0].flow + \"/\" + rows[0].step).to.equal(\"nuovo/nome\"); }));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Telegram-Bot-Api-Secret-Token",
+                "value": "{{webhookSecret}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"update_id\": {{$randomInt}},\n  \"message\": {\n    \"message_id\": {{$randomInt}},\n    \"from\": { \"id\": {{ownerId}} },\n    \"chat\": { \"id\": {{ownerId}}, \"type\": \"private\" },\n    \"text\": \"/nuovo\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/webhook",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "webhook"
+              ]
+            },
+            "description": "Atteso: `👤 Come si chiama? Nome e cognome`."
+          }
+        },
+        {
+          "name": "12 · Nome: Navigazione Postman",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "const q = (sql, cb) => pm.sendRequest({ url: pm.variables.get(\"helperUrl\") + \"/query\", method: \"POST\", header: { \"Content-Type\": \"application/json\" }, body: { mode: \"raw\", raw: JSON.stringify({ sql: sql.replace(/:(\\w+)/g, (_, k) => pm.variables.get(k)) }) } }, (err, res) => {",
+                  "  pm.test(\"Helper: query riuscita\", () => { pm.expect(err).to.equal(null); pm.expect(res.code).to.equal(200); });",
+                  "  if (!err && res.code === 200) cb(res.json().rows);",
+                  "});",
+                  "q(\"SELECT flow, step FROM conversation_state WHERE chat_id = :ownerId\", (rows) => pm.test(\"Flusso nuovo/nickname\", () => { pm.expect(rows.length).to.equal(1); pm.expect(rows[0].flow + \"/\" + rows[0].step).to.equal(\"nuovo/nickname\"); }));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Telegram-Bot-Api-Secret-Token",
+                "value": "{{webhookSecret}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"update_id\": {{$randomInt}},\n  \"message\": {\n    \"message_id\": {{$randomInt}},\n    \"from\": { \"id\": {{ownerId}} },\n    \"chat\": { \"id\": {{ownerId}}, \"type\": \"private\" },\n    \"text\": \"Navigazione Postman\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/webhook",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "webhook"
+              ]
+            },
+            "description": "Atteso: `💬 Come lo chiami nei messaggi? (nickname)` con ⏭ Salta."
+          }
+        },
+        {
+          "name": "12 · Nickname: Salta",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "const q = (sql, cb) => pm.sendRequest({ url: pm.variables.get(\"helperUrl\") + \"/query\", method: \"POST\", header: { \"Content-Type\": \"application/json\" }, body: { mode: \"raw\", raw: JSON.stringify({ sql: sql.replace(/:(\\w+)/g, (_, k) => pm.variables.get(k)) }) } }, (err, res) => {",
+                  "  pm.test(\"Helper: query riuscita\", () => { pm.expect(err).to.equal(null); pm.expect(res.code).to.equal(200); });",
+                  "  if (!err && res.code === 200) cb(res.json().rows);",
+                  "});",
+                  "q(\"SELECT flow, step FROM conversation_state WHERE chat_id = :ownerId\", (rows) => pm.test(\"Flusso nuovo/data\", () => { pm.expect(rows.length).to.equal(1); pm.expect(rows[0].flow + \"/\" + rows[0].step).to.equal(\"nuovo/data\"); }));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Telegram-Bot-Api-Secret-Token",
+                "value": "{{webhookSecret}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"update_id\": {{$randomInt}},\n  \"callback_query\": {\n    \"id\": \"smoke-{{$randomInt}}\",\n    \"from\": { \"id\": {{ownerId}} },\n    \"data\": \"f:{{flowId}}:k\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/webhook",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "webhook"
+              ]
+            },
+            "description": "Atteso: domanda della data."
+          }
+        },
+        {
+          "name": "12 · Data 15/06/1992",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "const q = (sql, cb) => pm.sendRequest({ url: pm.variables.get(\"helperUrl\") + \"/query\", method: \"POST\", header: { \"Content-Type\": \"application/json\" }, body: { mode: \"raw\", raw: JSON.stringify({ sql: sql.replace(/:(\\w+)/g, (_, k) => pm.variables.get(k)) }) } }, (err, res) => {",
+                  "  pm.test(\"Helper: query riuscita\", () => { pm.expect(err).to.equal(null); pm.expect(res.code).to.equal(200); });",
+                  "  if (!err && res.code === 200) cb(res.json().rows);",
+                  "});",
+                  "q(\"SELECT flow, step FROM conversation_state WHERE chat_id = :ownerId\", (rows) => pm.test(\"Flusso nuovo/data_conferma\", () => { pm.expect(rows.length).to.equal(1); pm.expect(rows[0].flow + \"/\" + rows[0].step).to.equal(\"nuovo/data_conferma\"); }));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Telegram-Bot-Api-Secret-Token",
+                "value": "{{webhookSecret}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"update_id\": {{$randomInt}},\n  \"message\": {\n    \"message_id\": {{$randomInt}},\n    \"from\": { \"id\": {{ownerId}} },\n    \"chat\": { \"id\": {{ownerId}}, \"type\": \"private\" },\n    \"text\": \"15/06/1992\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/webhook",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "webhook"
+              ]
+            },
+            "description": "Atteso: `15 giugno 1992, giusto?` con [Sì] [Correggi]."
+          }
+        },
+        {
+          "name": "12 · Sì",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "const q = (sql, cb) => pm.sendRequest({ url: pm.variables.get(\"helperUrl\") + \"/query\", method: \"POST\", header: { \"Content-Type\": \"application/json\" }, body: { mode: \"raw\", raw: JSON.stringify({ sql: sql.replace(/:(\\w+)/g, (_, k) => pm.variables.get(k)) }) } }, (err, res) => {",
+                  "  pm.test(\"Helper: query riuscita\", () => { pm.expect(err).to.equal(null); pm.expect(res.code).to.equal(200); });",
+                  "  if (!err && res.code === 200) cb(res.json().rows);",
+                  "});",
+                  "q(\"SELECT flow, step FROM conversation_state WHERE chat_id = :ownerId\", (rows) => pm.test(\"Flusso nuovo/telefono\", () => { pm.expect(rows.length).to.equal(1); pm.expect(rows[0].flow + \"/\" + rows[0].step).to.equal(\"nuovo/telefono\"); }));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Telegram-Bot-Api-Secret-Token",
+                "value": "{{webhookSecret}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"update_id\": {{$randomInt}},\n  \"callback_query\": {\n    \"id\": \"smoke-{{$randomInt}}\",\n    \"from\": { \"id\": {{ownerId}} },\n    \"data\": \"f:{{flowId}}:y\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/webhook",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "webhook"
+              ]
+            },
+            "description": "Atteso: domanda del telefono."
+          }
+        },
+        {
+          "name": "12 · Telefono: Salta",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "const q = (sql, cb) => pm.sendRequest({ url: pm.variables.get(\"helperUrl\") + \"/query\", method: \"POST\", header: { \"Content-Type\": \"application/json\" }, body: { mode: \"raw\", raw: JSON.stringify({ sql: sql.replace(/:(\\w+)/g, (_, k) => pm.variables.get(k)) }) } }, (err, res) => {",
+                  "  pm.test(\"Helper: query riuscita\", () => { pm.expect(err).to.equal(null); pm.expect(res.code).to.equal(200); });",
+                  "  if (!err && res.code === 200) cb(res.json().rows);",
+                  "});",
+                  "q(\"SELECT flow, step FROM conversation_state WHERE chat_id = :ownerId\", (rows) => pm.test(\"Flusso nuovo/instagram\", () => { pm.expect(rows.length).to.equal(1); pm.expect(rows[0].flow + \"/\" + rows[0].step).to.equal(\"nuovo/instagram\"); }));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Telegram-Bot-Api-Secret-Token",
+                "value": "{{webhookSecret}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"update_id\": {{$randomInt}},\n  \"callback_query\": {\n    \"id\": \"smoke-{{$randomInt}}\",\n    \"from\": { \"id\": {{ownerId}} },\n    \"data\": \"f:{{flowId}}:k\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/webhook",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "webhook"
+              ]
+            },
+            "description": "Atteso: domanda di Instagram."
+          }
+        },
+        {
+          "name": "12 · Instagram: Salta",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "const q = (sql, cb) => pm.sendRequest({ url: pm.variables.get(\"helperUrl\") + \"/query\", method: \"POST\", header: { \"Content-Type\": \"application/json\" }, body: { mode: \"raw\", raw: JSON.stringify({ sql: sql.replace(/:(\\w+)/g, (_, k) => pm.variables.get(k)) }) } }, (err, res) => {",
+                  "  pm.test(\"Helper: query riuscita\", () => { pm.expect(err).to.equal(null); pm.expect(res.code).to.equal(200); });",
+                  "  if (!err && res.code === 200) cb(res.json().rows);",
+                  "});",
+                  "q(\"SELECT flow, step FROM conversation_state WHERE chat_id = :ownerId\", (rows) => pm.test(\"Flusso nuovo/telegram\", () => { pm.expect(rows.length).to.equal(1); pm.expect(rows[0].flow + \"/\" + rows[0].step).to.equal(\"nuovo/telegram\"); }));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Telegram-Bot-Api-Secret-Token",
+                "value": "{{webhookSecret}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"update_id\": {{$randomInt}},\n  \"callback_query\": {\n    \"id\": \"smoke-{{$randomInt}}\",\n    \"from\": { \"id\": {{ownerId}} },\n    \"data\": \"f:{{flowId}}:k\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/webhook",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "webhook"
+              ]
+            },
+            "description": "Atteso: domanda di Telegram."
+          }
+        },
+        {
+          "name": "12 · Telegram: Salta",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "const q = (sql, cb) => pm.sendRequest({ url: pm.variables.get(\"helperUrl\") + \"/query\", method: \"POST\", header: { \"Content-Type\": \"application/json\" }, body: { mode: \"raw\", raw: JSON.stringify({ sql: sql.replace(/:(\\w+)/g, (_, k) => pm.variables.get(k)) }) } }, (err, res) => {",
+                  "  pm.test(\"Helper: query riuscita\", () => { pm.expect(err).to.equal(null); pm.expect(res.code).to.equal(200); });",
+                  "  if (!err && res.code === 200) cb(res.json().rows);",
+                  "});",
+                  "q(\"SELECT flow, step FROM conversation_state WHERE chat_id = :ownerId\", (rows) => pm.test(\"Flusso nuovo/gruppi\", () => { pm.expect(rows.length).to.equal(1); pm.expect(rows[0].flow + \"/\" + rows[0].step).to.equal(\"nuovo/gruppi\"); }));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Telegram-Bot-Api-Secret-Token",
+                "value": "{{webhookSecret}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"update_id\": {{$randomInt}},\n  \"callback_query\": {\n    \"id\": \"smoke-{{$randomInt}}\",\n    \"from\": { \"id\": {{ownerId}} },\n    \"data\": \"f:{{flowId}}:k\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/webhook",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "webhook"
+              ]
+            },
+            "description": "Atteso: `👥 Gruppi?`."
+          }
+        },
+        {
+          "name": "12 · Gruppi: Fine",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "const q = (sql, cb) => pm.sendRequest({ url: pm.variables.get(\"helperUrl\") + \"/query\", method: \"POST\", header: { \"Content-Type\": \"application/json\" }, body: { mode: \"raw\", raw: JSON.stringify({ sql: sql.replace(/:(\\w+)/g, (_, k) => pm.variables.get(k)) }) } }, (err, res) => {",
+                  "  pm.test(\"Helper: query riuscita\", () => { pm.expect(err).to.equal(null); pm.expect(res.code).to.equal(200); });",
+                  "  if (!err && res.code === 200) cb(res.json().rows);",
+                  "});",
+                  "q(\"SELECT flow, step FROM conversation_state WHERE chat_id = :ownerId\", (rows) => pm.test(\"Flusso nuovo/priorita\", () => { pm.expect(rows.length).to.equal(1); pm.expect(rows[0].flow + \"/\" + rows[0].step).to.equal(\"nuovo/priorita\"); }));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Telegram-Bot-Api-Secret-Token",
+                "value": "{{webhookSecret}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"update_id\": {{$randomInt}},\n  \"callback_query\": {\n    \"id\": \"smoke-{{$randomInt}}\",\n    \"from\": { \"id\": {{ownerId}} },\n    \"data\": \"f:{{flowId}}:d\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/webhook",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "webhook"
+              ]
+            },
+            "description": "Atteso: `⭐ Priorità?`."
+          }
+        },
+        {
+          "name": "12 · Priorità Media",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "const q = (sql, cb) => pm.sendRequest({ url: pm.variables.get(\"helperUrl\") + \"/query\", method: \"POST\", header: { \"Content-Type\": \"application/json\" }, body: { mode: \"raw\", raw: JSON.stringify({ sql: sql.replace(/:(\\w+)/g, (_, k) => pm.variables.get(k)) }) } }, (err, res) => {",
+                  "  pm.test(\"Helper: query riuscita\", () => { pm.expect(err).to.equal(null); pm.expect(res.code).to.equal(200); });",
+                  "  if (!err && res.code === 200) cb(res.json().rows);",
+                  "});",
+                  "q(\"SELECT flow, step FROM conversation_state WHERE chat_id = :ownerId\", (rows) => pm.test(\"Flusso nuovo/messaggio\", () => { pm.expect(rows.length).to.equal(1); pm.expect(rows[0].flow + \"/\" + rows[0].step).to.equal(\"nuovo/messaggio\"); }));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Telegram-Bot-Api-Secret-Token",
+                "value": "{{webhookSecret}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"update_id\": {{$randomInt}},\n  \"callback_query\": {\n    \"id\": \"smoke-{{$randomInt}}\",\n    \"from\": { \"id\": {{ownerId}} },\n    \"data\": \"f:{{flowId}}:pr:m\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/webhook",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "webhook"
+              ]
+            },
+            "description": "Atteso: domanda del messaggio personalizzato."
+          }
+        },
+        {
+          "name": "12 · Messaggio: Salta",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "const q = (sql, cb) => pm.sendRequest({ url: pm.variables.get(\"helperUrl\") + \"/query\", method: \"POST\", header: { \"Content-Type\": \"application/json\" }, body: { mode: \"raw\", raw: JSON.stringify({ sql: sql.replace(/:(\\w+)/g, (_, k) => pm.variables.get(k)) }) } }, (err, res) => {",
+                  "  pm.test(\"Helper: query riuscita\", () => { pm.expect(err).to.equal(null); pm.expect(res.code).to.equal(200); });",
+                  "  if (!err && res.code === 200) cb(res.json().rows);",
+                  "});",
+                  "q(\"SELECT flow, step FROM conversation_state WHERE chat_id = :ownerId\", (rows) => pm.test(\"Flusso nuovo/riepilogo\", () => { pm.expect(rows.length).to.equal(1); pm.expect(rows[0].flow + \"/\" + rows[0].step).to.equal(\"nuovo/riepilogo\"); }));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Telegram-Bot-Api-Secret-Token",
+                "value": "{{webhookSecret}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"update_id\": {{$randomInt}},\n  \"callback_query\": {\n    \"id\": \"smoke-{{$randomInt}}\",\n    \"from\": { \"id\": {{ownerId}} },\n    \"data\": \"f:{{flowId}}:k\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/webhook",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "webhook"
+              ]
+            },
+            "description": "Atteso: `📋 Riepilogo:` con [Salva] [Annulla]."
+          }
+        },
+        {
+          "name": "12 · Salva → conferma con [➕ Aggiungi un'altra persona]",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "const q = (sql, cb) => pm.sendRequest({ url: pm.variables.get(\"helperUrl\") + \"/query\", method: \"POST\", header: { \"Content-Type\": \"application/json\" }, body: { mode: \"raw\", raw: JSON.stringify({ sql: sql.replace(/:(\\w+)/g, (_, k) => pm.variables.get(k)) }) } }, (err, res) => {",
+                  "  pm.test(\"Helper: query riuscita\", () => { pm.expect(err).to.equal(null); pm.expect(res.code).to.equal(200); });",
+                  "  if (!err && res.code === 200) cb(res.json().rows);",
+                  "});",
+                  "q(\"SELECT flow, step FROM conversation_state WHERE chat_id = :ownerId\", (rows) => pm.test(\"Nessun flusso guidato attivo\", () => pm.expect(rows.length).to.equal(0)));",
+                  "q(\"SELECT id FROM persons WHERE full_name = 'Navigazione Postman'\", (rows) => {",
+                  "  if (rows[0]) pm.collectionVariables.set(\"navigazioneId\", String(rows[0].id));",
+                  "  pm.test(\"Navigazione Postman salvata una volta\", () => pm.expect(rows.length).to.equal(1));",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Telegram-Bot-Api-Secret-Token",
+                "value": "{{webhookSecret}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"update_id\": {{$randomInt}},\n  \"callback_query\": {\n    \"id\": \"smoke-{{$randomInt}}\",\n    \"from\": { \"id\": {{ownerId}} },\n    \"data\": \"f:{{flowId}}:s\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/webhook",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "webhook"
+              ]
+            },
+            "description": "RF-01, FR-021. Atteso: `🎉 Fatto! Navigazione Postman è in rubrica.` con la scheda, [✏️ Modifica] [🗑 Elimina] e, su una riga a sé in fondo, **➕ Aggiungi un'altra persona**."
+          }
+        },
+        {
+          "name": "12 · ➕ Aggiungi un'altra persona (s:n)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "const q = (sql, cb) => pm.sendRequest({ url: pm.variables.get(\"helperUrl\") + \"/query\", method: \"POST\", header: { \"Content-Type\": \"application/json\" }, body: { mode: \"raw\", raw: JSON.stringify({ sql: sql.replace(/:(\\w+)/g, (_, k) => pm.variables.get(k)) }) } }, (err, res) => {",
+                  "  pm.test(\"Helper: query riuscita\", () => { pm.expect(err).to.equal(null); pm.expect(res.code).to.equal(200); });",
+                  "  if (!err && res.code === 200) cb(res.json().rows);",
+                  "});",
+                  "q(\"SELECT flow, step FROM conversation_state WHERE chat_id = :ownerId\", (rows) => pm.test(\"Flusso nuovo/nome\", () => { pm.expect(rows.length).to.equal(1); pm.expect(rows[0].flow + \"/\" + rows[0].step).to.equal(\"nuovo/nome\"); }));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Telegram-Bot-Api-Secret-Token",
+                "value": "{{webhookSecret}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"update_id\": {{$randomInt}},\n  \"callback_query\": {\n    \"id\": \"smoke-{{$randomInt}}\",\n    \"from\": { \"id\": {{ownerId}} },\n    \"data\": \"s:n\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/webhook",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "webhook"
+              ]
+            },
+            "description": "RF-01, FR-022. Atteso: `👤 Come si chiama? Nome e cognome` in un nuovo messaggio."
+          }
+        },
+        {
+          "name": "13 · /p_<id> della persona appena salvata",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "const q = (sql, cb) => pm.sendRequest({ url: pm.variables.get(\"helperUrl\") + \"/query\", method: \"POST\", header: { \"Content-Type\": \"application/json\" }, body: { mode: \"raw\", raw: JSON.stringify({ sql: sql.replace(/:(\\w+)/g, (_, k) => pm.variables.get(k)) }) } }, (err, res) => {",
+                  "  pm.test(\"Helper: query riuscita\", () => { pm.expect(err).to.equal(null); pm.expect(res.code).to.equal(200); });",
+                  "  if (!err && res.code === 200) cb(res.json().rows);",
+                  "});",
+                  "q(\"SELECT flow, step FROM conversation_state WHERE chat_id = :ownerId\", (rows) => pm.test(\"Nessun flusso guidato attivo\", () => pm.expect(rows.length).to.equal(0)));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Telegram-Bot-Api-Secret-Token",
+                "value": "{{webhookSecret}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"update_id\": {{$randomInt}},\n  \"message\": {\n    \"message_id\": {{$randomInt}},\n    \"from\": { \"id\": {{ownerId}} },\n    \"chat\": { \"id\": {{ownerId}}, \"type\": \"private\" },\n    \"text\": \"/p_{{navigazioneId}}\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/webhook",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "webhook"
+              ]
+            },
+            "description": "RF-01, FR-021. Atteso: la scheda di Navigazione Postman **senza** [➕ Aggiungi un'altra persona]. Il comando annulla il /nuovo del passo precedente."
+          }
+        },
+        {
+          "name": "14 · Pulsante malformato s:m:13",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "const q = (sql, cb) => pm.sendRequest({ url: pm.variables.get(\"helperUrl\") + \"/query\", method: \"POST\", header: { \"Content-Type\": \"application/json\" }, body: { mode: \"raw\", raw: JSON.stringify({ sql: sql.replace(/:(\\w+)/g, (_, k) => pm.variables.get(k)) }) } }, (err, res) => {",
+                  "  pm.test(\"Helper: query riuscita\", () => { pm.expect(err).to.equal(null); pm.expect(res.code).to.equal(200); });",
+                  "  if (!err && res.code === 200) cb(res.json().rows);",
+                  "});",
+                  "q(\"SELECT flow, step FROM conversation_state WHERE chat_id = :ownerId\", (rows) => pm.test(\"Nessun flusso guidato attivo\", () => pm.expect(rows.length).to.equal(0)));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Telegram-Bot-Api-Secret-Token",
+                "value": "{{webhookSecret}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"update_id\": {{$randomInt}},\n  \"callback_query\": {\n    \"id\": \"smoke-{{$randomInt}}\",\n    \"from\": { \"id\": {{ownerId}} },\n    \"data\": \"s:m:13\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/webhook",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "webhook"
+              ]
+            },
+            "description": "contracts/callback-data.md di 009. Atteso: popup `❌ Questa azione non è più disponibile.` e nessun messaggio. Da Postman il popup non si vede (callback finto, vedi README): compare solo `❌ Qualcosa è andato storto. Riprova tra poco.`."
+          }
+        },
+        {
+          "name": "14 · Pulsante malformato s:y",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "const q = (sql, cb) => pm.sendRequest({ url: pm.variables.get(\"helperUrl\") + \"/query\", method: \"POST\", header: { \"Content-Type\": \"application/json\" }, body: { mode: \"raw\", raw: JSON.stringify({ sql: sql.replace(/:(\\w+)/g, (_, k) => pm.variables.get(k)) }) } }, (err, res) => {",
+                  "  pm.test(\"Helper: query riuscita\", () => { pm.expect(err).to.equal(null); pm.expect(res.code).to.equal(200); });",
+                  "  if (!err && res.code === 200) cb(res.json().rows);",
+                  "});",
+                  "q(\"SELECT flow, step FROM conversation_state WHERE chat_id = :ownerId\", (rows) => pm.test(\"Nessun flusso guidato attivo\", () => pm.expect(rows.length).to.equal(0)));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Telegram-Bot-Api-Secret-Token",
+                "value": "{{webhookSecret}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"update_id\": {{$randomInt}},\n  \"callback_query\": {\n    \"id\": \"smoke-{{$randomInt}}\",\n    \"from\": { \"id\": {{ownerId}} },\n    \"data\": \"s:y\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/webhook",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "webhook"
+              ]
+            },
+            "description": "contracts/callback-data.md di 009. Atteso: popup `❌ Questa azione non è più disponibile.` e nessun messaggio. Da Postman il popup non si vede (callback finto, vedi README): compare solo `❌ Qualcosa è andato storto. Riprova tra poco.`."
+          }
+        },
+        {
+          "name": "14 · Pulsante malformato g2:l:1",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "const q = (sql, cb) => pm.sendRequest({ url: pm.variables.get(\"helperUrl\") + \"/query\", method: \"POST\", header: { \"Content-Type\": \"application/json\" }, body: { mode: \"raw\", raw: JSON.stringify({ sql: sql.replace(/:(\\w+)/g, (_, k) => pm.variables.get(k)) }) } }, (err, res) => {",
+                  "  pm.test(\"Helper: query riuscita\", () => { pm.expect(err).to.equal(null); pm.expect(res.code).to.equal(200); });",
+                  "  if (!err && res.code === 200) cb(res.json().rows);",
+                  "});",
+                  "q(\"SELECT flow, step FROM conversation_state WHERE chat_id = :ownerId\", (rows) => pm.test(\"Nessun flusso guidato attivo\", () => pm.expect(rows.length).to.equal(0)));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Telegram-Bot-Api-Secret-Token",
+                "value": "{{webhookSecret}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"update_id\": {{$randomInt}},\n  \"callback_query\": {\n    \"id\": \"smoke-{{$randomInt}}\",\n    \"from\": { \"id\": {{ownerId}} },\n    \"data\": \"g2:l:1\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/webhook",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "webhook"
+              ]
+            },
+            "description": "contracts/callback-data.md di 009. Atteso: popup `❌ Questa azione non è più disponibile.` e nessun messaggio. Da Postman il popup non si vede (callback finto, vedi README): compare solo `❌ Qualcosa è andato storto. Riprova tra poco.`."
+          }
+        },
+        {
+          "name": "14 · Pulsante malformato s:u:5",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "const q = (sql, cb) => pm.sendRequest({ url: pm.variables.get(\"helperUrl\") + \"/query\", method: \"POST\", header: { \"Content-Type\": \"application/json\" }, body: { mode: \"raw\", raw: JSON.stringify({ sql: sql.replace(/:(\\w+)/g, (_, k) => pm.variables.get(k)) }) } }, (err, res) => {",
+                  "  pm.test(\"Helper: query riuscita\", () => { pm.expect(err).to.equal(null); pm.expect(res.code).to.equal(200); });",
+                  "  if (!err && res.code === 200) cb(res.json().rows);",
+                  "});",
+                  "q(\"SELECT flow, step FROM conversation_state WHERE chat_id = :ownerId\", (rows) => pm.test(\"Nessun flusso guidato attivo\", () => pm.expect(rows.length).to.equal(0)));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Telegram-Bot-Api-Secret-Token",
+                "value": "{{webhookSecret}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"update_id\": {{$randomInt}},\n  \"callback_query\": {\n    \"id\": \"smoke-{{$randomInt}}\",\n    \"from\": { \"id\": {{ownerId}} },\n    \"data\": \"s:u:5\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/webhook",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "webhook"
+              ]
+            },
+            "description": "contracts/callback-data.md di 009. Atteso: popup `❌ Questa azione non è più disponibile.` e nessun messaggio. Da Postman il popup non si vede (callback finto, vedi README): compare solo `❌ Qualcosa è andato storto. Riprova tra poco.`."
+          }
+        },
+        {
+          "name": "15 · Estraneo: g2:l → 200 silenzioso",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Telegram-Bot-Api-Secret-Token",
+                "value": "{{webhookSecret}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"update_id\": {{$randomInt}},\n  \"callback_query\": {\n    \"id\": \"smoke-{{$randomInt}}\",\n    \"from\": { \"id\": {{strangerId}} },\n    \"data\": \"g2:l\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/webhook",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "webhook"
+              ]
+            },
+            "description": "RF-30. Atteso 200 e **nessuna** risposta in chat."
+          }
+        }
+      ]
+    },
+    {
+      "name": "22 · Pulizia",
       "description": "Rimette i dati di prova (dopo il ripristino il D1 locale contiene solo Rita e Bruno).",
       "item": [
         {
@@ -12493,6 +14474,10 @@
     },
     {
       "key": "amiciId",
+      "value": ""
+    },
+    {
+      "key": "navigazioneId",
       "value": ""
     }
   ]
