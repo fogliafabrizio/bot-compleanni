@@ -219,7 +219,7 @@ diverso: tutti [P].
 
 ## Phase 11: Polish e verifiche finali
 
-- [ ] T051 Eseguire `npm run typecheck`, `npm test`, `npm run bench` e `.\scripts\smoke-postman.ps1`: tutto verde (quickstart §1-2)
+- [X] T051 Eseguire `npm run typecheck`, `npm test`, `npm run bench` e `.\scripts\smoke-postman.ps1`: tutto verde (quickstart §1-2)
 - [X] T052 Verifiche finali con `git diff --stat` e `grep`: nessun file in `migrations/`; `wrangler.toml`, `src/cron/*`, `src/db/reminders.ts`, `docs/AFU.md` e le spec 001-009 non toccati; nessun nuovo `console.log`/`log(` con nomi, username, telefoni o date (constitution V); nessun testo fuori da `src/texts.ts` nei file nuovi (RNF-15); nessun "0:00" isolato in `src/texts.ts` (SC-004)
 
 ---
