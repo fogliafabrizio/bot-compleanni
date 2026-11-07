@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { formatListLine } from "../../src/bot/liste";
 import { DEFAULT_BIRTHDAY_MESSAGE, DOCUMENT_CAPTION_MAX_LENGTH, MESSAGE_MAX_LENGTH } from "../../src/config";
-import { BOT_COMMANDS, CSV_EXAMPLE_ROW, T, type Counts, type DeliveryCounts } from "../../src/texts";
+import { BOT_COMMANDS, CSV_EXAMPLE_ROW, formatClock, INCOMPLETE_LABELS, T, type Counts, type DeliveryCounts } from "../../src/texts";
 import type { LocalClock, LocalDate } from "../../src/time";
 
 // Inventario eseguibile dei testi (RNF-19, FR-004a, contracts/testi.md di 008, research R-08).
@@ -184,6 +184,15 @@ const INVENTARIO: Record<string, Tipo> = {
   statsTitle: "T",
   statsMonthsTitle: "T",
   statsDone: "F",
+  // /incomplete (RF-50, contracts/testi-v13.md di 010)
+  incompleteTitle: "T",
+  incompleteQuestion: "D",
+  btnIncompleteFilter: "PA",
+  incompleteListHeader: "T",
+  incompleteUnknown: "E",
+  btnIncomplete: "PA",
+  incompleteAllHave: "C",
+  incompleteNoPersons: "I",
   statsPersons: "F",
   statsGroup: "F",
   statsNoGroup: "F",
@@ -296,6 +305,9 @@ const ESEMPI: Record<string, readonly unknown[]> = {
   statsMissing: [3, 3],
   statsYear: [2026, 87],
   statsDone: [["2026 87%"]],
+  incompleteAllHave: ["telefono"],
+  btnIncompleteFilter: ["Telefono", 41],
+  incompleteListHeader: ["telefono", 41],
   btnUngrouped: [12],
   ungroupedCardTitle: [12],
   btnPrevMonth: ["Febbraio"],
@@ -390,6 +402,8 @@ const PULSANTI_CON_ICONA = [
   "btnPrevYear",
   "btnNextYear",
   "btnAddAnother",
+  // v1.3 (FR-019): 📝 del pulsante di /statistiche.
+  "btnIncomplete",
 ];
 
 // Foglie di un valore di T in notazione a punto (le funzioni e le stringhe sono foglie).
@@ -424,6 +438,7 @@ describe("RNF-19, FR-004a: regole per tipo di testo", () => {
   perTipo("T", "inizia con l'emoji di sezione", (k, s) => expect(iniziaConEmoji(s), `${k}: ${s}`).toBe(true));
   perTipo("D", "inizia con l'icona del campo", (k, s) => {
     if (k === "confirmDate") return; // §5.2: conferma della data senza icona (research R-03)
+    if (k === "incompleteQuestion") return; // §5.13: seconda riga del messaggio che inizia con 📝
     expect(ICONE_DOMANDE.some((i) => s.startsWith(i)), `${k}: ${s}`).toBe(true);
   });
   perTipo("C", "contiene 🎉 o ✅ (welcome: 👋)", (k, s) => {
@@ -594,5 +609,84 @@ describe("FR-004a, SC-001: inventario completo", () => {
     expect(tutte.filter((k) => !inventariate.includes(k)), "chiavi di T non classificate").toEqual([]);
     expect(inventariate.filter((k) => !tutte.includes(k)), "chiavi dell'inventario non più in T").toEqual([]);
     expect(new Set(inventariate).size).toBe(inventariate.length);
+  });
+});
+
+describe("RNF-19, FR-007 (v1.3): orari della mezzanotte", () => {
+  it.each([
+    [0, 0, "00:00"],
+    [9, 0, "9:00"],
+    [1, 0, "1:00"],
+    [23, 0, "23:00"],
+    [0, 37, "00:37"],
+  ])("RNF-19: formatClock(%i, %i) = %s", (h, m, atteso) => {
+    expect(formatClock(h, m)).toBe(atteso);
+  });
+
+  it("RNF-19, FR-023: statoKind dello slot giorno", () => {
+    expect(T.statoKind("giorno", 0)).toBe("reminder delle 00:00");
+    expect(T.statoKind("giorno", 9)).toBe("reminder delle 9:00");
+  });
+
+  it("SC-004: nessun testo con un LocalClock a ore 0 produce un «0:00» isolato", () => {
+    const MEZZANOTTE: LocalClock = { ...DAY, hour: 0, minute: 0 };
+    const IERI: LocalClock = { year: 2026, month: 10, day: 28, hour: 21, minute: 0 };
+    const testi = [
+      T.statoWhen(MEZZANOTTE, DAY),
+      T.statoWhen(MEZZANOTTE, { year: 2026, month: 10, day: 30 }),
+      T.statoAt(MEZZANOTTE),
+      T.gapAlert(IERI, MEZZANOTTE, DAY),
+      T.gapAlert(MEZZANOTTE, { ...MEZZANOTTE, hour: 3 }, DAY),
+      T.statoKind("giorno", 0),
+    ];
+    for (const s of testi) expect(s, s).not.toMatch(/(^|[^0-9])0:00/);
+    expect(T.gapAlert(IERI, MEZZANOTTE, DAY)).toContain("dalle 21:00 del 28/10 alle 00:00 del 29/10");
+  });
+});
+
+describe("RNF-15, RNF-19, FR-019, FR-020 (v1.3): testi di /incomplete", () => {
+  it("FR-019: btnIncompleteFilter senza emoji; btnIncomplete e incompleteTitle iniziano con 📝", () => {
+    for (const label of Object.values(INCOMPLETE_LABELS)) expect(contieneEmoji(T.btnIncompleteFilter(label, 41))).toBe(false);
+    expect(T.btnIncompleteFilter("Telefono", 41)).toBe("Telefono (41)");
+    expect(T.btnIncomplete.startsWith("📝")).toBe(true);
+    expect(T.incompleteTitle).toBe("📝 Profili incompleti");
+    expect(T.incompleteQuestion).toBe("Quale dato manca?");
+  });
+
+  it("FR-009: etichette dei filtri", () => {
+    expect(INCOMPLETE_LABELS).toEqual({
+      telefono: "Telefono",
+      instagram: "Instagram",
+      telegram: "Telegram",
+      anno: "Anno di nascita",
+      contatti: "Nessun contatto",
+    });
+  });
+
+  it.each([
+    ["telefono", "Senza telefono"],
+    ["instagram", "Senza Instagram"],
+    ["telegram", "Senza Telegram"],
+    ["anno", "Senza anno di nascita"],
+    ["contatti", "Nessun contatto"],
+  ] as const)("FR-012: incompleteListHeader(%s) con 1 persona e 41 persone", (key, head) => {
+    expect(T.incompleteListHeader(key, 1)).toBe(`📝 ${head} · 1 persona`);
+    expect(T.incompleteListHeader(key, 41)).toBe(`📝 ${head} · 41 persone`);
+  });
+
+  it("FR-011: incompleteUnknown con il rimedio", () => {
+    expect(T.incompleteUnknown).toBe(
+      "❌ Non conosco questo dato. Scegli un filtro qui sotto oppure scrivi /incomplete seguito da telefono, instagram, telegram, anno o contatti.",
+    );
+  });
+
+  it("FR-018: riga di /incomplete in /aiuto subito dopo /anno, voce del menu nella stessa posizione", () => {
+    const lines = T.help.split("\n");
+    const i = lines.indexOf("/anno [anno] — riepilogo dell'anno");
+    expect(lines[i + 1]).toBe(
+      "/incomplete [campo] — profili incompleti: pulsanti dei filtri con i conteggi; con un campo (telefono, instagram, telegram, anno, contatti) la lista",
+    );
+    const names = BOT_COMMANDS.map((c) => c.command);
+    expect(names[names.indexOf("anno") + 1]).toBe("incomplete");
   });
 });

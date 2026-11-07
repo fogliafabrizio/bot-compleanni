@@ -5,6 +5,7 @@ import type { InlineKeyboardButton, InlineKeyboardMarkup } from "./types";
 // di /oggi in specs/003-viste-ricerche/contracts/callback-data.md; ambito versionato "g2" dei gruppi
 // in specs/005-revisioni-v1-1-gruppi/contracts/callback-data.md; azioni di 009 in
 // specs/009-revisioni-v1-2-navigazione/contracts/callback-data.md.
+// 010: s:i (📝 Profili incompleti), s:i:<1…5> (filtri di /incomplete) — specs/010-revisioni-v1-3-mezzanotte-incompleti/contracts/callback-data.md
 
 export type Callback =
   | { kind: "static"; scope: "s" | "p" | "o" | "t"; action: string; id?: number }

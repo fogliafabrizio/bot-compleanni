@@ -101,10 +101,11 @@ describe("RF-19, FR-014: menu dei comandi", () => {
     expect(await savedHash()).toBe(MENU_HASH);
   });
 
-  it("§5.1, FR-016: menu con statistiche e stato dopo anno", () => {
+  it("§5.1, FR-016, RF-28 (v1.3): menu con incomplete, statistiche e stato dopo anno", () => {
     const names = BOT_COMMANDS.map((c) => c.command);
     const i = names.indexOf("anno");
-    expect(BOT_COMMANDS.slice(i + 1, i + 3)).toEqual([
+    expect(BOT_COMMANDS.slice(i + 1, i + 4)).toEqual([
+      { command: "incomplete", description: "Profili incompleti: dati mancanti delle schede" },
       { command: "statistiche", description: "Statistiche della rubrica e andamento" },
       { command: "stato", description: "Salute di cron, invii, backup e webhook" },
     ]);
@@ -119,6 +120,20 @@ describe("RF-19, FR-014: menu dei comandi", () => {
     const deps = makeCronDeps();
     await runScheduledAt(deps, 2026, 10, 28, 11);
     expect(deps.tg.commandsSet()).toEqual([{ method: "setMyCommands", commands: [...BOT_COMMANDS] }]);
+    expect(await savedHash()).toBe(MENU_HASH);
+  });
+
+  it("RF-28, FR-018 (v1.3): hash del menu di 009 salvato → un ciclo senza invii registra il menu con incomplete dopo anno", async () => {
+    await backupDone();
+    const old = BOT_COMMANDS.filter((c) => c.command !== "incomplete");
+    await env.DB.prepare("INSERT INTO settings (key, value, updated_at) VALUES ('bot_commands', ?, '2026-10-01T00:00:00.000Z')")
+      .bind(nameHash(JSON.stringify(old)))
+      .run();
+    const deps = makeCronDeps();
+    await runScheduledAt(deps, 2026, 10, 28, 11);
+    const [call] = deps.tg.commandsSet();
+    const names = call!.commands.map((c) => c.command);
+    expect(names[names.indexOf("anno") + 1]).toBe("incomplete");
     expect(await savedHash()).toBe(MENU_HASH);
   });
 });

@@ -191,3 +191,26 @@ describe("N-06: avviso di buco", () => {
     expect(alerts(deps)).toEqual([]);
   });
 });
+
+describe("N-06, RNF-19 (v1.3): avviso di buco attorno alla mezzanotte", () => {
+  it("N-06: 23:00 → 2:00 → «dalle 23:00 del 28/10 alle 2:00 del 29/10»", async () => {
+    await lastRunAt(2026, 10, 28, 23);
+    const deps = makeCronDeps();
+    await runAt(deps, 2026, 10, 29, 2, MANUAL);
+    expect(alerts(deps).map((m) => m.text)).toEqual([`${ALERT_START} dalle 23:00 del 28/10 alle 2:00 del 29/10${ALERT_TAIL}`]);
+  });
+
+  it("RNF-19: estremo a mezzanotte, 21:00 → 00:00 → «alle 00:00 del 29/10»", async () => {
+    await lastRunAt(2026, 10, 28, 21);
+    const deps = makeCronDeps();
+    await runAt(deps, 2026, 10, 29, 0, MANUAL);
+    expect(alerts(deps).map((m) => m.text)).toEqual([`${ALERT_START} dalle 21:00 del 28/10 alle 00:00 del 29/10${ALERT_TAIL}`]);
+  });
+
+  it("RNF-19: estremo iniziale a mezzanotte, 00:00 → 3:00 dello stesso giorno → «dalle 00:00 alle 3:00 di oggi»", async () => {
+    await lastRunAt(2026, 10, 29, 0);
+    const deps = makeCronDeps();
+    await runAt(deps, 2026, 10, 29, 3, MANUAL);
+    expect(alerts(deps).map((m) => m.text)).toEqual([`${ALERT_START} dalle 00:00 alle 3:00 di oggi${ALERT_TAIL}`]);
+  });
+});

@@ -13,6 +13,7 @@ import {
   TEXT_LIMITS,
   UPCOMING_WIDE_DAYS,
 } from "./config";
+import type { IncompleteKey } from "./domain/incomplete";
 import type { Kind } from "./domain/schedule";
 import type { BotCommand } from "./telegram/types";
 import type { LocalClock, LocalDate } from "./time";
@@ -60,8 +61,11 @@ export interface Counts {
 
 const pad2 = (n: number) => String(n).padStart(2, "0");
 
-// Orari di /stato e dell'avviso di buco (AFU §5.10, §5.12): "H:MM", ora senza zero iniziale.
-const clock = (c: LocalClock) => `${c.hour}:${pad2(c.minute)}`;
+// RNF-19 (v1.3): la mezzanotte si scrive "00:00"; le altre ore "H:MM" senza zero iniziale
+export const formatClock = (hour: number, minute: number) => `${hour === 0 ? "00" : hour}:${pad2(minute)}`;
+
+// Orari di /stato e dell'avviso di buco (AFU §5.10, §5.12).
+const clock = (c: LocalClock) => formatClock(c.hour, c.minute);
 const ddmm = (d: LocalDate) => `${pad2(d.day)}/${pad2(d.month)}`;
 const sameDay = (a: LocalDate, b: LocalDate) => a.year === b.year && a.month === b.month && a.day === b.day;
 
@@ -76,6 +80,33 @@ const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one :
 const deliveryCounts = (c: DeliveryCounts) =>
   `${plural(c.inviati, "inviato", "inviati")}, ${plural(c.falliti, "fallito", "falliti")}, ` +
   plural(c.abbandonati, "abbandonato", "abbandonati");
+
+// FR-009: etichette dei pulsanti dei filtri di /incomplete (§5.13).
+export const INCOMPLETE_LABELS: Record<IncompleteKey, string> = {
+  telefono: "Telefono",
+  instagram: "Instagram",
+  telegram: "Telegram",
+  anno: "Anno di nascita",
+  contatti: "Nessun contatto",
+};
+
+// FR-012: intestazioni delle liste di /incomplete (§5.13).
+const INCOMPLETE_HEADERS: Record<IncompleteKey, string> = {
+  telefono: "Senza telefono",
+  instagram: "Senza Instagram",
+  telegram: "Senza Telegram",
+  anno: "Senza anno di nascita",
+  contatti: "Nessun contatto",
+};
+
+// FR-013: complemento di "Tutte le persone hanno …" per filtro di /incomplete.
+const INCOMPLETE_HAVE: Record<IncompleteKey, string> = {
+  telefono: "il telefono",
+  instagram: "l'username Instagram",
+  telegram: "l'username Telegram",
+  anno: "l'anno di nascita",
+  contatti: "almeno un contatto",
+};
 
 const countsText = (c: Counts) =>
   `${thousands(c.persons)} persone, ${thousands(c.groups)} gruppi, ${thousands(c.occurrences)} occorrenze`;
@@ -334,7 +365,7 @@ export const T = {
     kind === "pre"
       ? `pre-reminder a ${ref === 1 ? "1 giorno" : `${ref} giorni`}`
       : kind === "giorno"
-        ? `reminder delle ${ref}:00`
+        ? `reminder delle ${formatClock(ref, 0)}`
         : "recupero",
   statoAbandoned: (name: string, what: string, date: LocalDate) => `   – ${name}, ${what} del ${ddmm(date)}`,
   statoBackup: (when: string) => `💾 Ultimo backup mensile: ${when}`,
@@ -343,6 +374,19 @@ export const T = {
   statoWebhookError: (when: string, message: string, pending: number) =>
     `🔗 Webhook: ultimo errore ${when}: "${message}", ${pending} update in coda`,
   statoWebhookUnavailable: "🔗 Webhook: non disponibile",
+
+  // /incomplete (RF-50, AFU §5.13, contracts/testi-v13.md di 010)
+  incompleteTitle: "📝 Profili incompleti",
+  incompleteQuestion: "Quale dato manca?",
+  // R6: pulsanti dei filtri senza emoji (FR-019).
+  btnIncompleteFilter: (label: string, n: number) => `${label} (${n})`,
+  incompleteListHeader: (key: IncompleteKey, n: number) => `📝 ${INCOMPLETE_HEADERS[key]} · ${plural(n, "persona", "persone")}`,
+  incompleteUnknown:
+    "❌ Non conosco questo dato. Scegli un filtro qui sotto oppure scrivi /incomplete seguito da telefono, instagram, telegram, anno o contatti.",
+  // RF-32, R6: pulsante di /statistiche, icona 📝 (FR-019).
+  btnIncomplete: "📝 Profili incompleti",
+  incompleteAllHave: (key: IncompleteKey) => `✅ Tutte le persone hanno ${INCOMPLETE_HAVE[key]}.`,
+  incompleteNoPersons: "📝 La rubrica è vuota: non ci sono persone.",
 
   // /messaggio (contracts/messaggio.md)
   greetingAsk: (current: string) =>
@@ -460,6 +504,8 @@ export const T = {
     "/mese [mese] — compleanni del mese",
     `/scaduti — ultimi ${OUTCOME_CORRECTION_DAYS} giorni non fatti`,
     "/anno [anno] — riepilogo dell'anno",
+    // RF-50, RF-28 (§5.1, FR-018 di 010)
+    "/incomplete [campo] — profili incompleti: pulsanti dei filtri con i conteggi; con un campo (telefono, instagram, telegram, anno, contatti) la lista",
     // RF-32, RF-31 (§5.1, FR-016 di 007)
     "/statistiche — statistiche della rubrica e andamento",
     "/stato — salute di cron, invii, backup e webhook",
@@ -489,6 +535,7 @@ export const BOT_COMMANDS: readonly BotCommand[] = [
   { command: "mese", description: "Compleanni del mese" },
   { command: "scaduti", description: `Ultimi ${OUTCOME_CORRECTION_DAYS} giorni non fatti` },
   { command: "anno", description: "Riepilogo dell'anno" },
+  { command: "incomplete", description: "Profili incompleti: dati mancanti delle schede" },
   { command: "statistiche", description: "Statistiche della rubrica e andamento" },
   { command: "stato", description: "Salute di cron, invii, backup e webhook" },
   { command: "modello", description: "Modello CSV per l'import" },

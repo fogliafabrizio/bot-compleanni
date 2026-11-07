@@ -268,3 +268,22 @@ describe("RF-31: /stato", () => {
     expect(deps.tg.calls).toEqual([]);
   });
 });
+
+describe("RNF-19, FR-023 (v1.3): la mezzanotte in /stato si scrive 00:00", () => {
+  it("RNF-19: ultimo controllo orario alle 00:00 di oggi e invio abbandonato dello slot 0", async () => {
+    await setting("cron_last_run", "2026-10-28T23:00:00.000Z");
+    await delivery({ status: "abbandonato", localDate: "2026-10-25", name: "Marco", kind: "giorno", ref: 0 });
+    await delivery({ status: "abbandonato", localDate: "2026-10-26", name: "Luca", kind: "giorno", ref: 9 });
+    const lines = await stato(makeCronDeps());
+    expect(lineOf(lines, "⏱")).toBe("⏱ Ultimo controllo orario: oggi alle 00:00");
+    expect(lines).toContain("   – Marco, reminder delle 00:00 del 25/10");
+    expect(lines).toContain("   – Luca, reminder delle 9:00 del 26/10");
+    for (const l of lines) expect(l).not.toMatch(/(^|[^0-9])0:00/);
+  });
+
+  it("FR-023: controllo orario alle 00:00 di un altro giorno → «28/10 alle 00:00»", async () => {
+    await setting("cron_last_run", "2026-10-27T23:00:00.000Z");
+    const lines = await stato(makeCronDeps());
+    expect(lineOf(lines, "⏱")).toBe("⏱ Ultimo controllo orario: 28/10 alle 00:00");
+  });
+});

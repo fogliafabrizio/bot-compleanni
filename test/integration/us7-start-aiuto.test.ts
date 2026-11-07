@@ -61,15 +61,29 @@ describe("US7: benvenuto e aiuto", () => {
     expect(deps.tg.lastText()).toBe(T.notUnderstood);
   });
 
-  it("§5.1, FR-016: /aiuto elenca /statistiche e /stato subito dopo /anno", async () => {
+  it("§5.1, FR-016, RF-28 (v1.3): /aiuto elenca /incomplete, /statistiche e /stato subito dopo /anno", async () => {
     const deps = makeDeps();
     await say(deps, "/aiuto");
     const lines = deps.tg.lastText()!.split("\n");
     const i = lines.indexOf("/anno [anno] — riepilogo dell'anno");
     expect(i).toBeGreaterThan(0);
-    expect(lines.slice(i + 1, i + 3)).toEqual([
+    expect(lines.slice(i + 1, i + 4)).toEqual([
+      "/incomplete [campo] — profili incompleti: pulsanti dei filtri con i conteggi; con un campo (telefono, instagram, telegram, anno, contatti) la lista",
       "/statistiche — statistiche della rubrica e andamento",
       "/stato — salute di cron, invii, backup e webhook",
     ]);
+  });
+});
+
+describe("RF-28 (v1.3): /incomplete in /aiuto, /start invariato", () => {
+  it("RF-28, FR-018: /aiuto contiene la riga di /incomplete [campo]; /start non la cita", async () => {
+    const deps = makeDeps();
+    await say(deps, "/aiuto");
+    expect(deps.tg.lastText()!.split("\n")).toContain(
+      "/incomplete [campo] — profili incompleti: pulsanti dei filtri con i conteggi; con un campo (telefono, instagram, telegram, anno, contatti) la lista",
+    );
+    await say(deps, "/start");
+    expect(deps.tg.lastText()).toBe(T.welcome);
+    expect(deps.tg.lastText()).not.toContain("/incomplete");
   });
 });

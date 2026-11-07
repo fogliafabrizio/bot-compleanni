@@ -1,8 +1,8 @@
 {
   "info": {
     "name": "Bot compleanni — test locale completo",
-    "description": "Versione 2.5.0. Test del webhook in locale (`wrangler dev`), feature 001–009: sicurezza, comandi, viste, esiti dei promemoria, flussi guidati (/nuovo e modifica anche con il contatto condiviso, elimina, gruppi, /messaggio), import CSV, export, backup e ripristino, /stato e /statistiche, testi secondo la guida di stile (008: le descrizioni «Atteso» riportano i testi con le emoji), navigazione v1.2 (009: Senza gruppo, età, pulsanti di passo successivo).\n\nIl Worker risponde sempre 200 vuoto: la risposta del bot arriva **nella chat Telegram del proprietario** (il Worker locale usa la Bot API reale con il token di `.dev.vars`). I test controllano anche il D1 locale tramite `postman/helper.mjs` (porta 8788): stato del flusso e campi salvati.\n\nAvvio: `scripts/smoke-postman.ps1`, poi Runner sull'intera collection (o cartella per cartella, **in ordine**). Istruzioni e limiti in `postman/README.md`.",
-    "version": "2.5.0",
+    "description": "Versione 2.6.0. Test del webhook in locale (`wrangler dev`), feature 001–010: sicurezza, comandi, viste, esiti dei promemoria, flussi guidati (/nuovo e modifica anche con il contatto condiviso, elimina, gruppi, /messaggio), import CSV, export, backup e ripristino, /stato e /statistiche, testi secondo la guida di stile (008: le descrizioni «Atteso» riportano i testi con le emoji), navigazione v1.2 (009: Senza gruppo, età, pulsanti di passo successivo), profili incompleti v1.3 (010: /incomplete e [📝 Profili incompleti] in /statistiche).\n\nIl Worker risponde sempre 200 vuoto: la risposta del bot arriva **nella chat Telegram del proprietario** (il Worker locale usa la Bot API reale con il token di `.dev.vars`). I test controllano anche il D1 locale tramite `postman/helper.mjs` (porta 8788): stato del flusso e campi salvati.\n\nAvvio: `scripts/smoke-postman.ps1`, poi Runner sull'intera collection (o cartella per cartella, **in ordine**). Istruzioni e limiti in `postman/README.md`.",
+    "version": "2.6.0",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "event": [
@@ -95,7 +95,7 @@
                 "seed"
               ]
             },
-            "description": "Riesegue `postman/seed-smoke.sql` sul D1 locale: persone 9001–9006, gruppi Smoke, occorrenze, invii 9301–9303; cancella persone e gruppi \"postman\" e lo stato dei flussi."
+            "description": "Riesegue `postman/seed-smoke.sql` sul D1 locale: persone 9001–9009, gruppi Smoke, occorrenze, invii 9301–9303; cancella persone e gruppi \"postman\" e lo stato dei flussi."
           }
         }
       ]
@@ -658,7 +658,7 @@
                 "webhook"
               ]
             },
-            "description": "Atteso: `📖 Ecco cosa posso fare:` ed elenco comandi con `/gruppi [nome] — elenco gruppi a pulsanti; con un nome cerca il gruppo e apre la scheda` e **nessuna** riga `/gruppo` (RF-19, AFU §5.1). Le righe `/oggi`, `/prossimi [giorni] [gruppo]`, `/cerca <testo>`, `/mese [mese]`, `/scaduti — ultimi 7 giorni non fatti`, `/anno [anno]` stanno **prima** di `/annulla`. *(v1.1, 007)* Subito dopo `/anno [anno] — riepilogo dell'anno`: `/statistiche — statistiche della rubrica e andamento` e `/stato — salute di cron, invii, backup e webhook` (§5.1, FR-016)."
+            "description": "Atteso: `📖 Ecco cosa posso fare:` ed elenco comandi con `/gruppi [nome] — elenco gruppi a pulsanti; con un nome cerca il gruppo e apre la scheda` e **nessuna** riga `/gruppo` (RF-19, AFU §5.1). Le righe `/oggi`, `/prossimi [giorni] [gruppo]`, `/cerca <testo>`, `/mese [mese]`, `/scaduti — ultimi 7 giorni non fatti`, `/anno [anno]` stanno **prima** di `/annulla`. *(v1.3, 010)* Subito dopo `/anno [anno] — riepilogo dell'anno`: `/incomplete [campo] — profili incompleti: pulsanti dei filtri con i conteggi; con un campo (telefono, instagram, telegram, anno, contatti) la lista`, poi `/statistiche — statistiche della rubrica e andamento` e `/stato — salute di cron, invii, backup e webhook` (§5.1, FR-016)."
           }
         },
         {
@@ -2779,7 +2779,7 @@
                 "webhook"
               ]
             },
-            "description": "RF-32, AFU §5.11. Atteso con i soli dati di prova: `📊 Statistiche`; `6 persone · Alta 0 · Media 6 · Bassa 0`; `Gruppi: 👨‍👩‍👧 Smoke Casa 1 · Smoke Casa Rossi 1 · Smoke Famiglia 1 · Smoke Lavoro 2 · Senza gruppo 2` (ordine dell'elenco gruppi, le emoji non contano); `Senza anno di nascita: 2 · Senza contatti: 5`; riga vuota, `🎂 Compleanni per mese` e **12 righe** `Gen`…`Dic` in monospazio (barre █, 10 blocchi al mese massimo); `✅ Auguri fatti: <anno> 0% · <anno−1> 50%` (con Fatto su Marco dalla cartella 03 l'anno corrente diventa 33%). Nessun nome di persona."
+            "description": "RF-32, AFU §5.11. Atteso con i soli dati di prova: `📊 Statistiche`; `9 persone · Alta 1 · Media 7 · Bassa 1`; `Gruppi: 👨‍👩‍👧 Smoke Casa 1 · Smoke Casa Rossi 1 · Smoke Famiglia 1 · Smoke Lavoro 2 · Senza gruppo 5` (ordine dell'elenco gruppi, le emoji non contano); `Senza anno di nascita: 3 · Senza contatti: 6`; *(010)* in fondo il pulsante **📝 Profili incompleti**; riga vuota, `🎂 Compleanni per mese` e **12 righe** `Gen`…`Dic` in monospazio (barre █, 10 blocchi al mese massimo); `✅ Auguri fatti: <anno> 0% · <anno−1> 50%` (con Fatto su Marco dalla cartella 03 l'anno corrente diventa 33%). Nessun nome di persona."
           }
         }
       ]
@@ -3457,7 +3457,7 @@
                 }
               ]
             },
-            "description": "Esegue il Cron Trigger con l'ora **attuale** (serve `wrangler dev --test-scheduled`, già usato da `scripts/smoke-postman.ps1`). Invia promemoria solo alle 9, 13, 18, 21 (ora di Roma) e, se è il momento, il backup mensile. A un'altra ora non succede nulla: è normale."
+            "description": "Esegue il Cron Trigger con l'ora **attuale** (serve `wrangler dev --test-scheduled`, già usato da `scripts/smoke-postman.ps1`). Invia promemoria solo alle 9, 13, 18, 21 e, per le persone Alta, alle 00:00 (ora di Roma) e, se è il momento, il backup mensile. A un'altra ora non succede nulla: è normale."
           }
         }
       ]
@@ -12440,7 +12440,7 @@
                 "seed"
               ]
             },
-            "description": "Dopo la cartella 20 il D1 locale contiene solo Rita e Bruno: rimette persone 9001–9006 e gruppi 9201–9204."
+            "description": "Dopo la cartella 20 il D1 locale contiene solo Rita e Bruno: rimette persone 9001–9009 e gruppi 9201–9204."
           }
         },
         {
@@ -12491,7 +12491,7 @@
                 "webhook"
               ]
             },
-            "description": "RF-07, V-09. Atteso: `👥 I tuoi gruppi` con i gruppi a pulsanti, poi **Senza gruppo (2)** (Sara 9005 e Paolo 9006) su una riga a sé, poi **➕ Nuovo gruppo**. La voce è senza emoji."
+            "description": "RF-07, V-09. Atteso: `👥 I tuoi gruppi` con i gruppi a pulsanti, poi **Senza gruppo (5)** (Sara 9005, Paolo 9006, Elisa 9007, Ivo 9008, Olga 9009) su una riga a sé, poi **➕ Nuovo gruppo**. La voce è senza emoji."
           }
         },
         {
@@ -12593,7 +12593,7 @@
                 "webhook"
               ]
             },
-            "description": "RF-19, D-31. Atteso: nuovo messaggio `👥 Senza gruppo · 2 persone` con le righe di Sara (`/p_9005`) e Paolo (`/p_9006`) per prossimo compleanno e il solo **⬅️ Tutti i gruppi** (niente Rinomina né Elimina). Il flusso /nuovo è annullato."
+            "description": "RF-19, D-31. Atteso: nuovo messaggio `👥 Senza gruppo · 5 persone` con le righe di Sara (`/p_9005`), Paolo (`/p_9006`), Elisa (`/p_9007`), Ivo (`/p_9008`) e Olga (`/p_9009`) per prossimo compleanno e il solo **⬅️ Tutti i gruppi** (niente Rinomina né Elimina). Il flusso /nuovo è annullato."
           }
         },
         {
@@ -12746,7 +12746,7 @@
                 "webhook"
               ]
             },
-            "description": "RF-19, FR-002. Atteso: **nuovo** messaggio con l'elenco gruppi (come /gruppi, con **Senza gruppo (2)**); la scheda precedente resta com'è. Il flusso /nuovo è annullato."
+            "description": "RF-19, FR-002. Atteso: **nuovo** messaggio con l'elenco gruppi (come /gruppi, con **Senza gruppo (5)**); la scheda precedente resta com'è. Il flusso /nuovo è annullato."
           }
         },
         {
@@ -13419,7 +13419,7 @@
                 "webhook"
               ]
             },
-            "description": "RF-32. Atteso: dopo `🎂 Compleanni per mese` una riga vuota, `🧑 Età` con le fasce da quella di Luca (2000) a quella di Paolo (1985) in monospazio, poi `Età media: N anni · senza anno di nascita: 2` (Anna e Sara). Nessun nome."
+            "description": "RF-32. Atteso: dopo `🎂 Compleanni per mese` una riga vuota, `🧑 Età` con le fasce da quella di Luca (2000) a quella di Paolo (1985) in monospazio, poi `Età media: N anni · senza anno di nascita: 3` (Anna, Sara e Olga). Nessun nome."
           }
         },
         {
@@ -14393,7 +14393,532 @@
       ]
     },
     {
-      "name": "22 · Pulizia",
+      "name": "22 · Mezzanotte e profili incompleti v1.3",
+      "description": "Feature 010 (REV-012, REV-013): /incomplete con i 5 filtri a pulsanti (`s:i:1…5`), argomenti validi e non validi, [📝 Profili incompleti] in fondo a /statistiche (`s:i`), pulsanti malformati, estraneo, /aiuto. Lo slot delle 00:00 delle persone Alta non si prova da Postman (serve il cron a mezzanotte): è coperto da `test/integration/v13-mezzanotte.test.ts`. Conteggi attesi con i soli dati di prova del seed.",
+      "item": [
+        {
+          "name": "Seed dei dati di prova",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Seed eseguito\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{helperUrl}}/seed",
+              "host": [
+                "{{helperUrl}}"
+              ],
+              "path": [
+                "seed"
+              ]
+            },
+            "description": "Rimette i dati di prova: persone 9001–9009 (con Elisa Alta, Ivo con solo Instagram, Olga con Instagram di soli spazi e senza anno), gruppi 9201–9204."
+          }
+        },
+        {
+          "name": "1 · /incomplete",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "const q = (sql, cb) => pm.sendRequest({ url: pm.variables.get(\"helperUrl\") + \"/query\", method: \"POST\", header: { \"Content-Type\": \"application/json\" }, body: { mode: \"raw\", raw: JSON.stringify({ sql: sql.replace(/:(\\w+)/g, (_, k) => pm.variables.get(k)) }) } }, (err, res) => {",
+                  "  pm.test(\"Helper: query riuscita\", () => { pm.expect(err).to.equal(null); pm.expect(res.code).to.equal(200); });",
+                  "  if (!err && res.code === 200) cb(res.json().rows);",
+                  "});",
+                  "q(\"SELECT flow, step FROM conversation_state WHERE chat_id = :ownerId\", (rows) => pm.test(\"Nessun flusso guidato attivo\", () => pm.expect(rows.length).to.equal(0)));",
+                  "q(\"SELECT SUM(NULLIF(TRIM(phone), '') IS NULL) AS telefono, SUM(NULLIF(TRIM(instagram), '') IS NULL) AS instagram, SUM(NULLIF(TRIM(telegram), '') IS NULL) AS telegram, SUM(NULLIF(TRIM(birth_year), '') IS NULL) AS anno, SUM(NULLIF(TRIM(phone), '') IS NULL AND NULLIF(TRIM(instagram), '') IS NULL AND NULLIF(TRIM(telegram), '') IS NULL) AS contatti FROM persons WHERE id BETWEEN 9001 AND 9099\", (rows) => pm.test(\"Conteggi del seed: 7, 7, 8, 3, 6\", () => pm.expect(rows[0]).to.deep.equal({ telefono: 7, instagram: 7, telegram: 8, anno: 3, contatti: 6 })));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Telegram-Bot-Api-Secret-Token",
+                "value": "{{webhookSecret}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"update_id\": {{$randomInt}},\n  \"message\": {\n    \"message_id\": {{$randomInt}},\n    \"from\": { \"id\": {{ownerId}} },\n    \"chat\": { \"id\": {{ownerId}}, \"type\": \"private\" },\n    \"text\": \"/incomplete\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/webhook",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "webhook"
+              ]
+            },
+            "description": "RF-50, FR-009, AFU §5.13. Atteso: `📝 Profili incompleti` e a capo `Quale dato manca?`, con 5 pulsanti senza emoji, due per riga: **Telefono (7)** **Instagram (7)** / **Telegram (8)** **Anno di nascita (3)** / **Nessun contatto (6)** (`s:i:1`…`s:i:5`). Olga (Instagram di soli spazi) conta come senza Instagram e senza contatti."
+          }
+        },
+        {
+          "name": "2 · Telefono (s:i:1)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "const q = (sql, cb) => pm.sendRequest({ url: pm.variables.get(\"helperUrl\") + \"/query\", method: \"POST\", header: { \"Content-Type\": \"application/json\" }, body: { mode: \"raw\", raw: JSON.stringify({ sql: sql.replace(/:(\\w+)/g, (_, k) => pm.variables.get(k)) }) } }, (err, res) => {",
+                  "  pm.test(\"Helper: query riuscita\", () => { pm.expect(err).to.equal(null); pm.expect(res.code).to.equal(200); });",
+                  "  if (!err && res.code === 200) cb(res.json().rows);",
+                  "});",
+                  "q(\"SELECT flow, step FROM conversation_state WHERE chat_id = :ownerId\", (rows) => pm.test(\"Nessun flusso guidato attivo\", () => pm.expect(rows.length).to.equal(0)));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Telegram-Bot-Api-Secret-Token",
+                "value": "{{webhookSecret}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"update_id\": {{$randomInt}},\n  \"callback_query\": {\n    \"id\": \"smoke-{{$randomInt}}\",\n    \"from\": { \"id\": {{ownerId}} },\n    \"data\": \"s:i:1\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/webhook",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "webhook"
+              ]
+            },
+            "description": "RF-50, FR-010, FR-012. Atteso: **nuovo** messaggio `📝 Senza telefono · 7 persone`, riga vuota e le righe `<Ggg> <gg/mm>  <nome (età)>  /p_<id>` per prossimo compleanno (oggi compreso), **senza pulsanti**; il menu resta com'è. Anna, Sara e Olga senza età."
+          }
+        },
+        {
+          "name": "3 · /incomplete Anno",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "const q = (sql, cb) => pm.sendRequest({ url: pm.variables.get(\"helperUrl\") + \"/query\", method: \"POST\", header: { \"Content-Type\": \"application/json\" }, body: { mode: \"raw\", raw: JSON.stringify({ sql: sql.replace(/:(\\w+)/g, (_, k) => pm.variables.get(k)) }) } }, (err, res) => {",
+                  "  pm.test(\"Helper: query riuscita\", () => { pm.expect(err).to.equal(null); pm.expect(res.code).to.equal(200); });",
+                  "  if (!err && res.code === 200) cb(res.json().rows);",
+                  "});",
+                  "q(\"SELECT flow, step FROM conversation_state WHERE chat_id = :ownerId\", (rows) => pm.test(\"Nessun flusso guidato attivo\", () => pm.expect(rows.length).to.equal(0)));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Telegram-Bot-Api-Secret-Token",
+                "value": "{{webhookSecret}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"update_id\": {{$randomInt}},\n  \"message\": {\n    \"message_id\": {{$randomInt}},\n    \"from\": { \"id\": {{ownerId}} },\n    \"chat\": { \"id\": {{ownerId}}, \"type\": \"private\" },\n    \"text\": \"/incomplete Anno\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/webhook",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "webhook"
+              ]
+            },
+            "description": "RF-50, FR-011 (argomento con la maiuscola). Atteso: `📝 Senza anno di nascita · 3 persone` con Anna (`/p_9002`), Sara (`/p_9005`) e Olga (`/p_9009`), righe senza età."
+          }
+        },
+        {
+          "name": "4 · /incomplete email",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "const q = (sql, cb) => pm.sendRequest({ url: pm.variables.get(\"helperUrl\") + \"/query\", method: \"POST\", header: { \"Content-Type\": \"application/json\" }, body: { mode: \"raw\", raw: JSON.stringify({ sql: sql.replace(/:(\\w+)/g, (_, k) => pm.variables.get(k)) }) } }, (err, res) => {",
+                  "  pm.test(\"Helper: query riuscita\", () => { pm.expect(err).to.equal(null); pm.expect(res.code).to.equal(200); });",
+                  "  if (!err && res.code === 200) cb(res.json().rows);",
+                  "});",
+                  "q(\"SELECT flow, step FROM conversation_state WHERE chat_id = :ownerId\", (rows) => pm.test(\"Nessun flusso guidato attivo\", () => pm.expect(rows.length).to.equal(0)));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Telegram-Bot-Api-Secret-Token",
+                "value": "{{webhookSecret}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"update_id\": {{$randomInt}},\n  \"message\": {\n    \"message_id\": {{$randomInt}},\n    \"from\": { \"id\": {{ownerId}} },\n    \"chat\": { \"id\": {{ownerId}}, \"type\": \"private\" },\n    \"text\": \"/incomplete email\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/webhook",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "webhook"
+              ]
+            },
+            "description": "RF-50, FR-011. Atteso: `❌ Non conosco questo dato. Scegli un filtro qui sotto oppure scrivi /incomplete seguito da telefono, instagram, telegram, anno o contatti.` e, in un **secondo** messaggio, il menu dei filtri come nella richiesta 1."
+          }
+        },
+        {
+          "name": "5 · /statistiche con [📝 Profili incompleti]",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "const q = (sql, cb) => pm.sendRequest({ url: pm.variables.get(\"helperUrl\") + \"/query\", method: \"POST\", header: { \"Content-Type\": \"application/json\" }, body: { mode: \"raw\", raw: JSON.stringify({ sql: sql.replace(/:(\\w+)/g, (_, k) => pm.variables.get(k)) }) } }, (err, res) => {",
+                  "  pm.test(\"Helper: query riuscita\", () => { pm.expect(err).to.equal(null); pm.expect(res.code).to.equal(200); });",
+                  "  if (!err && res.code === 200) cb(res.json().rows);",
+                  "});",
+                  "q(\"SELECT flow, step FROM conversation_state WHERE chat_id = :ownerId\", (rows) => pm.test(\"Nessun flusso guidato attivo\", () => pm.expect(rows.length).to.equal(0)));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Telegram-Bot-Api-Secret-Token",
+                "value": "{{webhookSecret}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"update_id\": {{$randomInt}},\n  \"message\": {\n    \"message_id\": {{$randomInt}},\n    \"from\": { \"id\": {{ownerId}} },\n    \"chat\": { \"id\": {{ownerId}}, \"type\": \"private\" },\n    \"text\": \"/statistiche\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/webhook",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "webhook"
+              ]
+            },
+            "description": "RF-32, FR-016, FR-017. Atteso: /statistiche come nella cartella 08b, con `Senza anno di nascita: 3 · Senza contatti: 6` (stessi numeri di **Anno di nascita** e **Nessun contatto** della richiesta 1) e il pulsante **📝 Profili incompleti** in fondo (`s:i`). I conteggi restano testo."
+          }
+        },
+        {
+          "name": "6 · 📝 Profili incompleti (s:i)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "const q = (sql, cb) => pm.sendRequest({ url: pm.variables.get(\"helperUrl\") + \"/query\", method: \"POST\", header: { \"Content-Type\": \"application/json\" }, body: { mode: \"raw\", raw: JSON.stringify({ sql: sql.replace(/:(\\w+)/g, (_, k) => pm.variables.get(k)) }) } }, (err, res) => {",
+                  "  pm.test(\"Helper: query riuscita\", () => { pm.expect(err).to.equal(null); pm.expect(res.code).to.equal(200); });",
+                  "  if (!err && res.code === 200) cb(res.json().rows);",
+                  "});",
+                  "q(\"SELECT flow, step FROM conversation_state WHERE chat_id = :ownerId\", (rows) => pm.test(\"Nessun flusso guidato attivo\", () => pm.expect(rows.length).to.equal(0)));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Telegram-Bot-Api-Secret-Token",
+                "value": "{{webhookSecret}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"update_id\": {{$randomInt}},\n  \"callback_query\": {\n    \"id\": \"smoke-{{$randomInt}}\",\n    \"from\": { \"id\": {{ownerId}} },\n    \"data\": \"s:i\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/webhook",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "webhook"
+              ]
+            },
+            "description": "RF-32, FR-016. Atteso: **nuovo** messaggio identico alla richiesta 1 (titolo, domanda e 5 pulsanti con i conteggi attuali); /statistiche resta com'è."
+          }
+        },
+        {
+          "name": "7 · Pulsante malformato s:i:0",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Telegram-Bot-Api-Secret-Token",
+                "value": "{{webhookSecret}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"update_id\": {{$randomInt}},\n  \"callback_query\": {\n    \"id\": \"smoke-{{$randomInt}}\",\n    \"from\": { \"id\": {{ownerId}} },\n    \"data\": \"s:i:0\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/webhook",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "webhook"
+              ]
+            },
+            "description": "FR-010. Atteso: popup `❌ Questa azione non è più disponibile.` e nessun messaggio (vedi i limiti noti del README sul popup da Postman)."
+          }
+        },
+        {
+          "name": "7 · Pulsante malformato s:i:6",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Telegram-Bot-Api-Secret-Token",
+                "value": "{{webhookSecret}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"update_id\": {{$randomInt}},\n  \"callback_query\": {\n    \"id\": \"smoke-{{$randomInt}}\",\n    \"from\": { \"id\": {{ownerId}} },\n    \"data\": \"s:i:6\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/webhook",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "webhook"
+              ]
+            },
+            "description": "FR-010. Atteso: popup `❌ Questa azione non è più disponibile.` e nessun messaggio."
+          }
+        },
+        {
+          "name": "8 · /aiuto con /incomplete",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Telegram-Bot-Api-Secret-Token",
+                "value": "{{webhookSecret}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"update_id\": {{$randomInt}},\n  \"message\": {\n    \"message_id\": {{$randomInt}},\n    \"from\": { \"id\": {{ownerId}} },\n    \"chat\": { \"id\": {{ownerId}}, \"type\": \"private\" },\n    \"text\": \"/aiuto\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/webhook",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "webhook"
+              ]
+            },
+            "description": "RF-28, §5.1, FR-018. Atteso: subito dopo `/anno [anno] — riepilogo dell'anno` la riga `/incomplete [campo] — profili incompleti: pulsanti dei filtri con i conteggi; con un campo (telefono, instagram, telegram, anno, contatti) la lista`, poi `/statistiche` e `/stato`."
+          }
+        },
+        {
+          "name": "9 · Estraneo: s:i:1 → 200 silenzioso",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Telegram-Bot-Api-Secret-Token",
+                "value": "{{webhookSecret}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"update_id\": {{$randomInt}},\n  \"callback_query\": {\n    \"id\": \"smoke-{{$randomInt}}\",\n    \"from\": { \"id\": {{strangerId}} },\n    \"data\": \"s:i:1\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/webhook",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "webhook"
+              ]
+            },
+            "description": "RF-30. Atteso 200 e **nessuna** risposta in chat."
+          }
+        }
+      ]
+    },
+    {
+      "name": "23 · Pulizia",
       "description": "Rimette i dati di prova (dopo il ripristino il D1 locale contiene solo Rita e Bruno).",
       "item": [
         {
@@ -14421,7 +14946,7 @@
                 "seed"
               ]
             },
-            "description": "Come 00: rimette persone 9001–9006 e cancella i dati \"postman\"."
+            "description": "Come 00: rimette persone 9001–9009 e cancella i dati \"postman\"."
           }
         }
       ]

@@ -167,3 +167,28 @@ describe("009 FR-030, RNF-14: pulsanti di passo successivo (contracts/callback-d
     for (const d of data) expect(bytes(d)).toBeLessThanOrEqual(64);
   });
 });
+
+describe("RNF-14, FR-025: pulsanti di /incomplete (contracts/callback-data.md di 010)", () => {
+  it.each(["s:i", "s:i:1", "s:i:2", "s:i:3", "s:i:4", "s:i:5"])("RNF-14: round-trip di %s", (s) => {
+    const cb = decodeCallback(s);
+    expect(cb).not.toBeNull();
+    expect(encodeCallback(cb!)).toBe(s);
+  });
+
+  it("RNF-14: decodifica dei campi", () => {
+    expect(decodeCallback("s:i")).toEqual({ kind: "static", scope: "s", action: "i" });
+    expect(decodeCallback("s:i:4")).toEqual({ kind: "static", scope: "s", action: "i", id: 4 });
+  });
+
+  it.each(["s:i:x", "s:i:1:2", "s:i:", "s:i:1234567890123456"])("FR-025: %s → null", (s) => {
+    expect(decodeCallback(s)).toBeNull();
+  });
+
+  it("FR-025: lunghezze 3 e 5 byte, tutte ≤ 64", () => {
+    expect(new TextEncoder().encode(encodeCallback({ kind: "static", scope: "s", action: "i" })).length).toBe(3);
+    for (const id of [1, 2, 3, 4, 5]) {
+      const s = encodeCallback({ kind: "static", scope: "s", action: "i", id });
+      expect(new TextEncoder().encode(s).length).toBe(5);
+    }
+  });
+});

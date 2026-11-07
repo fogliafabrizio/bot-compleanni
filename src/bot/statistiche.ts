@@ -7,6 +7,8 @@ import {
   type StatsYearRow,
 } from "../db/statistiche";
 import { formatStatistiche } from "../domain/statistiche";
+import { button, keyboard } from "../telegram/keyboard";
+import { T } from "../texts";
 import { toLocal } from "../time";
 import type { Ctx } from "./context";
 import { sendLines } from "./liste";
@@ -37,5 +39,7 @@ export async function showStatistiche(ctx: Ctx): Promise<void> {
       births: (birthsRes?.results ?? []) as StatsBirthRow[],
       today: toLocal(ctx.deps.now()),
     }),
+    // RF-32, RNF-14 (v1.3): [📝 Profili incompleti] sull'ultimo messaggio, anche con la rubrica vuota.
+    keyboard([[button(T.btnIncomplete, { kind: "static", scope: "s", action: "i" })]]),
   );
 }

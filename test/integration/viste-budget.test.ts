@@ -244,3 +244,60 @@ describe("principio II, research R-11 di 009: budget dei pulsanti di passo succe
     expect(m.d1 + m.tg).toBeLessThanOrEqual(8);
   });
 });
+
+describe("principio II, research R-13 di 010: budget di /incomplete e /statistiche", () => {
+  it("RF-32: /statistiche con il pulsante → invariata, tastiera sull'ultimo messaggio", async () => {
+    await seed(200);
+    const deps = makeDeps();
+    const m = await measure(deps, () => say(deps, "/statistiche"));
+    expect(m).toEqual({ d1: 2, tg: 1 });
+    expect(deps.tg.messages().at(-1)!.keyboard).toBeDefined();
+  });
+
+  it("RF-50: /incomplete (menu) ≤ 4", async () => {
+    await seed(200);
+    const deps = makeDeps();
+    const m = await measure(deps, () => say(deps, "/incomplete"));
+    expect(m.tg).toBe(1);
+    expect(m.d1 + m.tg).toBeLessThanOrEqual(4);
+  });
+
+  it("RF-50: /incomplete email ≤ 5", async () => {
+    await seed(200);
+    const deps = makeDeps();
+    const m = await measure(deps, () => say(deps, "/incomplete email"));
+    expect(m.tg).toBe(2);
+    expect(m.d1 + m.tg).toBeLessThanOrEqual(5);
+  });
+
+  it("RF-50: /incomplete telefono con 200 persone → 200 righe uniche in 5 messaggi, ≤ 8", async () => {
+    await seed(200);
+    const deps = makeDeps();
+    const m = await measure(deps, () => say(deps, "/incomplete telefono"));
+    expectCompleteList(deps, 200, 5);
+    expect(m.d1 + m.tg).toBeLessThanOrEqual(8);
+  });
+
+  it("RF-50: /incomplete anno con lista vuota ≤ 4", async () => {
+    await seed(200);
+    const deps = makeDeps();
+    const m = await measure(deps, () => say(deps, "/incomplete anno"));
+    expect(deps.tg.lastText()).toBe(T.incompleteAllHave("anno"));
+    expect(m.d1 + m.tg).toBeLessThanOrEqual(4);
+  });
+
+  it("RF-32: tocco s:i ≤ 4", async () => {
+    await seed(200);
+    const deps = makeDeps();
+    const m = await measure(deps, () => press(deps, "s:i"));
+    expect(m.d1 + m.tg).toBeLessThanOrEqual(4);
+  });
+
+  it("RF-50: tocco s:i:1 con 200 persone ≤ 8", async () => {
+    await seed(200);
+    const deps = makeDeps();
+    const m = await measure(deps, () => press(deps, "s:i:1"));
+    expect(deps.tg.messages()).toHaveLength(5);
+    expect(m.d1 + m.tg).toBeLessThanOrEqual(8);
+  });
+});

@@ -9,7 +9,7 @@ export type OccurrenceStatus = "aperta" | "fatto" | "saltato" | "non_confermato"
 // Un invio previsto per l'ora (T, H) su una data effettiva.
 export interface Target {
   kind: Kind;
-  // pre: giorni prima; giorno: ora dello slot; recupero: RECOVERY_HOUR.
+  // pre: giorni prima; giorno: ora dello slot (0 = mezzanotte, v1.3); recupero: RECOVERY_HOUR.
   ref: number;
   date: LocalDate;
   // Anno dell'occorrenza = anno della data effettiva (BR-05).
@@ -69,7 +69,7 @@ function target(kind: Kind, ref: number, date: LocalDate): Target {
 // R-03: solo gli invii previsti esattamente per l'ora H del giorno T.
 export function planTargets(T: LocalDate, H: number): Target[] {
   const targets: Target[] = [];
-  if ((SLOT_HOURS as readonly number[]).includes(H)) targets.push(target("giorno", H, T));
+  if (SLOT_HOURS.includes(H)) targets.push(target("giorno", H, T));
   if (H === RECOVERY_HOUR) targets.push(target("recupero", RECOVERY_HOUR, addDays(T, -1)));
   if (H === PRE_REMINDER_HOUR) for (const n of PRE_DAYS) targets.push(target("pre", n, addDays(T, n)));
   return targets;
@@ -80,7 +80,8 @@ function admitted(c: Candidate, t: Target, occ: OccurrenceInfo | undefined, w: S
   const profile = PRIORITY_PROFILES[c.priority];
   switch (t.kind) {
     case "giorno":
-      return profile.slots.includes(t.ref) && c.createdAt <= w.slotInstantIso;
+      // BR-10 (v1.3): per lo slot 0 la persona deve esistere prima delle 00:00:00 della data effettiva.
+      return profile.slots.includes(t.ref) && (t.ref === 0 ? c.createdAt < w.dayStartTodayIso : c.createdAt <= w.slotInstantIso);
     case "pre":
       return profile.preReminderDays.includes(t.ref) && c.createdAt <= w.slotInstantIso;
     case "recupero":

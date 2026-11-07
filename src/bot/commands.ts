@@ -8,6 +8,7 @@ import { startRestore } from "./flows/ripristina";
 import { startMessaggio } from "./flows/messaggio";
 import { startNuovo } from "./flows/nuovo";
 import { handleGruppiCommand } from "./gruppi";
+import { handleIncomplete } from "./incomplete";
 import { showOggi } from "./oggi";
 import { showScheda } from "./scheda";
 import { showStatistiche } from "./statistiche";
@@ -78,6 +79,8 @@ export const COMMANDS: Record<string, CommandHandler> = {
   scaduti: (ctx) => showScaduti(ctx),
   // RF-22
   anno: (ctx, cmd) => showAnno(ctx, cmd.args),
+  // RF-50
+  incomplete: (ctx, cmd) => handleIncomplete(ctx, cmd.args),
   // RF-32
   statistiche: (ctx) => showStatistiche(ctx),
   // RF-31

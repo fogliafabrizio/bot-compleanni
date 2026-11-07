@@ -132,3 +132,33 @@ describe("RF-31, FR-009, FR-011: formatStato", () => {
     expect(text({ webhook: "non_disponibile" }).at(-1)).toBe("🔗 Webhook: non disponibile");
   });
 });
+
+describe("RNF-19, FR-007, FR-023 (v1.3): la mezzanotte in /stato si scrive 00:00", () => {
+  // Adesso: 29/10/2026 alle 1:20 a Roma (ora solare, UTC+1).
+  const NOW = new Date("2026-10-29T00:20:00.000Z");
+  const base: StatoData = {
+    cronLastRun: "2026-10-28T23:00:00.000Z",
+    autoBackupLast: null,
+    today: { inviati: 1, falliti: 0, abbandonati: 0 },
+    week: { inviati: 1, falliti: 0, abbandonati: 1 },
+    abbandonati: [{ name: "Marco", kind: "giorno", ref: 0, localDate: "2026-03-14" }],
+    webhook: { pendingUpdateCount: 0, lastErrorDate: new Date("2026-10-28T23:37:00.000Z"), lastErrorMessage: "Bad Gateway" },
+  };
+  const lines = formatStato(base, NOW).map((l) => l.text);
+
+  it("RNF-19: ultimo controllo orario alle 00:00 di oggi", () => {
+    expect(lines).toContain("⏱ Ultimo controllo orario: oggi alle 00:00");
+  });
+
+  it("US1-8: invio abbandonato dello slot 0 → «reminder delle 00:00»", () => {
+    expect(lines).toContain("   – Marco, reminder delle 00:00 del 14/03");
+  });
+
+  it("RNF-19: webhook con ultimo errore alle 0:37 → «alle 00:37»", () => {
+    expect(lines.at(-1)).toBe('🔗 Webhook: ultimo errore 29/10 alle 00:37: "Bad Gateway", 0 update in coda');
+  });
+
+  it("SC-004: nessuna riga con «0:00» isolato", () => {
+    for (const l of lines) expect(l).not.toMatch(/(^|[^0-9])0:(00|37)/);
+  });
+});

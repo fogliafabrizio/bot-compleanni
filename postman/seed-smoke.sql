@@ -1,7 +1,7 @@
--- Dati di prova per gli smoke test della collection Postman (feature 001–005). Solo D1 LOCALE:
+-- Dati di prova per gli smoke test della collection Postman (feature 001–010). Solo D1 LOCALE:
 --   npx wrangler d1 execute birthday-bot-db --local --file postman/seed-smoke.sql
 -- (lo esegue anche la richiesta "Seed" della collection, tramite postman/helper.mjs).
--- Id fissi (persone 9001–9006, gruppi 9201–9204, occorrenze 9101–9106, invii 9301–9303) così le
+-- Id fissi (persone 9001–9009, gruppi 9201–9204, occorrenze 9101–9106, invii 9301–9303) così le
 -- richieste possono usare /p_<id>, t:f:<occorrenza>, p:f:<persona> e o:f:<invio>. Le date sono
 -- relative a oggi (ora locale della macchina): rieseguire il file riporta tutto allo stato iniziale.
 
@@ -64,3 +64,18 @@ INSERT INTO deliveries (id, occurrence_id, kind, ref, status, attempts, local_da
   (9301, 9105, 'recupero', 13, 'inviato', 1, date('now', 'localtime', '-1 day'), strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
   (9302, 9106, 'recupero', 13, 'inviato', 1, date('now', 'localtime', '-4 day'), strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
   (9303, 9105, 'pre', 1, 'inviato', 1, date('now', 'localtime', '-3 day'), strftime('%Y-%m-%dT%H:%M:%fZ', 'now'));
+
+-- Profili incompleti e slot delle 00:00 (feature 010, cartella 22): una persona Alta con tutti i dati
+-- (9007), una con solo Instagram (9008) e una con Instagram di soli spazi e senza anno (9009, valore
+-- che il bot non scrive ma che può esistere in produzione: conta come mancante). Nessun gruppo;
+-- compleanni tra 100 e 200 giorni, fuori da /oggi, /prossimi 30 e Prossimi 90 giorni.
+INSERT INTO persons (id, full_name, full_name_norm, nickname, birth_day, birth_month, birth_year, phone, instagram, telegram, priority, created_at, updated_at) VALUES
+  (9007, 'Elisa Alta', 'elisa alta', NULL,
+    CAST(strftime('%d', 'now', 'localtime', '+100 day') AS INTEGER), CAST(strftime('%m', 'now', 'localtime', '+100 day') AS INTEGER), 1988,
+    '+393330009007', 'elisa.alta', 'elisa_alta', 'alta', strftime('%Y-%m-%dT%H:%M:%fZ', 'now', '-30 day'), strftime('%Y-%m-%dT%H:%M:%fZ', 'now', '-30 day')),
+  (9008, 'Ivo Instagram', 'ivo instagram', NULL,
+    CAST(strftime('%d', 'now', 'localtime', '+150 day') AS INTEGER), CAST(strftime('%m', 'now', 'localtime', '+150 day') AS INTEGER), 1993,
+    NULL, 'ivo.ig', NULL, 'media', strftime('%Y-%m-%dT%H:%M:%fZ', 'now', '-30 day'), strftime('%Y-%m-%dT%H:%M:%fZ', 'now', '-30 day')),
+  (9009, 'Olga Spazi', 'olga spazi', NULL,
+    CAST(strftime('%d', 'now', 'localtime', '+200 day') AS INTEGER), CAST(strftime('%m', 'now', 'localtime', '+200 day') AS INTEGER), NULL,
+    NULL, '  ', NULL, 'bassa', strftime('%Y-%m-%dT%H:%M:%fZ', 'now', '-30 day'), strftime('%Y-%m-%dT%H:%M:%fZ', 'now', '-30 day'));

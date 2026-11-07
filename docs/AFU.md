@@ -208,7 +208,7 @@ Un messaggio **per persona** in ogni slot previsto dal profilo, finché l'occorr
 - *(v1.3)* *Dato* che premo Fatto sul reminder delle 00:00, *allora* non ricevo gli slot delle 9:00, 13:00, 18:00 e 21:00 né il recupero (BR-07).
 - *(v1.3)* *Dato* che non chiudo il reminder delle 00:00, *allora* alle 9:00 ricevo il reminder successivo, come oggi.
 - *(v1.3)* *Dato* che Anna ha priorità Media, *quando* è il giorno del suo compleanno, *allora* alle 00:00 non parte nulla e il primo reminder arriva alle 9:00.
-- *(v1.3)* *Dato* che l'invio delle 00:00 fallisce per un errore di Telegram, *allora* viene ritentato alle 01:00 e alle esecuzioni successive della stessa giornata (N-03).
+- *(v1.3)* *Dato* che l'invio delle 00:00 fallisce per un errore di Telegram, *allora* viene ritentato alle 1:00 e alle esecuzioni successive della stessa giornata (N-03).
 - *(v1.3)* *Dato* che inserisco una persona con priorità Alta alle 10:00 del giorno del suo compleanno, *allora* lo slot delle 00:00 non parte (BR-10, BR-11).
 - *(v1.3)* *Dato* che Anna ha priorità Alta ed è nata il 29/02, *quando* l'anno non è bisestile, *allora* il reminder delle 00:00 parte alle 00:00 del 28/02 (BR-04).
 
@@ -816,7 +816,7 @@ Note:
   - *(v1.3)* 📝 per i profili incompleti, nell'intestazione di `/incomplete` e sul pulsante [📝 Profili incompleti] di `/statistiche`. I pulsanti dei filtri ([Telefono (N)] …) sono senza emoji, come quelli dei gruppi.
   - *(v1.3)* **Orari.** Le ore piene si scrivono H:MM (9:00, 13:00, 18:00); la mezzanotte si scrive sempre "00:00", mai "0:00". La regola vale ovunque compaia un orario: reminder, `/stato` (ultimo controllo orario, invii abbandonati) e avviso di buco del cron (N-06).
     - *Dato* che il reminder delle 00:00 di Marco è stato abbandonato, *quando* scrivo `/stato`, *allora* leggo "Marco, reminder delle 00:00 del 14/03".
-    - *Dato* che il cron non ha girato tra le 23:00 e le 02:00, *allora* l'avviso di buco indica "dalle 23:00 alle 02:00".
+    - *Dato* che il cron non ha girato tra le 23:00 e le 2:00, *allora* l'avviso di buco indica "dalle 23:00 alle 2:00".
   - Nessuna emoji legata a priorità o gruppo.
   - Esclusi: il messaggio di auguri di default (A-06) e i messaggi personalizzati, che sono dati dell'utente.
   - *Dato* che salvo una persona, *allora* la conferma contiene un'emoji di successo e il nome della persona.

@@ -7,6 +7,7 @@ import { COMMANDS, parseCommand } from "./commands";
 import { answerCallback, reply, type Ctx } from "./context";
 import { awaitsBackupFile, handleDocument } from "./file";
 import { handleOutcomeCallback } from "./esiti";
+import { showIncompleteFromButton } from "./incomplete";
 import { getById } from "../db/persons";
 import { handleFlowCallback, handleFlowContact, handleFlowText, repeatStep } from "./flows/engine";
 import { startElimina } from "./flows/elimina";
@@ -27,6 +28,8 @@ export const STATIC_CALLBACKS: Record<string, StaticCallbackHandler> = {
   "s:u": (ctx, id) => (id === undefined ? showProssimiWide(ctx) : answerCallback(ctx, T.actionUnavailable)),
   "s:m": (ctx, id) => showMeseFromButton(ctx, id),
   "s:y": (ctx, id) => showAnnoFromButton(ctx, id),
+  // RF-50, RF-32 (contracts/callback-data.md di 010): s:i menu dei filtri, s:i:<1…5> lista.
+  "s:i": (ctx, id) => showIncompleteFromButton(ctx, id),
   "p:m": (ctx, id) => startModifica(ctx, id ?? 0),
   // FR-017, BR-08
   "p:f": (ctx, id) => markDone(ctx, id ?? 0),

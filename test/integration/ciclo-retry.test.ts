@@ -108,10 +108,12 @@ describe("N-03, N-04, RNF-10, RNF-12: retry e isolamento degli errori", () => {
       deps.setNow(new Date(t));
       await runHourly(deps, new Date(t));
     }
-    expect(deps.tg.messages()).toHaveLength(4);
+    // §7 v1.3: anche lo slot delle 00:00 (RF-10), alla mezzanotte locale del giorno del cambio.
+    expect(deps.tg.messages()).toHaveLength(5);
     const sent = await rows<{ ref: number; sent_at: string }>("SELECT ref, sent_at FROM deliveries ORDER BY ref");
     expect(sent.find((s) => s.ref === 9)?.sent_at).toBe(at9);
     expect(sent.find((s) => s.ref === 13)?.sent_at).toBe(at13);
+    expect(sent.find((s) => s.ref === 0)?.sent_at).toBe(start.toISOString());
   });
 });
 
@@ -171,5 +173,22 @@ describe("R-04, FR-010: sent_at scritto al reclamo", () => {
     const deps = makeCronDeps();
     await runAt(deps, 2027, 3, 14, 9);
     expect(await count("deliveries", "status = 'fallito' AND attempts = 0 AND sent_at IS NULL")).toBe(1);
+  });
+});
+
+describe("N-03 (v1.3): retry dello slot delle 00:00", () => {
+  it("N-03: invio delle 00:00 fallito → retry alle 1:00 e successive, abbandono il giorno dopo", async () => {
+    await insertPerson({ id: 1, fullName: "Marco Rossi", day: 14, month: 3, priority: "alta" });
+    const deps = makeCronDeps();
+    deps.tg.failWhen(() => true, 502);
+    await runAt(deps, 2027, 3, 14, 0);
+    expect(await delivery("ref = 0")).toEqual({ status: "fallito", attempts: 1, last_error_code: 502 });
+    for (let h = 1; h <= 3; h++) await runAt(deps, 2027, 3, 14, h);
+    expect(await delivery("ref = 0")).toMatchObject({ status: "fallito", attempts: 4 });
+    for (let h = 4; h < 24; h++) await runAt(deps, 2027, 3, 14, h);
+    const r0 = await runAt(deps, 2027, 3, 15, 0);
+    expect(r0.abandoned).toBeGreaterThanOrEqual(1);
+    expect(await delivery("ref = 0")).toMatchObject({ status: "abbandonato" });
+    expect(deps.tg.messages()).toHaveLength(0);
   });
 });

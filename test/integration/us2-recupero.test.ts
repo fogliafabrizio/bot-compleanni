@@ -180,7 +180,7 @@ describe("US2: recupero ed esito finale", () => {
   });
 
   it.each([
-    ["alta", 3, 4],
+    ["alta", 3, 5], // §7 v1.3: 00:00 · 9 · 13 · 18 · 21 (SC-002 di 010)
     ["media", 1, 3],
     ["bassa", 0, 2],
   ] as const)("SC-003: priorità %s senza risposta → %i pre-reminder, %i reminder, 1 recupero", async (priority, pre, giorno) => {

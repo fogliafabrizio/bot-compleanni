@@ -149,3 +149,16 @@ describe("009 US3 — RF-32, BR-03, BR-04: sezione 🧑 Età", () => {
     expect(text).not.toContain("Soprannome");
   });
 });
+
+describe("RF-32 (v1.3): pulsante [📝 Profili incompleti] in /statistiche", () => {
+  it("RF-32, FR-016: tastiera [📝 Profili incompleti] → s:i sull'ultimo messaggio; sezione Età invariata", async () => {
+    await bornOn("A", 1, 1, 2018);
+    await bornOn("B", 1, 1, 1992);
+    const deps = makeDeps({ now: AT_29_10_2026 });
+    const lines = await statistiche(deps);
+    const kb = deps.tg.messages().at(-1)!.keyboard;
+    expect(kb?.inline_keyboard).toEqual([[{ text: "📝 Profili incompleti", callback_data: "s:i" }]]);
+    expect(ageSection(lines)[0]).toBe("🧑 Età");
+    expect(lines).toContain("Età media: 21 anni");
+  });
+});

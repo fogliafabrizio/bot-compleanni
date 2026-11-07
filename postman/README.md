@@ -19,7 +19,7 @@ Oltre al codice HTTP, i test controllano il **D1 locale** tramite l'helper (`hel
   (`f:<flowId>:<azione>`);
 - caricare i file di `fixtures/` nella tua chat (didascalia `📎 File di prova Postman: …`) e
   restituire il `file_id`, da mettere nell'update finto con il documento;
-- rieseguire il seed (cartelle 00, 21 e 22).
+- rieseguire il seed (cartelle 00, 21, 22 e 23).
 
 L'helper accetta solo `SELECT` e ascolta solo su `127.0.0.1`.
 
@@ -54,6 +54,9 @@ Senza lo script: `npx wrangler d1 migrations apply birthday-bot-db --local`,
 | 9004 | Luca Neri, 2000 | oggi − 3 | Smoke Lavoro | 9103 *saltato*; 9104 anno prima *saltato* |
 | 9005 | Sara Gialli, senza anno | oggi − 2 | — | 9105 *aperta* |
 | 9006 | Paolo Blu, 1985 | oggi − 5 | — | 9106 *non confermato* |
+| 9007 | Elisa Alta, 1988, priorità **Alta**, 📱 Instagram Telegram | oggi + 100 | — | — |
+| 9008 | Ivo Instagram, 1993, solo Instagram | oggi + 150 | — | — |
+| 9009 | Olga Spazi, senza anno, priorità Bassa, Instagram di soli spazi (conta come mancante) | oggi + 200 | — | — |
 
 Invii dei promemoria (per `o:f` / `o:s`): 9301 recupero di Sara, 9302 recupero di Paolo, 9303
 pre-reminder di Sara.
@@ -83,7 +86,8 @@ compaiono anche nelle liste: le attese valgono per i soli dati di prova.
 | 19 Import CSV | Anteprima, Importa, duplicati, separatore `,` e BOM, intestazione, vuoto, Latin-1, .txt, .json, file troppo grandi, download fallito |
 | 20 /ripristina | Attesa del file, JSON rotti, due conferme, ripristino. ⚠️ **Sostituisce tutto il D1 locale** |
 | 21 Navigazione v1.2 | Seed, poi voce e scheda "Senza gruppo" (`g2:s`), [⬅️ Tutti i gruppi] (`g2:l`), [Prossimi 90 giorni] (`s:u`, `g2:p:…:90`), ◀️/▶️ di /mese (`s:m`) e /anno (`s:y`), sezione 🧑 Età di /statistiche, /nuovo con [➕ Aggiungi un'altra persona] (`s:n`), pulsanti malformati, estraneo |
-| 22 Pulizia | Seed |
+| 22 Mezzanotte e profili incompleti v1.3 | Seed, poi /incomplete con i 5 filtri e i conteggi, tocco `s:i:1`, `/incomplete Anno`, `/incomplete email` (errore e menu), /statistiche con [📝 Profili incompleti] e tocco `s:i`, pulsanti malformati `s:i:0` e `s:i:6`, /aiuto, `s:i:1` di un estraneo |
+| 23 Pulizia | Seed |
 
 ## Limiti noti
 
@@ -99,13 +103,13 @@ compaiono anche nelle liste: le attese valgono per i soli dati di prova.
 - Il pulsante **Annulla** dei flussi non funziona da Postman: risponde al callback prima di chiudere
   il flusso e quella chiamata fallisce. Le cartelle usano `/annulla`.
 - **La cartella 20 cancella tutto il D1 locale**, compresi i tuoi dati non di prova, e lo
-  sostituisce con `fixtures/backup-ok.json`. La 21 e la 22 rimettono solo i dati di prova.
+  sostituisce con `fixtures/backup-ok.json`. La 21, la 22 e la 23 rimettono solo i dati di prova.
 - I pulsanti dei gruppi (`g2:<azione>:<id>:<hash>`) contengono l'hash del nome: nelle richieste si
   scrive `{{hash:<nome esatto>}}` e lo script di collection lo calcola con `nameHash` (stesso
   algoritmo di `src/domain/text.ts`). Il gruppo 9203 ha l'hash fisso `1ol49qr`.
 - "Cron ora" senza promemoria né backup da inviare registra anche il menu dei comandi
   (`setMyCommands`) sul bot di `.dev.vars`, la prima volta e a ogni cambio del menu.
-- La richiesta "Cron ora" della cartella 10 usa l'ora attuale: invia promemoria solo alle 9, 13, 18
+- La richiesta "Cron ora" della cartella 10 usa l'ora attuale: invia promemoria solo alle 00:00 (solo Alta), 9, 13, 18
   e 21 (ora di Roma). Serve `wrangler dev --test-scheduled`.
 - L'**avviso di buco del cron** (N-06) non si prova da Postman: servirebbe scrivere in D1 un
   `cron_last_run` vecchio, ma l'helper accetta solo `SELECT`. È coperto da
@@ -117,6 +121,14 @@ compaiono anche nelle liste: le attese valgono per i soli dati di prova.
 
 ## Changelog
 
+- **2.6.0** (2026-11-07): feature 010 (mezzanotte e profili incompleti v1.3), 293 richieste. Nuova
+  cartella "22 · Mezzanotte e profili incompleti v1.3" prima della pulizia, che diventa "23 · Pulizia":
+  seed, /incomplete (con controllo su D1 dei conteggi dei 5 filtri), tocco `s:i:1`, `/incomplete Anno`,
+  `/incomplete email`, /statistiche con [📝 Profili incompleti], tocco `s:i`, malformati `s:i:0` e
+  `s:i:6`, /aiuto con /incomplete, `s:i:1` di un estraneo. Seed: persone 9007 (Alta), 9008 (solo
+  Instagram) e 9009 (Instagram di soli spazi, senza anno), senza gruppi; aggiornate le attese di 02
+  /aiuto, 08b /statistiche, 10 Cron ora e 21 (Senza gruppo, sezione Età). Lo slot delle 00:00 non si
+  prova da Postman: è coperto da `test/integration/v13-mezzanotte.test.ts`.
 - **2.5.0** (2026-10-29): feature 009 (navigazione v1.2), 282 richieste. Nuova cartella
   "21 · Navigazione v1.2" prima della pulizia, che diventa "22 · Pulizia": seed (la 20 sostituisce il
   D1), /gruppi con [Senza gruppo (N)], scheda "Senza gruppo" (`g2:s`), scheda gruppo con

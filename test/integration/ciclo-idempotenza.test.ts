@@ -99,3 +99,24 @@ describe("N-06, FR-004, FR-020: registrazione di cron_last_run", () => {
     expect(deps.counter.batches[0]).toHaveLength(6);
   });
 });
+
+describe("N-02, SC-003 (v1.3): idempotenza dello slot delle 00:00", () => {
+  it("N-02: doppia esecuzione delle 00:00 → un solo invio ('giorno', 0)", async () => {
+    await insertPerson({ id: 1, fullName: "Marco Rossi", day: 14, month: 3, priority: "alta" });
+    const deps = makeCronDeps();
+    await runAt(deps, 2027, 3, 14, 0);
+    await runAt(deps, 2027, 3, 14, 0);
+    expect(deps.tg.messages()).toHaveLength(1);
+    expect(await rows("SELECT kind, ref, status FROM deliveries")).toEqual([{ kind: "giorno", ref: 0, status: "inviato" }]);
+  });
+
+  it("N-02: slot 0 e slot 9 sono righe distinte della stessa occorrenza", async () => {
+    await insertPerson({ id: 1, fullName: "Marco Rossi", day: 14, month: 3, priority: "alta" });
+    const deps = makeCronDeps();
+    await runAt(deps, 2027, 3, 14, 0);
+    await runAt(deps, 2027, 3, 14, 9);
+    await runAt(deps, 2027, 3, 14, 9);
+    expect(await rows("SELECT ref FROM deliveries ORDER BY ref")).toEqual([{ ref: 0 }, { ref: 9 }]);
+    expect(await count("occurrences")).toBe(1);
+  });
+});

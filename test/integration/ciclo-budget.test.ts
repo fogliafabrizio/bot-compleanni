@@ -182,3 +182,24 @@ describe("principio II, RNF-17: subrequest con l'avviso di buco (007)", () => {
     expect(total).toBeLessThanOrEqual(50);
   });
 });
+
+describe("principio II (v1.3): subrequest dell'esecuzione delle 00:00", () => {
+  it("research R-13: 00:00 senza Alta = 2", async () => {
+    await fill(0);
+    const deps = makeCronDeps();
+    expect(await measure(deps, 0)).toBe(2);
+  });
+
+  it("research R-13: 00:00 con 200 Alta = 43 (40 inviati, 160 in coda tra 1:00 e 4:00)", async () => {
+    for (let i = 1; i <= PEOPLE; i++) await insertPerson({ id: i, fullName: `Persona ${i}`, day: 14, month: 3, priority: "alta" });
+    const deps = makeCronDeps();
+    expect(await measure(deps, 0)).toBe(43);
+    expectParamsWithinLimit(deps);
+    expect(await count("deliveries", "ref = 0 AND status = 'fallito' AND attempts = 0")).toBe(160);
+    for (const h of [1, 2, 3, 4]) {
+      expect(await measure(deps, h)).toBeLessThanOrEqual(48);
+      expect(deps.tg.messages()).toHaveLength(40);
+    }
+    expect(await count("deliveries", "ref = 0 AND status = 'inviato'")).toBe(PEOPLE);
+  });
+});

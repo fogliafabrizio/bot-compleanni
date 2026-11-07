@@ -320,3 +320,17 @@ describe("RNF-19: criteri", () => {
     expect(deps.tg.lastText()).toBe("Non c'è nessuna operazione da annullare.");
   });
 });
+
+describe("RNF-19, FR-019 (v1.3): icona 📝 dei profili incompleti", () => {
+  it("FR-019: [📝 Profili incompleti] in /statistiche, intestazioni con 📝, pulsanti dei filtri senza emoji", async () => {
+    await insertPerson({ fullName: "Marco Rossi", day: 14, month: 3, year: 1994 });
+    const deps = makeDeps();
+    await say(deps, "/statistiche");
+    expect(labels(deps.tg.lastKeyboard())).toEqual(["📝 Profili incompleti"]);
+    await say(deps, "/incomplete");
+    expect(deps.tg.lastText()?.startsWith("📝 ")).toBe(true);
+    for (const l of labels(deps.tg.lastKeyboard())) expect(/\p{Extended_Pictographic}/u.test(l), l).toBe(false);
+    await say(deps, "/incomplete telefono");
+    expect(deps.tg.lastText()?.split("\n")[0]).toBe("📝 Senza telefono · 1 persona");
+  });
+});

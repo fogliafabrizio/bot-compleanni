@@ -2,6 +2,7 @@ import { bench, describe } from "vitest";
 import { renderGroupList } from "../src/bot/gruppi";
 import { formatRows, plainLine, splitMessage } from "../src/bot/liste";
 import type { GroupWithCount } from "../src/db/groups";
+import { INCOMPLETE_FILTERS, incompleteRows, type IncompletePerson } from "../src/domain/incomplete";
 import { membersOf, type MembershipRow } from "../src/db/viste";
 import { findGroups, matchSearch, sortByNextBirthday, sortGroups, type ListPerson } from "../src/domain/viste";
 import type { LocalDate } from "../src/time";
@@ -66,5 +67,23 @@ describe("research R-03, R-07 (005): gruppi, 200 persone / 100 gruppi", () => {
   bench("elenco 100 gruppi con la voce «Senza gruppo» (009, V-09)", () => {
     const r = renderGroupList(sortGroups(groups), { title: "👥 I tuoi gruppi", action: "o", withNew: true, ungrouped: 25 });
     if (r.lines.length < 100) throw new Error("scenario non valido");
+  });
+});
+
+// v1.3 (RF-50, research R-13 di 010): /incomplete telefono con 200 persone. Soglia: < 1 ms.
+const incompletePeople: IncompletePerson[] = people.map((p, i) => ({
+  ...p,
+  phone: null,
+  instagram: i % 3 === 0 ? `ig_${i}` : "  ",
+  telegram: i % 4 === 0 ? `tg_${i}` : null,
+  rawBirthYear: p.birthYear,
+}));
+const telefono = INCOMPLETE_FILTERS[0]!;
+
+describe("research R-13 (010): /incomplete, 200 persone", () => {
+  bench("/incomplete telefono, 200 persone: filtro + ordinamento + rendering + divisione", () => {
+    const rows = incompleteRows(incompletePeople, telefono, today);
+    const messages = splitMessage([plainLine("📝 Senza telefono · 200 persone"), plainLine(""), ...formatRows(rows)]);
+    if (messages.length !== 5) throw new Error("scenario non valido");
   });
 });

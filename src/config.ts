@@ -2,17 +2,19 @@
 
 export const TIMEZONE = "Europe/Rome";
 
-export const SLOT_HOURS = [9, 13, 18, 21] as const;
 export const PRE_REMINDER_HOUR = 13;
 export const RECOVERY_HOUR = 13;
 
 export type Priority = "alta" | "media" | "bassa";
 
 export const PRIORITY_PROFILES: Record<Priority, { preReminderDays: readonly number[]; slots: readonly number[] }> = {
-  alta: { preReminderDays: [7, 2, 1], slots: [9, 13, 18, 21] },
+  alta: { preReminderDays: [7, 2, 1], slots: [0, 9, 13, 18, 21] }, // §7, RF-10, D-02 (v1.3): slot delle 00:00 solo per Alta
   media: { preReminderDays: [1], slots: [9, 13, 18] },
   bassa: { preReminderDays: [], slots: [9, 18] },
 };
+
+// Ore degli slot del giorno = unione ordinata degli slot dei profili (research R-01): [0, 9, 13, 18, 21].
+export const SLOT_HOURS: readonly number[] = [...new Set(Object.values(PRIORITY_PROFILES).flatMap((p) => p.slots))].sort((a, b) => a - b);
 
 export const DEFAULT_PRIORITY: Priority = "media";
 

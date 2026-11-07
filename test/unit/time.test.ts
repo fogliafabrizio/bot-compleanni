@@ -93,3 +93,14 @@ describe("N-06, RF-31, principio VI: toLocalClock", () => {
     expect(toLocal(new Date("2026-10-29T14:05:00Z"))).toEqual({ year: 2026, month: 10, day: 29, hour: 15 });
   });
 });
+
+describe("BR-24, principio VI (v1.3): ora locale 0 per lo slot delle 00:00", () => {
+  it.each([
+    ["2026-01-13T23:00:00Z", 2026, 1, 14],
+    ["2026-07-13T22:00:00Z", 2026, 7, 14],
+    ["2026-03-28T23:00:00Z", 2026, 3, 29],
+    ["2026-10-24T22:00:00Z", 2026, 10, 25],
+  ])("BR-24: %s → ore 0 del giorno dopo", (iso, year, month, day) => {
+    expect(toLocal(new Date(iso))).toEqual({ year, month, day, hour: 0 });
+  });
+});

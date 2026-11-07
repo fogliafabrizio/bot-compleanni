@@ -1,3 +1,5 @@
+import { MISSING } from "./incomplete";
+
 // Letture di /statistiche (RF-32, contracts/statistiche.md, research R-08 di 007): una batch di 4
 // aggregati [persone, gruppi, mesi, andamento per anno] più le date di nascita con anno della
 // sezione Età (research R-07 di 009).
@@ -40,8 +42,8 @@ export function statisticheReadStatements(db: D1Database): D1PreparedStatement[]
     // Su una tabella vuota le SUM valgono NULL.
     db.prepare(
       `SELECT COUNT(*) AS total, SUM(priority = 'alta') AS alta, SUM(priority = 'media') AS media,
-         SUM(priority = 'bassa') AS bassa, SUM(birth_year IS NULL) AS senza_anno,
-         SUM(phone IS NULL AND instagram IS NULL AND telegram IS NULL) AS senza_contatti,
+         SUM(priority = 'bassa') AS bassa, SUM(${MISSING.anno}) AS senza_anno,
+         SUM(${MISSING.contatti}) AS senza_contatti,
          SUM(NOT EXISTS (SELECT 1 FROM person_groups pg WHERE pg.person_id = p.id)) AS senza_gruppo
        FROM persons p`,
     ),

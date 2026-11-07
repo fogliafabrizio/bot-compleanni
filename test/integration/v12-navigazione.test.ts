@@ -346,7 +346,8 @@ describe("009 RNF-14: regole comuni dei pulsanti di passo successivo", () => {
     const p = await insertPerson({ fullName: "Anna", day: 1, month: 11 });
     await insertOccurrence({ personId: p, year: 2023, effectiveDate: "2023-11-01", status: "fatto" });
     const deps = makeDeps();
-    for (const cmd of ["/prossimi", "/mese", "/anno 2024"]) {
+    // v1.3 (RNF-14): anche /statistiche con [📝 Profili incompleti].
+    for (const cmd of ["/prossimi", "/mese", "/anno 2024", "/statistiche"]) {
       await say(deps, cmd);
       expect(labels(deps.tg.lastKeyboard()).length).toBeLessThanOrEqual(2);
     }

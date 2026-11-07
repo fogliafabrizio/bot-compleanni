@@ -87,3 +87,42 @@ describe("research R-09: ciclo 13:00, 200 persone, 40 invii", () => {
     cycle();
   });
 });
+
+// v1.3 (RF-10, research R-13 di 010): esecuzione delle 00:00 con 200 persone Alta lo stesso giorno,
+// 40 invii e 160 in coda. Stessa soglia del file.
+const altaRows: Row[] = rows.map((r) => ({ ...r, birth_day: 14, birth_month: 3, priority: "alta" }));
+const midnight = {
+  slotInstantIso: "2027-03-13T23:00:00.000Z",
+  dayStartPrevIso: "2027-03-12T23:00:00.000Z",
+  dayStartTodayIso: "2027-03-13T23:00:00.000Z",
+};
+
+function midnightCycle(): void {
+  const targets = planTargets(T, 0);
+  const candidates: Candidate[] = altaRows.map((r) => ({
+    id: r.id,
+    priority: r.priority,
+    birthDay: r.birth_day,
+    birthMonth: r.birth_month,
+    createdAt: r.created_at,
+  }));
+  const fresh = selectNew(candidates, [], targets, midnight);
+  const { claim, queue } = splitByCap(fresh, MAX_SENDS_PER_RUN, []);
+  const byId = new Map(altaRows.map((r) => [r.id, r]));
+  let bytes = 0;
+  for (const [i, s] of claim.entries()) {
+    const data = buildReminderData(byId.get(s.personId)!, {
+      actionTarget: { scope: "o", id: 1000 + i },
+      year: s.year,
+      lastYear: null,
+      defaultMessage: null,
+    });
+    const { text, keyboard } = renderByKind(s.kind, s.ref, data);
+    bytes += JSON.stringify({ chat_id: 1001, text, reply_markup: keyboard }).length;
+  }
+  if (claim.length !== 40 || queue.length !== 160 || bytes === 0) throw new Error("scenario non valido");
+}
+
+describe("research R-13 (010): ciclo 00:00, 200 Alta, 40 invii", () => {
+  bench("00:00, 200 Alta: pianificazione + selezione + composizione", midnightCycle);
+});

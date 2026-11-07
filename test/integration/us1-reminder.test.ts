@@ -146,7 +146,7 @@ describe("US1: reminder del giorno", () => {
   });
 
   it.each([
-    ["alta", [9, 13, 18, 21]],
+    ["alta", [0, 9, 13, 18, 21]], // §7, RF-10 v1.3: slot delle 00:00 solo per Alta
     ["media", [9, 13, 18]],
     ["bassa", [9, 18]],
   ] as const)("§7, SC-003 (giorno): priorità %s → slot %j", async (priority, slots) => {

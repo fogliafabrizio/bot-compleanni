@@ -25,3 +25,12 @@ describe("RF-23, RF-25, RF-26: comandi della feature 004", () => {
     expect(COMMANDS[name]).toBeTypeOf("function");
   });
 });
+
+describe("RF-50, FR-011: /incomplete", () => {
+  it("RF-50: /incomplete", () => expect(parseCommand("/incomplete")).toEqual({ name: "incomplete", args: "" }));
+  it("FR-011: /incomplete Anno", () => expect(parseCommand("/incomplete Anno")).toEqual({ name: "incomplete", args: "Anno" }));
+  it("FR-011: /incomplete@nomebot telefono", () =>
+    expect(parseCommand("/incomplete@nomebot telefono")).toEqual({ name: "incomplete", args: "telefono" }));
+  it("FR-011: /incomplete  TELEFONO ", () => expect(parseCommand("/incomplete  TELEFONO ")).toEqual({ name: "incomplete", args: "TELEFONO" }));
+  it("RF-50: il comando è registrato", () => expect(COMMANDS.incomplete).toBeTypeOf("function"));
+});

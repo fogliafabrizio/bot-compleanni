@@ -1,3 +1,4 @@
+import { env } from "cloudflare:test";
 import { describe, expect, it } from "vitest";
 import { STATS_BAR_WIDTH } from "../../src/config";
 import {
@@ -11,6 +12,8 @@ import {
   isValidBirthYear,
   type StatisticheData,
 } from "../../src/domain/statistiche";
+import { MISSING } from "../../src/db/incomplete";
+import { statisticheReadStatements } from "../../src/db/statistiche";
 import { MONTHS_SHORT } from "../../src/texts";
 import type { LocalDate } from "../../src/time";
 
@@ -225,5 +228,34 @@ describe("RF-32, FR-013, FR-014: ageSectionLines", () => {
 
   it("FR-013: withoutYear = 23 → richiamo", () => {
     expect(ageSectionLines([32], 23).at(-1)!.text).toBe("Età media: 32 anni · senza anno di nascita: 23");
+  });
+});
+
+describe("RF-32, FR-017 (v1.3): «Senza anno» e «Senza contatti» contano anche vuoti e spazi", () => {
+  const ins = (id: number, year: number | string | null, ig: string | null, tg: string | null, phone: string | null = null) =>
+    env.DB.prepare(
+      `INSERT INTO persons (id, full_name, full_name_norm, birth_day, birth_month, birth_year, phone, instagram, telegram,
+         priority, created_at, updated_at) VALUES (?, ?, ?, 1, 1, ?, ?, ?, ?, 'media', ?, ?)`,
+    )
+      .bind(id, `P${id}`, `p${id}`, year, phone, ig, tg, "2026-01-01T00:00:00.000Z", "2026-01-01T00:00:00.000Z")
+      .run();
+
+  it("FR-017: senza_anno e senza_contatti con NULL, '' e spazi; formato della riga invariato", async () => {
+    await ins(1, null, null, null); // senza anno, senza contatti
+    await ins(2, "", "  ", ""); // anno '' e contatti vuoti
+    await ins(3, "  ", "marco", null); // anno di spazi, un contatto
+    await ins(4, 1990, null, null, "+393331234567"); // tutto presente salvo i social
+    const [first] = statisticheReadStatements(env.DB);
+    const r = await first!.first<{ senza_anno: number; senza_contatti: number }>();
+    expect(r).toMatchObject({ senza_anno: 3, senza_contatti: 2 });
+    expect(texts({ persons: { ...base.persons, senzaAnno: r!.senza_anno, senzaContatti: r!.senza_contatti } })[3]).toBe(
+      "Senza anno di nascita: 3 · Senza contatti: 2",
+    );
+  });
+
+  it("FR-017: stesse condizioni di /incomplete (MISSING)", () => {
+    const [first] = statisticheReadStatements(env.DB);
+    expect(MISSING.anno).toBe("NULLIF(TRIM(birth_year), '') IS NULL");
+    expect(first).toBeDefined();
   });
 });

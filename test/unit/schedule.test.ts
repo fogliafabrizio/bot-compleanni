@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { Priority } from "../../src/config";
+import { SLOT_HOURS, type Priority } from "../../src/config";
 import {
   birthPairsFor,
   planTargets,
@@ -9,7 +9,7 @@ import {
   type OccurrenceInfo,
   type Target,
 } from "../../src/domain/schedule";
-import { addDays, localDayStartUtc, type LocalDate } from "../../src/time";
+import { addDays, localDayStartUtc, toLocal, type LocalDate } from "../../src/time";
 
 const T: LocalDate = { year: 2027, month: 3, day: 14 };
 const OLD = "2026-01-01T00:00:00.000Z";
@@ -165,5 +165,78 @@ describe("RF-09: pre-reminder", () => {
     const d = { year: 2027, month: 2, day: 27 };
     const [s] = selectNew([cand(1, "media", 29, 2)], [], planTargets(d, 13), win(d, 13));
     expect(s).toEqual({ personId: 1, kind: "pre", ref: 1, year: 2027, effectiveDate: "2027-02-28" });
+  });
+});
+
+describe("RF-10, §7 (v1.3): slot delle 00:00 per la priorità Alta", () => {
+  it("RF-10: SLOT_HOURS = [0, 9, 13, 18, 21] derivato dai profili", () => {
+    expect([...SLOT_HOURS]).toEqual([0, 9, 13, 18, 21]);
+  });
+
+  it("RF-10: planTargets(T, 0) = un solo target giorno con ref 0 sulla data T", () => {
+    expect(kinds(planTargets(T, 0))).toEqual(["giorno/0@2027-03-14"]);
+  });
+
+  it("RF-10: planTargets(T, 9) invariato", () => {
+    expect(kinds(planTargets(T, 9))).toEqual(["giorno/9@2027-03-14"]);
+  });
+
+  it("§7: a ora 0 ammessa solo Alta, Media e Bassa no", () => {
+    const cs = [cand(1, "alta", 14, 3), cand(2, "media", 14, 3), cand(3, "bassa", 14, 3)];
+    expect(selectNew(cs, [], planTargets(T, 0), win(T, 0))).toEqual([
+      { personId: 1, kind: "giorno", ref: 0, year: 2027, effectiveDate: "2027-03-14" },
+    ]);
+  });
+
+  it("BR-10: Alta creata alle 23:30 del giorno prima → sì; alle 00:00:00, 00:30 o 10:00 → no", () => {
+    const at = (createdAt: string) => selectNew([cand(1, "alta", 14, 3, createdAt)], [], planTargets(T, 0), win(T, 0)).length;
+    expect(at("2027-03-13T22:30:00.000Z")).toBe(1); // 23:30 locali del 13/03
+    expect(at("2027-03-13T23:00:00.000Z")).toBe(0); // 00:00:00 del 14/03
+    expect(at("2027-03-13T23:30:00.000Z")).toBe(0); // 00:30
+    expect(at("2027-03-14T09:00:00.000Z")).toBe(0); // 10:00
+  });
+
+  it("BR-07: occorrenza fatto o saltato → nessun invio delle 00:00", () => {
+    const cs = [cand(1, "alta", 14, 3), cand(2, "alta", 14, 3)];
+    const occ: OccurrenceInfo[] = [
+      { personId: 1, year: 2027, status: "fatto", hasDaySend: false },
+      { personId: 2, year: 2027, status: "saltato", hasDaySend: false },
+    ];
+    expect(selectNew(cs, occ, planTargets(T, 0), win(T, 0))).toEqual([]);
+  });
+
+  it("BR-04: a ora 0 il 28/02/2027 include i nati il 29/02; nel 2028 no", () => {
+    const pairsAt = (iso: string) => {
+      const l = toLocal(new Date(iso));
+      return planTargets({ year: l.year, month: l.month, day: l.day }, l.hour).map((t) => t.pairs);
+    };
+    expect(pairsAt("2027-02-27T23:00:00Z")).toEqual([
+      [
+        [2, 28],
+        [2, 29],
+      ],
+    ]);
+    expect(pairsAt("2028-02-28T23:00:00Z")).toEqual([[[2, 29]]]);
+    expect(pairsAt("2028-02-27T23:00:00Z")).toEqual([[[2, 28]]]);
+  });
+
+  it("BR-24: nei giorni del cambio d'ora il target giorno 0 cade sulla data giusta", () => {
+    const at = (iso: string) => {
+      const l = toLocal(new Date(iso));
+      expect(l.hour).toBe(0);
+      return kinds(planTargets({ year: l.year, month: l.month, day: l.day }, l.hour));
+    };
+    expect(at("2026-03-28T23:00:00Z")).toEqual(["giorno/0@2026-03-29"]);
+    expect(at("2026-10-24T22:00:00Z")).toEqual(["giorno/0@2026-10-25"]);
+  });
+
+  it("BR-05: scheduledAt 2026-12-31T23:00Z → target giorno 0 del 01/01/2027, anno 2027", () => {
+    const l = toLocal(new Date("2026-12-31T23:00:00Z"));
+    const d = { year: l.year, month: l.month, day: l.day };
+    const [t] = planTargets(d, l.hour);
+    expect(t).toMatchObject({ kind: "giorno", ref: 0, year: 2027, effectiveDate: "2027-01-01" });
+    expect(selectNew([cand(1, "alta", 1, 1)], [], planTargets(d, 0), win(d, 0))).toEqual([
+      { personId: 1, kind: "giorno", ref: 0, year: 2027, effectiveDate: "2027-01-01" },
+    ]);
   });
 });

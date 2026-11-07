@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   contactLinks,
+  renderByKind,
   renderGiorno,
   renderGiornoAfter,
   renderPre,
@@ -251,5 +252,16 @@ describe("RF-11, FR-004, D-27: contactLinks", () => {
       expect(urlOf(kb, "WhatsApp")).toBe("https://wa.me/393331234567?text=Tanti%20auguri%20Marchino!%20%F0%9F%8E%89");
       expect(copyOf(kb, "Copia messaggio")).toBe("Tanti auguri Marchino! 🎉");
     }
+  });
+});
+
+describe("RF-10, FR-003 (v1.3): reminder delle 00:00", () => {
+  it("FR-003: renderByKind(\"giorno\", 0) = renderByKind(\"giorno\", 9): stesso testo e stessi pulsanti", () => {
+    const d = data({ person: { phone: "+393331234567", instagram: "marco.rossi", telegram: "marco_tg" } });
+    const r0 = renderByKind("giorno", 0, d);
+    const r9 = renderByKind("giorno", 9, d);
+    expect(r0.text).toBe(r9.text);
+    expect(buttons(r0.keyboard)).toEqual(buttons(r9.keyboard));
+    expect(r0.text).not.toMatch(/\d:00/);
   });
 });
